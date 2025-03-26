@@ -1,0 +1,27 @@
+network,type,parent_company,aliases
+ABC,Broadcast,Disney,"ABC Network,American Broadcasting Company"
+AMC,Cable,AMC Networks,"AMC+,AMC Plus"
+Apple TV+,Streamer,Apple,"Apple,Apple TV, Apple+, Apple Original, Apple TV Plus"
+Blackpills,Digital,Blackpills SAS,"Blackpills,BlackPills,Black Pills"
+Canal Plus,Premium,Vivendi (Canal Group),"Canal+,Canal Plus,CANAL+,Canal Plus Group,StudioCanal"
+CBS,Broadcast,Paramount,"CBS Network,Columbia Broadcasting"
+Disney+,Streamer,Disney,"Disney Plus,D+,Disney Original"
+Epix,Premium,MGM,"EPIX,MGM+"
+Fox,Broadcast,Fox,"FOX Network,Fox Broadcasting"
+FX,Cable,Disney,"FX, FX Network, FX on Hulu, FX Original"
+HBO,Premium,Warner Bros Discovery,"HBO Max,HBOMax,Max,HBO Original"
+Hulu,Streamer,Disney,"Hulu Original,Hulu+"
+NBC,Broadcast,NBCU,"NBC Network,National Broadcasting"
+Netflix,Streamer,Netflix,"NFLX,Netflix+"
+Paramount+,Streamer,Paramount,"Paramount Plus,P+"
+Peacock,Streamer,NBCU,"Peacock Original,Peacock+"
+Prime Video,Streamer,Amazon,"Amazon,Amazon Prime,Prime Video,Amazon Prime Video,Amazon Original,Amazon Studios"
+Showtime,Premium,Paramount,"SHO,Showtime Original"
+Starz,Premium,Lionsgate,STARZ
+TBS,Cable,Warner Bros Discovery,Turner Broadcasting
+TNT,Cable,Warner Bros Discovery,Turner Network Television
+USA,Cable,NBCU,"USA Network,USA Original"
+CW,Broadcast,Nexstar Media Group,"CW, The CW, CW Network, The CW Network"
+Nacelle,,The Nacelle Company,"Nacelle, The Nacelle Company, Nacelle Company"
+BET,Streamer,Black Entertainment Television,"Paramount BET Plus,BET+"
+Hallmark+ ,Cable,Crown Media,"Hallmark Channel,Hallmark Media Hallmark,Hallmark+,Hallmark+ "

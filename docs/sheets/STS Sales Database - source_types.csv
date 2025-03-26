@@ -1,0 +1,14 @@
+type,category,aliases
+Original,Original,"New IP,Original Content"
+Book,Literary,"Novel,Fiction,Non-Fiction"
+Short Story,Literary,"Story,Novella"
+Comic,Graphic,"Comic Book,Graphic Novel"
+Manga,Graphic,Japanese Comic
+Webtoon,Graphic,"Web Comic,Digital Comic"
+Film,Adaptation,"Movie,Feature Film"
+TV Show,Adaptation,"Television Series,TV Series"
+Game,Adaptation,"Video Game,Mobile Game"
+Podcast,Adaptation,"Audio Series,Audio Show"
+True Story,Real Events,"Biography,Real Life Event"
+News Story,Real Events,"Current Events,News Adaptation"
+Article,Real Events,"Magazine Story,News Article"

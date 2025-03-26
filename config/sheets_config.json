@@ -1,0 +1,10 @@
+{
+    "spreadsheet_id": "",
+    "sheets": {
+        "shows": "shows",
+        "show_team": "show_team",
+        "networks": "networks",
+        "studios": "studios",
+        "genres": "genres"
+    }
+}

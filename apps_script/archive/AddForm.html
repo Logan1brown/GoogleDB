@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+      // Global variables to store configuration and data
+      let config;
+      let formData;
+    </script>
+    <style>
+      .field-group {
+        margin-bottom: 15px;
+      }
+      
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+      }
+      
+      label.required:after {
+        content: ' *';
+        color: red;
+      }
+      
+      .team-member {
+        border: 1px solid #eee;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        position: relative;
+      }
+
+      .team-member-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .remove-member {
+        background: #ff4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+
+      .add-member {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 16px;
+        margin-top: 10px;
+        cursor: pointer;
+      }
+
+      .team-member-inputs {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 10px;
+      }
+
+      input[type='text'],
+      input[type='number'],
+      input[type='date'],
+      select,
+      textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      
+      input.invalid,
+      select.invalid,
+      textarea.invalid {
+        border-color: red;
+      }
+      
+      .validation-message {
+        color: red;
+        font-size: 0.8em;
+        margin-top: 4px;
+        min-height: 1em;
+      }
+      
+      #customStudioInput {
+        margin-top: 10px;
+        display: none;
+      }
+      
+      .button-container {
+        margin-top: 20px;
+        text-align: right;
+      }
+      
+      button {
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+      }
+      
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="addShowForm" onsubmit="return false;">
+      <div id="formFields"></div>
+      <div class="button-container">
+        <button id="submitButton" onclick="submitForm()">Add Show</button>
+      </div>
+    </form>
+
+    <script>
+      // Initialize form with configuration from server
+      function initializeForm(response, formContainer) {
+        try {
+          // 1. Validate server response
+          if (!response || !response.config || !response.data) {
+            throw new Error('Invalid server response');
+          }
+
+          // 2. Validate form container
+          if (!formContainer) {
+            throw new Error('Form fields container not found');
+          }
+
+          // 3. Validate roles data
+          if (!window.formData.roles) {
+            throw new Error('Role data is missing. Please check the server response.');
+          }
+          if (!Array.isArray(window.formData.roles)) {
+            throw new Error('Invalid role data format. Expected an array.');
+          }
+          if (window.formData.roles.length === 0) {
+            throw new Error('No roles available in the role_types sheet. Please add at least one role.');
+          }
+
+          // 4. Define form fields
+          const FORM_FIELDS = [
+            { name: 'showName', label: 'Show Name', type: 'text', required: false },
+            { name: 'keyCreatives', label: 'Key Creatives', type: 'team', required: false },
+            { name: 'network', label: 'Network', type: 'dropdown', required: true, source: 'networks' },
+            { name: 'studios', label: 'Studio', type: 'dropdown', required: true, source: 'studios' },
+            { name: 'announcementDate', label: 'Announcement Date', type: 'date', required: false },
+            { name: 'genre', label: 'Genre', type: 'dropdown', required: false, source: 'genres' },
+            { name: 'subgenre', label: 'Subgenre', type: 'dropdown', required: false, source: 'subgenres' },
+            { name: 'episodeCount', label: 'Episode Count', type: 'number', required: false },
+            { name: 'sourceType', label: 'Source Material', type: 'dropdown', required: false, source: 'sourceTypes' },
+            { name: 'status', label: 'Status', type: 'dropdown', required: false, source: 'statuses' },
+            { name: 'orderType', label: 'Order Type', type: 'dropdown', required: false, source: 'orderTypes' },
+            { name: 'notes', label: 'Notes', type: 'textarea', required: false }
+          ];
+
+          // 5. Create form structure
+          createFormFields(formContainer, FORM_FIELDS);
+        } catch (error) {
+          console.error('Error initializing form:', error);
+          alert('Failed to initialize form: ' + error.message);
+        }
+      }
+
+      // Validate individual field
+      // Create form structure with validation
+      function createFormFields(formFields, fields) {
+        try {
+          if (!formFields || !fields || !Array.isArray(fields)) {
+            throw new Error('Invalid arguments for createFormFields');
+          }
+
+          // Clear existing content
+          formFields.innerHTML = '';
+
+          // Create field groups for each field type
+          for (const field of fields) {
+            try {
+              if (!field.name || !field.type) {
+                throw new Error(`Invalid field configuration: missing name or type - ${JSON.stringify(field)}`);
+              }
+
+              const fieldGroup = document.createElement('div');
+              fieldGroup.className = 'field-group';
+              fieldGroup.dataset.fieldName = field.name;
+              
+              const label = document.createElement('label');
+              label.textContent = field.label || field.name;
+              label.htmlFor = field.name;
+              if (field.required) {
+                label.className = 'required';
+              }
+              fieldGroup.appendChild(label);
+
+              // Create input based on field type
+              let input = null;
+              if (field.type === 'team') {
+                // Add help text
+                const helpText = document.createElement('p');
+                helpText.className = 'help-text';
+                helpText.style.margin = '5px 0';
+                helpText.style.color = '#666';
+                helpText.textContent = 'Add team members and their roles. Select multiple roles by holding Ctrl/Cmd while clicking.';
+                fieldGroup.appendChild(helpText);
+
+                // Create team members container
+                const container = document.createElement('div');
+                container.id = 'teamMembersContainer';
+                container.className = 'team-members-section';
+                fieldGroup.appendChild(container);
+
+                // Create hidden input for keyCreatives
+                const keyCreativesInput = document.createElement('input');
+                keyCreativesInput.type = 'hidden';
+                keyCreativesInput.id = 'keyCreatives';
+                keyCreativesInput.name = 'keyCreatives';
+                keyCreativesInput.value = '';
+                fieldGroup.appendChild(keyCreativesInput);
+
+                // Add button to add new team member
+                const addButton = document.createElement('button');
+                addButton.type = 'button';
+                addButton.className = 'add-member';
+                addButton.textContent = 'Add Team Member';
+                addButton.onclick = () => {
+                  const teamContainer = document.getElementById('teamMembersContainer');
+                  if (teamContainer) {
+                    addTeamMember();
+                  } else {
+                    console.error('Team members container not found');
+                  }
+                };
+                fieldGroup.appendChild(addButton);
+
+                // Add first team member after a brief delay to ensure DOM is ready
+                requestAnimationFrame(() => {
+                  const teamContainer = document.getElementById('teamMembersContainer');
+                  if (teamContainer) {
+                    addTeamMember();
+                  } else {
+                    console.error('Team members container not found');
+                  }
+                });
+              } else if (field.type === 'date') {
+                input = document.createElement('input');
+                input.type = 'date';
+                input.name = field.name;
+                input.id = field.name;
+              } else if (field.type === 'number') {
+                input = document.createElement('input');
+                input.type = 'number';
+                input.name = field.name;
+                input.id = field.name;
+                input.min = '0';
+                input.step = '1';
+              } else if (field.type === 'dropdown') {
+                input = document.createElement('select');
+                input.name = field.name;
+                input.id = field.name;
+                
+                // Add empty option
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = '-- Select --';
+                input.appendChild(emptyOption);
+                
+                // Add options
+                const options = field.source ? (window.formData[field.source] || []) : (field.options || []);
+                
+                if (field.name === 'subgenre') {
+                  // Add 'None' option for subgenre
+                  const noneOption = document.createElement('option');
+                  noneOption.value = 'None';
+                  noneOption.textContent = 'None';
+                  input.appendChild(noneOption);
+                }
+                
+                options.forEach(option => {
+                  const optionElement = document.createElement('option');
+                  optionElement.value = option;
+                  optionElement.textContent = option;
+                  input.appendChild(optionElement);
+                });
+                
+                // Add 'Other...' option to studios dropdown
+                if (field.name === 'studios') {
+                  const otherOption = document.createElement('option');
+                  otherOption.value = window.config.OTHER_STUDIO_OPTION;
+                  otherOption.textContent = window.config.OTHER_STUDIO_OPTION;
+                  input.appendChild(otherOption);
+                  
+                  // Add custom input field
+                  const customInput = document.createElement('div');
+                  customInput.id = 'customStudioInput';
+                  customInput.style.display = 'none';
+                  customInput.innerHTML = `
+                    <input type="text" 
+                           id="customStudio" 
+                           name="studios" 
+                           placeholder="Enter studio name"
+                           class="form-control"
+                           oninput="validateField(this)">
+                    <div class="validation-message"></div>
+                  `;
+                  fieldGroup.appendChild(customInput);
+                  
+                  // Add change event listener after creating the input
+                  input.onchange = function(e) {
+                    const customInput = document.getElementById('customStudioInput');
+                    const customStudioField = document.getElementById('customStudio');
+                    
+                    if (!customInput || !customStudioField) {
+                      console.error('Custom studio input elements not found');
+                      return;
+                    }
+                    
+                    if (this.value === window.config.OTHER_STUDIO_OPTION) {
+                      customInput.style.display = 'block';
+                      customStudioField.required = true;
+                      validateField(customStudioField);
+                    } else {
+                      customInput.style.display = 'none';
+                      customStudioField.required = false;
+                      customStudioField.value = '';
+                      validateField(this);
+                    }
+                  };
+                }
+              } else if (field.type === 'textarea') {
+                input = document.createElement('textarea');
+                input.name = field.name;
+                input.id = field.name;
+                input.rows = 3;
+                if (field.placeholder) {
+                  input.placeholder = field.placeholder;
+                }
+              } else {
+                input = document.createElement('input');
+                input.type = field.type;
+                input.name = field.name;
+                input.id = field.name;
+              }
+
+              // Add validation attributes
+              if (field.required) {
+                input.required = true;
+              }
+
+              if (input) {
+                // Add validation event listeners
+                input.onchange = function(event) {
+                  validateField(event.target);
+                };
+                input.oninput = function(event) {
+                  validateField(event.target);
+                };
+                fieldGroup.appendChild(input);
+              }
+
+              // Add validation message container
+              const validationDiv = document.createElement('div');
+              validationDiv.className = 'validation-message';
+              fieldGroup.appendChild(validationDiv);
+
+              formFields.appendChild(fieldGroup);
+            } catch (error) {
+              console.error('Error creating form field:', error);
+              const errorDiv = document.createElement('div');
+              errorDiv.className = 'field-group error';
+              errorDiv.innerHTML = `<div class="validation-message">Error creating field: ${error.message}</div>`;
+              formFields.appendChild(errorDiv);
+            }
+          }
+        } catch (error) {
+          console.error('Error creating form fields:', error);
+          formFields.innerHTML = `<div class="field-group error"><div class="validation-message">Error creating form: ${error.message}</div></div>`;
+        }
+      }
+
+      function validateField(field) {
+        const fieldGroup = field.closest('.field-group');
+        if (!fieldGroup) {
+          console.error('No field group found for field:', field);
+          return false;
+        }
+
+        let validationDiv = fieldGroup.querySelector('.validation-message');
+        if (!validationDiv) {
+          validationDiv = document.createElement('div');
+          validationDiv.className = 'validation-message';
+          fieldGroup.appendChild(validationDiv);
+        }
+        
+        let isValid = true;
+        let message = '';
+
+        // Clear previous validation state
+        field.classList.remove('invalid');
+        validationDiv.textContent = '';
+
+        // Required field validation
+        if (field.required && !field.value.trim()) {
+          isValid = false;
+          message = 'This field is required';
+        }
+
+        // Special validation for different fields
+        switch (field.name) {
+          case 'studios':
+            if (field.value === window.config.OTHER_STUDIO_OPTION) {
+              const customStudio = document.querySelector('input[name="customStudio"]');
+              if (!customStudio || !customStudio.value.trim()) {
+                isValid = false;
+                message = 'Please enter a custom studio name';
+              }
+            }
+            break;
+
+          case 'customStudio':
+            if (!field.value.trim()) {
+              const studioSelect = document.querySelector('select[name="studios"]');
+              if (studioSelect && studioSelect.value === window.config.OTHER_STUDIO_OPTION) {
+                isValid = false;
+                message = 'Please enter a custom studio name';
+              }
+            }
+            break;
+
+          case 'team-name':
+            if (!field.value.trim()) {
+              isValid = false;
+              message = 'Team member name is required';
+            }
+            break;
+            
+          // Role is now optional
+          case 'team-role':
+            // Always valid, even if empty
+            break;
+
+          case 'episodeCount':
+            if (field.value.trim() && isNaN(parseInt(field.value))) {
+              isValid = false;
+              message = 'Episode count must be a number';
+            }
+            break;
+        }
+
+        // Update validation UI
+        if (!isValid) {
+          field.classList.add('invalid');
+          validationDiv.textContent = message;
+        }
+
+        return isValid;
+      }
+
+      // Validate team members
+      function validateTeamMembers() {
+        const container = document.getElementById('teamMembersContainer');
+        if (!container) return true; // No team container, validation passes
+
+        const members = Array.from(container.getElementsByClassName('team-member'));
+        if (members.length === 0) return true; // No members, validation passes
+
+        let isValid = true;
+        let validationMessage = '';
+
+        // Check each member
+        members.forEach((member, index) => {
+          const nameInput = member.querySelector('.team-name');
+          const roleSelect = member.querySelector('.team-role');
+          const validationDiv = member.querySelector('.validation-message') || 
+            (() => {
+              const div = document.createElement('div');
+              div.className = 'validation-message';
+              member.appendChild(div);
+              return div;
+            })();
+
+          // Reset validation state
+          nameInput.classList.remove('invalid');
+          roleSelect.classList.remove('invalid');
+          validationDiv.textContent = '';
+
+          // Validate name
+          if (!nameInput.value.trim()) {
+            isValid = false;
+            nameInput.classList.add('invalid');
+            validationDiv.textContent = 'Name is required';
+          }
+
+          // Validate roles
+          const selectedRoles = Array.from(roleSelect.selectedOptions);
+          if (selectedRoles.length === 0) {
+            isValid = false;
+            roleSelect.classList.add('invalid');
+            validationDiv.textContent = validationDiv.textContent ? 
+              validationDiv.textContent + ' | At least one role is required' :
+              'At least one role is required';
+          }
+        });
+
+        // Check for duplicate names
+        const names = members.map(m => m.querySelector('.team-name').value.trim().toLowerCase())
+          .filter(name => name); // Only check non-empty names
+        const duplicates = names.filter((name, idx) => names.indexOf(name) !== idx);
+        
+        if (duplicates.length > 0) {
+          isValid = false;
+          members.forEach(member => {
+            const nameInput = member.querySelector('.team-name');
+            const name = nameInput.value.trim().toLowerCase();
+            if (duplicates.includes(name)) {
+              nameInput.classList.add('invalid');
+              const validationDiv = member.querySelector('.validation-message');
+              if (validationDiv) {
+                validationDiv.textContent = validationDiv.textContent ?
+                  validationDiv.textContent + ' | Duplicate name' :
+                  'Duplicate name';
+              }
+            }
+          });
+        }
+
+        return isValid;
+      }
+
+      // Validate entire form
+      function validateForm() {
+        let isValid = true;
+        const form = document.getElementById('addShowForm');
+        
+        // Validate all inputs except team member fields (handled separately)
+        const inputs = form.querySelectorAll('input:not(.team-name), select:not(.team-role), textarea');
+        inputs.forEach(input => {
+          if (!validateField(input)) {
+            console.log(`Validation failed for field: ${input.name}`);
+            isValid = false;
+          }
+        });
+
+        // Validate team members
+        if (!validateTeamMembers()) {
+          console.log('Team member validation failed');
+          isValid = false;
+        }
+
+        return isValid;
+      }
+
+      // Submit form
+      function submitForm() {
+        const submitButton = document.getElementById('submitButton');
+        if (!submitButton) {
+          console.error('Submit button not found');
+          return;
+        }
+        
+        if (!validateForm()) {
+          alert('Please fix validation errors before submitting');
+          return;
+        }
+
+        // Disable submit button and show loading state
+        submitButton.disabled = true;
+        submitButton.textContent = 'Submitting...';
+
+        const formData = {};
+        console.log('Preparing form data for submission...');
+
+        try {
+          // Get all form fields
+          const form = document.getElementById('addShowForm');
+          if (!form) {
+            throw new Error('Form not found');
+          }
+
+          const formElements = form.elements;
+          
+          // Process regular form fields
+          for (let i = 0; i < formElements.length; i++) {
+            const input = formElements[i];
+            if (!input.name || input.name.startsWith('team-')) continue;
+
+            let value = input.value.trim();
+
+            // Special handling for different field types
+            switch (input.name) {
+              case 'studios':
+                if (value === window.config.OTHER_STUDIO_OPTION) {
+                  const customStudio = document.getElementById('customStudio');
+                  if (!customStudio) {
+                    throw new Error('Custom studio input not found');
+                  }
+                  value = customStudio.value.trim();
+                }
+                break;
+                
+              case 'subgenre':
+                // Handle 'None' selection
+                if (value === 'None') {
+                  value = '';
+                }
+                break;
+
+              case 'episodeCount':
+                // Ensure episode count is a number
+                if (value) {
+                  const num = parseInt(value, 10);
+                  value = isNaN(num) ? '' : num;
+                } else {
+                  value = '';
+                }
+                break;
+
+              case 'announcementDate':
+                // Ensure date is in the correct format
+                if (!value) {
+                  value = '';
+                }
+                break;
+            }
+
+            formData[input.name] = value;
+          }
+
+          // Get team members
+          const members = getTeamMembers();
+          formData.teamMembers = members;
+
+          // Format key_creatives string for backward compatibility
+          formData.keyCreatives = members.length > 0 ?
+            members
+              .map(member => member.roles ? `${member.name} (${member.roles})` : member.name)
+              .join(', ') :
+            '';
+
+          console.log('Form data prepared:', formData);
+
+          // Submit form data
+          google.script.run
+            .withSuccessHandler(onSuccess)
+            .withFailureHandler(error => {
+              submitButton.disabled = false;
+              submitButton.textContent = 'Add Show';
+              onFailure(error);
+            })
+            .addNewShow(formData);
+        } catch (error) {
+          console.error('Error preparing form data:', error);
+          submitButton.disabled = false;
+          submitButton.textContent = 'Add Show';
+          onFailure(error);
+        }
+      }
+
+      // Success handler
+      function onSuccess() {
+        console.log('Show added successfully');
+        alert('Show added successfully!');
+        
+        // Reset form and button state
+        const submitButton = document.getElementById('submitButton');
+        submitButton.disabled = false;
+        submitButton.textContent = 'Add Show';
+        
+        // Close the dialog
+        google.script.host.close();
+      }
+
+      // Failure handler
+      function onFailure(error) {
+        console.error('Failed to add show:', error);
+        alert('Error adding show: ' + error.message);
+        
+        // Reset button state
+        const submitButton = document.getElementById('submitButton');
+        submitButton.disabled = false;
+        submitButton.textContent = 'Add Show';
+      }
+
+
+
+      // Function to add new team member
+      function addTeamMember() {
+        const container = document.getElementById('teamMembersContainer');
+        if (!container) {
+          throw new Error('Team members container not found');
+        }
+
+        if (!window.formData || !window.formData.roles || !Array.isArray(window.formData.roles)) {
+          throw new Error('Roles data not properly initialized');
+        }
+
+        const memberCount = container.children.length;
+        
+        const memberDiv = document.createElement('div');
+        memberDiv.className = 'team-member';
+        
+        const header = document.createElement('div');
+        header.className = 'team-member-header';
+        
+        const title = document.createElement('h4');
+        title.textContent = `Team Member ${memberCount + 1}`;
+        title.style.margin = '0';
+        
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'remove-member';
+        removeButton.textContent = 'Remove';
+        removeButton.onclick = () => {
+          container.removeChild(memberDiv);
+          updateTeamMemberNumbers();
+          validateTeamMembers(); // Revalidate after removal
+        };
+        
+        header.appendChild(title);
+        if (memberCount > 0) { // Allow removal if not the first member
+          header.appendChild(removeButton);
+        }
+        
+        const inputs = document.createElement('div');
+        inputs.className = 'team-member-inputs';
+        
+        // Name input with validation
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Name';
+        nameInput.className = 'team-name';
+        nameInput.required = true;
+        nameInput.onchange = () => validateTeamMembers();
+        nameInput.onblur = () => validateTeamMembers();
+        
+        // Validation message div
+        const validationDiv = document.createElement('div');
+        validationDiv.className = 'validation-message';
+        
+        // Role multiselect with categories
+        const roleSelect = document.createElement('select');
+        roleSelect.className = 'team-role';
+        roleSelect.name = 'team-role';
+        roleSelect.multiple = true;
+        roleSelect.size = 4; // Show 4 options at a time
+        roleSelect.required = true; // At least one role is required
+        
+        // Group roles by category
+        const rolesByCategory = {};
+        window.formData.roles.forEach(role => {
+          if (!rolesByCategory[role.category]) {
+            rolesByCategory[role.category] = [];
+          }
+          rolesByCategory[role.category].push(role);
+        });
+        
+        // Create optgroups for each category
+        Object.entries(rolesByCategory).forEach(([category, roles]) => {
+          const group = document.createElement('optgroup');
+          group.label = category;
+          
+          roles.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role.role.toLowerCase();
+            option.textContent = `${role.role} (${role.role.toLowerCase()})`; // Show abbreviation
+            if (role.aliases && role.aliases.length > 0) {
+              option.title = `Also known as: ${role.aliases.join(', ')}`;
+            }
+            group.appendChild(option);
+          });
+          
+          roleSelect.appendChild(group);
+        });
+        
+        roleSelect.onchange = (event) => {
+          validateField(event.target);
+          validateTeamMembers();
+        };
+        
+        // Order input (optional)
+        const orderInput = document.createElement('input');
+        orderInput.type = 'number';
+        orderInput.placeholder = 'Position (optional)';
+        orderInput.className = 'team-order';
+        orderInput.min = 1; // Still enforce positive numbers if entered
+        
+        inputs.appendChild(nameInput);
+        inputs.appendChild(roleSelect);
+        inputs.appendChild(orderInput);
+        
+        memberDiv.appendChild(header);
+        memberDiv.appendChild(inputs);
+        memberDiv.appendChild(validationDiv);
+        
+        container.appendChild(memberDiv);
+
+        // Validate immediately after adding
+        validateTeamMembers();
+      }
+      
+      // Function to update team member numbers
+      function updateTeamMemberNumbers() {
+        const container = document.getElementById('teamMembersContainer');
+        Array.from(container.children).forEach((member, index) => {
+          member.querySelector('h4').textContent = `Team Member ${index + 1}`;
+          member.querySelector('.team-order').value = index + 1;
+        });
+      }
+      
+      // Function to get team members data
+      function getTeamMembers() {
+        const members = [];
+        const container = document.getElementById('teamMembersContainer');
+        
+        // Return empty array if container doesn't exist
+        if (!container) {
+          console.error('No team members container found');
+          return members;
+        }
+        
+        Array.from(container.getElementsByClassName('team-member')).forEach(member => {
+          const nameInput = member.querySelector('.team-name');
+          const roleSelect = member.querySelector('.team-role');
+          const orderInput = member.querySelector('.team-order');
+          
+          if (nameInput && nameInput.value.trim() && roleSelect) {
+            const selectedRoles = Array.from(roleSelect.selectedOptions)
+              .map(opt => opt.value)
+              .filter(role => role && role.trim()) // Filter out empty roles
+              .join(', ');
+
+            if (selectedRoles) { // Only add if there are roles
+              members.push({
+                name: nameInput.value.trim(),
+                roles: selectedRoles,
+                order: orderInput && orderInput.value ? orderInput.value : ''
+              });
+            }
+          }
+        });
+        
+        return members;
+      }
+
+      // Initialize form on load
+      function init() {
+        const formContainer = document.getElementById('formFields');
+        if (!formContainer) {
+          console.error('Form fields container not found');
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(response => {
+            try {
+              // Store data globally first
+              window.config = response.config;
+              window.formData = response.data;
+              
+              // Then initialize form
+              initializeForm(response, formContainer);
+            } catch (error) {
+              console.error('Error initializing form:', error);
+              onFailure(error);
+            }
+          })
+          .withFailureHandler(error => {
+            console.error('Failed to get form data:', error);
+            onFailure(error);
+          })
+          .getFormData();
+      }
+
+      // Wait for DOM and Google Apps Script to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    </script>
+  </head>
+  <body>
+    <div id="formFields"></div>
+  </body>
+</html>

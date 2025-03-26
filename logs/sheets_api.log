@@ -1,0 +1,297 @@
+2025-03-25 15:52:01,198 - dashboard.utils.sheets_client - ERROR - Failed to initialize sheets client: [Errno 2] No such file or directory: '/Users/loganbrown/Desktop/GoogleDB/config/credentials.json'
+2025-03-25 16:06:13,723 - __main__ - INFO - 
+=== Starting Connection Stability Test ===
+
+2025-03-25 16:06:13,723 - __main__ - INFO - 
+Attempt 1: Starting connection test...
+2025-03-25 16:06:14,127 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet Shows: <Response [404]>
+2025-03-25 16:06:14,127 - dashboard.utils.sheets_client - ERROR - Failed to get values from Shows: <Response [404]>
+2025-03-25 16:06:14,127 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: <Response [404]>
+2025-03-25 16:06:14,127 - __main__ - ERROR - ❌ Attempt 1 failed: <Response [404]>
+2025-03-25 16:06:14,127 - __main__ - INFO - 
+Attempt 2: Starting connection test...
+2025-03-25 16:06:14,240 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet Shows: <Response [404]>
+2025-03-25 16:06:14,240 - dashboard.utils.sheets_client - ERROR - Failed to get values from Shows: <Response [404]>
+2025-03-25 16:06:14,240 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: <Response [404]>
+2025-03-25 16:06:14,240 - __main__ - ERROR - ❌ Attempt 2 failed: <Response [404]>
+2025-03-25 16:06:14,240 - __main__ - INFO - 
+Attempt 3: Starting connection test...
+2025-03-25 16:06:14,409 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet Shows: <Response [404]>
+2025-03-25 16:06:14,409 - dashboard.utils.sheets_client - ERROR - Failed to get values from Shows: <Response [404]>
+2025-03-25 16:06:14,409 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: <Response [404]>
+2025-03-25 16:06:14,409 - __main__ - ERROR - ❌ Attempt 3 failed: <Response [404]>
+2025-03-25 16:06:14,409 - __main__ - INFO - 
+Results: 0/3 successful connections
+2025-03-25 16:06:14,410 - __main__ - ERROR - ❌ Some connection attempts failed. Check logs/sheets_api.log for details
+2025-03-25 16:08:14,755 - __main__ - INFO - 
+=== Starting Connection Stability Test ===
+
+2025-03-25 16:08:14,755 - __main__ - INFO - 
+Attempt 1: Starting connection test...
+2025-03-25 16:08:15,031 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet Shows: <Response [404]>
+2025-03-25 16:08:15,032 - dashboard.utils.sheets_client - ERROR - Failed to get values from Shows: <Response [404]>
+2025-03-25 16:08:15,032 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: <Response [404]>
+2025-03-25 16:08:15,033 - __main__ - ERROR - ❌ Attempt 1 failed: <Response [404]>
+2025-03-25 16:08:15,033 - __main__ - INFO - 
+Attempt 2: Starting connection test...
+2025-03-25 16:08:15,148 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet Shows: <Response [404]>
+2025-03-25 16:08:15,148 - dashboard.utils.sheets_client - ERROR - Failed to get values from Shows: <Response [404]>
+2025-03-25 16:08:15,148 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: <Response [404]>
+2025-03-25 16:08:15,148 - __main__ - ERROR - ❌ Attempt 2 failed: <Response [404]>
+2025-03-25 16:08:15,148 - __main__ - INFO - 
+Attempt 3: Starting connection test...
+2025-03-25 16:08:15,252 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet Shows: <Response [404]>
+2025-03-25 16:08:15,252 - dashboard.utils.sheets_client - ERROR - Failed to get values from Shows: <Response [404]>
+2025-03-25 16:08:15,252 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: <Response [404]>
+2025-03-25 16:08:15,252 - __main__ - ERROR - ❌ Attempt 3 failed: <Response [404]>
+2025-03-25 16:08:15,252 - __main__ - INFO - 
+Results: 0/3 successful connections
+2025-03-25 16:08:15,253 - __main__ - ERROR - ❌ Some connection attempts failed. Check logs/sheets_api.log for details
+2025-03-25 17:02:47,086 - __main__ - INFO - 
+=== Starting Connection Stability Test ===
+
+2025-03-25 17:02:47,086 - __main__ - INFO - 
+Attempt 1: Starting connection test...
+2025-03-25 17:02:48,272 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet shows: 
+2025-03-25 17:02:48,273 - dashboard.utils.sheets_client - ERROR - Failed to get values from shows: 
+2025-03-25 17:02:48,273 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: 
+2025-03-25 17:02:48,273 - __main__ - ERROR - ❌ Attempt 1 failed: 
+2025-03-25 17:02:48,273 - __main__ - INFO - 
+Attempt 2: Starting connection test...
+2025-03-25 17:02:48,510 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet shows: 
+2025-03-25 17:02:48,511 - dashboard.utils.sheets_client - ERROR - Failed to get values from shows: 
+2025-03-25 17:02:48,511 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: 
+2025-03-25 17:02:48,511 - __main__ - ERROR - ❌ Attempt 2 failed: 
+2025-03-25 17:02:48,511 - __main__ - INFO - 
+Attempt 3: Starting connection test...
+2025-03-25 17:02:48,819 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet shows: 
+2025-03-25 17:02:48,819 - dashboard.utils.sheets_client - ERROR - Failed to get values from shows: 
+2025-03-25 17:02:48,819 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: 
+2025-03-25 17:02:48,819 - __main__ - ERROR - ❌ Attempt 3 failed: 
+2025-03-25 17:02:48,820 - __main__ - INFO - 
+Results: 0/3 successful connections
+2025-03-25 17:02:48,820 - __main__ - ERROR - ❌ Some connection attempts failed. Check logs/sheets_api.log for details
+2025-03-25 17:07:47,919 - __main__ - INFO - 
+=== Starting Connection Stability Test ===
+
+2025-03-25 17:07:47,919 - __main__ - INFO - 
+Attempt 1: Starting connection test...
+2025-03-25 17:07:48,438 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet shows: 
+2025-03-25 17:07:48,438 - dashboard.utils.sheets_client - ERROR - Failed to get values from shows: 
+2025-03-25 17:07:48,438 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: 
+2025-03-25 17:07:48,438 - __main__ - ERROR - ❌ Attempt 1 failed: 
+2025-03-25 17:07:48,438 - __main__ - INFO - 
+Attempt 2: Starting connection test...
+2025-03-25 17:07:48,712 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet shows: 
+2025-03-25 17:07:48,712 - dashboard.utils.sheets_client - ERROR - Failed to get values from shows: 
+2025-03-25 17:07:48,712 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: 
+2025-03-25 17:07:48,712 - __main__ - ERROR - ❌ Attempt 2 failed: 
+2025-03-25 17:07:48,712 - __main__ - INFO - 
+Attempt 3: Starting connection test...
+2025-03-25 17:07:48,893 - dashboard.utils.sheets_client - ERROR - Unexpected error accessing worksheet shows: 
+2025-03-25 17:07:48,893 - dashboard.utils.sheets_client - ERROR - Failed to get values from shows: 
+2025-03-25 17:07:48,893 - dashboard.utils.sheets_client - ERROR - Failed to get shows data: 
+2025-03-25 17:07:48,894 - __main__ - ERROR - ❌ Attempt 3 failed: 
+2025-03-25 17:07:48,894 - __main__ - INFO - 
+Results: 0/3 successful connections
+2025-03-25 17:07:48,894 - __main__ - ERROR - ❌ Some connection attempts failed. Check logs/sheets_api.log for details
+2025-03-25 17:08:51,421 - __main__ - INFO - 
+=== Starting Connection Stability Test ===
+
+2025-03-25 17:08:51,422 - __main__ - INFO - 
+Attempt 1: Starting connection test...
+2025-03-25 17:08:52,250 - dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 17:08:52,465 - dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 17:08:52,465 - __main__ - INFO - ✓ Successfully got 469 rows of show data
+2025-03-25 17:08:53,809 - dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 17:08:54,019 - dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 17:08:54,019 - __main__ - INFO - ✓ Successfully got 2439 rows of team data
+2025-03-25 17:08:56,024 - __main__ - INFO - 
+Attempt 2: Starting connection test...
+2025-03-25 17:08:56,167 - dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 17:08:56,338 - dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 17:08:56,339 - __main__ - INFO - ✓ Successfully got 469 rows of show data
+2025-03-25 17:08:57,699 - dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 17:08:57,970 - dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 17:08:57,970 - __main__ - INFO - ✓ Successfully got 2439 rows of team data
+2025-03-25 17:08:59,974 - __main__ - INFO - 
+Attempt 3: Starting connection test...
+2025-03-25 17:09:00,134 - dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 17:09:00,309 - dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 17:09:00,309 - __main__ - INFO - ✓ Successfully got 469 rows of show data
+2025-03-25 17:09:01,698 - dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 17:09:01,904 - dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 17:09:01,905 - __main__ - INFO - ✓ Successfully got 2439 rows of team data
+2025-03-25 17:09:03,908 - __main__ - INFO - 
+Results: 3/3 successful connections
+2025-03-25 17:09:03,908 - __main__ - INFO - ✅ All connection attempts successful!
+2025-03-25 19:59:51,760 - dashboard.utils.sheets_client - ERROR - Failed to initialize sheets client: [Errno 2] No such file or directory: '/Users/loganbrown/Desktop/GoogleDB/src/config/credentials.json'
+2025-03-25 20:00:21,906 - src.dashboard.utils.sheets_client - ERROR - Failed to initialize sheets client: [Errno 2] No such file or directory: '/Users/loganbrown/Desktop/GoogleDB/src/config/credentials.json'
+2025-03-25 20:01:10,712 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-25 20:01:11,877 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 20:01:12,242 - src.dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 20:01:12,250 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-25 20:01:13,668 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 20:01:13,982 - src.dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 20:01:13,983 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-25 20:03:07,665 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-25 20:03:08,635 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 20:03:08,980 - src.dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 20:03:08,983 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-25 20:03:10,418 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 20:03:10,702 - src.dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 20:03:10,703 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-25 20:03:43,786 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-25 20:03:44,654 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 20:03:44,898 - src.dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 20:03:44,901 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-25 20:03:46,324 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 20:03:46,607 - src.dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 20:03:46,608 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-25 20:04:57,807 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-25 20:04:58,897 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 20:04:59,258 - src.dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 20:04:59,261 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-25 20:05:00,698 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 20:05:00,974 - src.dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 20:05:00,975 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-25 20:05:00,975 - data_processing.analyze_shows - INFO - Cleaning shows data...
+2025-03-25 20:05:00,985 - data_processing.analyze_shows - INFO - Processing dates...
+2025-03-25 20:05:01,009 - data_processing.analyze_shows - INFO - Normalizing categorical fields...
+2025-03-25 20:05:01,015 - data_processing.analyze_shows - INFO - Processing numeric fields...
+2025-03-25 20:05:01,017 - data_processing.analyze_shows - INFO - Cleaning team data...
+2025-03-25 20:05:01,029 - data_processing.analyze_shows - INFO - Data cleaning completed
+2025-03-25 20:05:01,029 - data_processing.analyze_shows - WARNING - Data quality issues found:
+- Missing show names: 0
+- Missing dates: 2
+2025-03-25 20:11:44,557 - data_processing.analyze_shows - INFO - Checking lookup tables...
+2025-03-25 20:11:44,557 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - network_list.csv
+2025-03-25 20:11:44,574 - data_processing.analyze_shows - DEBUG - Loaded 85 mappings for network
+2025-03-25 20:11:44,575 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - studio_list.csv
+2025-03-25 20:11:44,580 - data_processing.analyze_shows - DEBUG - Loaded 51 mappings for studio
+2025-03-25 20:11:44,580 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - genre_list.csv
+2025-03-25 20:11:44,595 - data_processing.analyze_shows - DEBUG - Loaded 60 mappings for genre
+2025-03-25 20:11:44,595 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - subgenre_list.csv
+2025-03-25 20:11:44,601 - data_processing.analyze_shows - DEBUG - Loaded 109 mappings for subgenre
+2025-03-25 20:11:44,601 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - source_types.csv
+2025-03-25 20:11:44,604 - data_processing.analyze_shows - DEBUG - Loaded 39 mappings for source
+2025-03-25 20:11:44,604 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - order_types.csv
+2025-03-25 20:11:44,606 - data_processing.analyze_shows - DEBUG - Loaded 17 mappings for order
+2025-03-25 20:11:44,606 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - status_types.csv
+2025-03-25 20:11:44,608 - data_processing.analyze_shows - DEBUG - Loaded 21 mappings for status
+2025-03-25 20:11:44,608 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - role_types.csv
+2025-03-25 20:11:44,610 - data_processing.analyze_shows - DEBUG - Loaded 40 mappings for role
+2025-03-25 20:11:44,610 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-25 20:11:45,563 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 20:11:45,872 - src.dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 20:11:45,876 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-25 20:11:47,314 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 20:11:47,674 - src.dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 20:11:47,675 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-25 20:11:47,675 - data_processing.analyze_shows - INFO - Checking lookup tables...
+2025-03-25 20:11:47,675 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - network_list.csv unchanged, using cached version
+2025-03-25 20:11:47,675 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - studio_list.csv unchanged, using cached version
+2025-03-25 20:11:47,675 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - genre_list.csv unchanged, using cached version
+2025-03-25 20:11:47,675 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - subgenre_list.csv unchanged, using cached version
+2025-03-25 20:11:47,675 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - source_types.csv unchanged, using cached version
+2025-03-25 20:11:47,675 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - order_types.csv unchanged, using cached version
+2025-03-25 20:11:47,676 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - status_types.csv unchanged, using cached version
+2025-03-25 20:11:47,676 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - role_types.csv unchanged, using cached version
+2025-03-25 20:11:47,676 - data_processing.analyze_shows - INFO - Cleaning shows data...
+2025-03-25 20:11:47,687 - data_processing.analyze_shows - INFO - Processing dates...
+2025-03-25 20:11:47,704 - data_processing.analyze_shows - INFO - Normalizing categorical fields...
+2025-03-25 20:11:47,710 - data_processing.analyze_shows - INFO - Processing numeric fields...
+2025-03-25 20:11:47,713 - data_processing.analyze_shows - INFO - Cleaning team data...
+2025-03-25 20:11:47,726 - data_processing.analyze_shows - INFO - Data cleaning completed
+2025-03-25 20:12:40,715 - data_processing.analyze_shows - INFO - Checking lookup tables...
+2025-03-25 20:12:40,716 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - network_list.csv
+2025-03-25 20:12:40,730 - data_processing.analyze_shows - DEBUG - Loaded 85 mappings for network
+2025-03-25 20:12:40,730 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - studio_list.csv
+2025-03-25 20:12:40,734 - data_processing.analyze_shows - DEBUG - Loaded 51 mappings for studio
+2025-03-25 20:12:40,734 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - genre_list.csv
+2025-03-25 20:12:40,747 - data_processing.analyze_shows - DEBUG - Loaded 60 mappings for genre
+2025-03-25 20:12:40,747 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - subgenre_list.csv
+2025-03-25 20:12:40,753 - data_processing.analyze_shows - DEBUG - Loaded 109 mappings for subgenre
+2025-03-25 20:12:40,753 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - source_types.csv
+2025-03-25 20:12:40,756 - data_processing.analyze_shows - DEBUG - Loaded 39 mappings for source
+2025-03-25 20:12:40,756 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - order_types.csv
+2025-03-25 20:12:40,758 - data_processing.analyze_shows - DEBUG - Loaded 17 mappings for order
+2025-03-25 20:12:40,758 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - status_types.csv
+2025-03-25 20:12:40,759 - data_processing.analyze_shows - DEBUG - Loaded 21 mappings for status
+2025-03-25 20:12:40,759 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - role_types.csv
+2025-03-25 20:12:40,762 - data_processing.analyze_shows - DEBUG - Loaded 40 mappings for role
+2025-03-25 20:12:40,762 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-25 20:12:41,631 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 20:12:41,948 - src.dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 20:12:41,952 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-25 20:12:43,397 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 20:12:43,684 - src.dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 20:12:43,685 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-25 20:12:43,685 - data_processing.analyze_shows - INFO - Checking lookup tables...
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - network_list.csv unchanged, using cached version
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - studio_list.csv unchanged, using cached version
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - genre_list.csv unchanged, using cached version
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - subgenre_list.csv unchanged, using cached version
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - source_types.csv unchanged, using cached version
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - order_types.csv unchanged, using cached version
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - status_types.csv unchanged, using cached version
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - role_types.csv unchanged, using cached version
+2025-03-25 20:12:43,686 - data_processing.analyze_shows - INFO - Cleaning shows data...
+2025-03-25 20:12:43,696 - data_processing.analyze_shows - INFO - Processing dates...
+2025-03-25 20:12:43,713 - data_processing.analyze_shows - INFO - Normalizing categorical fields...
+2025-03-25 20:12:43,720 - data_processing.analyze_shows - INFO - Processing numeric fields...
+2025-03-25 20:12:43,722 - data_processing.analyze_shows - INFO - Cleaning team data...
+2025-03-25 20:12:43,734 - data_processing.analyze_shows - INFO - Data cleaning completed
+2025-03-25 20:12:43,744 - data_processing.analyze_shows - WARNING - Data quality issues found:
+- Missing date: 2
+- Invalid studio values: 101 studios, mtv entertainment studios, plan b, amc studios, , netflix studios, abc signature, keshet studios, marvel television, marvel, 20th television, 21 laps entertainment, film 44, mtv entertainment studios,101 studios, 3dot productions, fox entertainment studios, amblin tv, berlanti productions, warner bros. television, atomic monster, warner bros. animation, netflix, warner bros. television, chuck lorre productions, warner bros. television, merman productions, a+e studios, 20th television, harpo films, kapital entertainment, sister, universal studio group, agbo, 3ad, invisible narratives, ucp,20th television, fifth season, apple studios, mgm television, cbs television studios,secret hideout, fx productions, element pictures, maclaren entertainment, dark horse entertainment, sony pictures television, character 7, aggregate films, annapurna television, wildbrain, onyx collective, left bank, bet studios, array filmworks, warner bros. television, keshet studios, bandera entertainment, media res, serious business, fremantle, paramount television,anonymous content, story27 productions, cbs television studios, grammnet nh productions, big talk, hbo max, we’re not brothers productions, good thing going productions, motive pictures, warner bros. studio, hbo max, universal television, fremulon, doozer productions, warner horizon scripted television, see-saw films, mrc entertainment, searchlight television,20th television, sony pictures television,abc studios,20th television,touchstone television, hbo, good fear, matchbox pictures, lionsgate television, 3 arts entertainment, other, 20th television animation, crazyrose, warnermedia entertainment, paramount television, john wells productions, hera pictures, feigco entertainment, lionsgate television, marvel television, 20th television, parkes+macdonald, disney television, abc signature, sb projects, made up stories, blossom films, endeavor content, bambú producciones, lucasfilm, sony pictures television,fanfare, stxtelevision, bad robot, warner bros. television, troll court entertainment,the safran company,warner bros. television, tomorrow studios, alloy entertainment, warner bros. television, sid gentle films, hoorae productions, 3 arts entertainment, quality control films, sony pictures television,abc studios, constantin film, happy prince, the nacelle company, point grey pictures,limelight,annapurna television, paramount television, anonymous content, the mighty mint, fearless minds, cbs television studios, secret hideout, roddenberry entertainment, paramount television, tristar television, imagine television studios, team downey, netflix canada, universal television, broadway video, hbo, sky, sister proverbial pictures, 6th & idaho productions, warner bros. television, upside down pictures, new cadence productions, hyperobject industries, act iii productions, 20th television, state street pictures, abc signature, paramount television, hartswood films, fox searchlight tv, drama republic, universal television,cbs television studios, warner bros. television, berlanti productions,yes, norman, miramax television, sonar entertainment,20th television,fanfare, 21 laps entertainment, the littlefield company, urban myth films, 6th & idaho productions, dylan clark productions, warner bros. television, disney television, kaling international, warner bros. television, hbo max, annapurna television, warner bros. television, john wells productions, two brothers pictures,hbo max,zdf,bbc one, gloria sanchez productions, agc television, abc signature, hello sunshine, binocular productions, the forge entertainment, powerhouse animation, 20th television, old 320 sycamore production, warner bros. animation, red hour films, left right productions, the new york times, crime story media, old 320 sycamore productions, 20th television, zeta studios, imagine kids+family, firebird pictures, kapital entertainment
+- Invalid subgenre values: , drama, book adaptation, crime, legal, action, procedural, fantasy, sports, thriller, comedy, drama, fantasy, action, fantasy, action, superhero, action, period drama, thriller, survival, crime, historical, science fiction, science fiction, fantasy, medical, procedural, action, crime, thriller, fantasy, romance, comedy, drama, thriller, period drama, spy, crime, biography, anthology, thriller, spy, science fiction, historical, romance, crime, heist, biography, legal, fashion, historical, biography, history, war, comedy, dramedy, science fiction, mystery, science fiction, animation, thriller, mystery, science fiction, action, video game adaptation, drama, thriller, science fiction, anthology, superhero, crime, fantasy, action, science fiction, drama, anthology, action, thriller, science fiction, thriller, drama, superhero, crime, noir, comedy, action, action, action, prequel, thriller, mystery, comedy, thriller, spy, thriller, legal, spy, action, fantasy, period drama, science fiction, action, action, historical, period drama, drama, mystery, supernatural, thriller, drama
+- Invalid source_type values: other
+- Invalid order_type values: 
+- Invalid status values: 
+- Team members with no matching show: Love Victor"
+2025-03-25 20:27:42,228 - data_processing.analyze_shows - INFO - Checking lookup tables...
+2025-03-25 20:27:42,228 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - network_list.csv
+2025-03-25 20:27:42,247 - data_processing.analyze_shows - DEBUG - Loaded 85 mappings for network
+2025-03-25 20:27:42,247 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - studio_list.csv
+2025-03-25 20:27:42,253 - data_processing.analyze_shows - DEBUG - Loaded 51 mappings for studio
+2025-03-25 20:27:42,253 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - genre_list.csv
+2025-03-25 20:27:42,268 - data_processing.analyze_shows - DEBUG - Loaded 60 mappings for genre
+2025-03-25 20:27:42,269 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - subgenre_list.csv
+2025-03-25 20:27:42,274 - data_processing.analyze_shows - DEBUG - Loaded 109 mappings for subgenre
+2025-03-25 20:27:42,274 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - source_types.csv
+2025-03-25 20:27:42,277 - data_processing.analyze_shows - DEBUG - Loaded 39 mappings for source
+2025-03-25 20:27:42,277 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - order_types.csv
+2025-03-25 20:27:42,279 - data_processing.analyze_shows - DEBUG - Loaded 17 mappings for order
+2025-03-25 20:27:42,279 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - status_types.csv
+2025-03-25 20:27:42,281 - data_processing.analyze_shows - DEBUG - Loaded 21 mappings for status
+2025-03-25 20:27:42,281 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - role_types.csv
+2025-03-25 20:27:42,283 - data_processing.analyze_shows - DEBUG - Loaded 40 mappings for role
+2025-03-25 20:27:42,283 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-25 20:27:43,225 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-25 20:27:43,430 - src.dashboard.utils.sheets_client - INFO - Retrieved 469 rows from shows
+2025-03-25 20:27:43,434 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-25 20:27:44,796 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-25 20:27:45,069 - src.dashboard.utils.sheets_client - INFO - Retrieved 2439 rows from show_team
+2025-03-25 20:27:45,070 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-25 20:27:45,070 - data_processing.analyze_shows - INFO - Checking lookup tables...
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - network_list.csv unchanged, using cached version
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - studio_list.csv unchanged, using cached version
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - genre_list.csv unchanged, using cached version
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - subgenre_list.csv unchanged, using cached version
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - source_types.csv unchanged, using cached version
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - order_types.csv unchanged, using cached version
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - status_types.csv unchanged, using cached version
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - DEBUG - Lookup table STS Sales Database - role_types.csv unchanged, using cached version
+2025-03-25 20:27:45,071 - data_processing.analyze_shows - INFO - Cleaning shows data...
+2025-03-25 20:27:45,080 - data_processing.analyze_shows - INFO - Processing dates...
+2025-03-25 20:27:45,099 - data_processing.analyze_shows - INFO - Normalizing categorical fields...
+2025-03-25 20:27:45,106 - data_processing.analyze_shows - INFO - Processing numeric fields...
+2025-03-25 20:27:45,108 - data_processing.analyze_shows - INFO - Cleaning team data...
+2025-03-25 20:27:45,121 - data_processing.analyze_shows - INFO - Data cleaning completed
+2025-03-25 20:27:45,129 - data_processing.analyze_shows - INFO - Data quality warnings:
+- Missing Announcement dates: 2 rows
+- Non-standard subgenre values: , drama, book adaptation, crime, legal, action, procedural, fantasy, sports, thriller, comedy, drama, fantasy, action, fantasy, action, superhero, action, period drama, thriller, survival, crime, historical, science fiction, science fiction, fantasy, medical, procedural, action, crime, thriller, fantasy, romance, comedy, drama, thriller, period drama, spy, crime, biography, anthology, thriller, spy, science fiction, historical, romance, crime, heist, biography, legal, fashion, historical, biography, history, war, comedy, dramedy, science fiction, mystery, science fiction, animation, thriller, mystery, science fiction, action, video game adaptation, drama, thriller, science fiction, anthology, superhero, crime, fantasy, action, science fiction, drama, anthology, action, thriller, science fiction, thriller, drama, superhero, crime, noir, comedy, action, action, action, prequel, thriller, mystery, comedy, thriller, spy, thriller, legal, spy, action, fantasy, period drama, science fiction, action, action, historical, period drama, drama, mystery, supernatural, thriller, drama
+- Non-standard source_type values: other
+- Non-standard order_type values: 
+- Non-standard status values: 

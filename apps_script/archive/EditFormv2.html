@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #cccccc;
+    }
+    .error {
+      color: red;
+      font-size: 0.9em;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <form id="editForm">
+    <div class="form-group">
+      <label for="showName">Show Name</label>
+      <input type="text" id="showName" name="showName" required>
+    </div>
+
+    <div class="form-group">
+      <label for="studios" class="required">Studio</label>
+      <select id="studios" name="studios" required>
+        <option value="">-- Select --</option>
+        <!-- Studios will be populated here -->
+      </select>
+      <div id="customStudioInput" style="display: none; margin-top: 10px;">
+        <input type="text" 
+               id="customStudio" 
+               name="customStudio" 
+               placeholder="Enter studio name"
+               class="form-control">
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label>Team Members</label>
+      <div id="teamMembers">
+        <table class="team-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Role(s)</th>
+              <th>Order</th>
+              <th>Notes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="teamMembersList">
+            <!-- Team members will be inserted here -->
+          </tbody>
+        </table>
+        <button type="button" onclick="addTeamMember()">Add Team Member</button>
+      </div>
+    </div>
+    
+    <button type="submit">Save Changes</button>
+  </form>
+
+  <script>
+    // Global variables
+    let showName;
+    let rowIndex;
+    let studios;
+    const OTHER_STUDIO_OPTION = 'Other...';
+
+    // Initialize form when loaded
+    function init() {
+      // Get show name, studios, and team members from template
+      showName = '<?!= showName ?>';
+      studios = JSON.parse('<?!= JSON.stringify(studios) ?>');
+      const teamMembers = JSON.parse('<?!= JSON.stringify(teamMembers) ?>');
+      const currentStudio = '<?!= currentStudio ?>';
+      
+      console.log('Initializing edit form for:', { showName, teamMembers });
+      
+      // Set the show name in the input
+      document.getElementById('showName').value = showName;
+      
+      // Populate studios dropdown
+      const studiosSelect = document.getElementById('studios');
+      studios.forEach(studio => {
+        const option = document.createElement('option');
+        option.value = studio;
+        option.textContent = studio;
+        studiosSelect.appendChild(option);
+      });
+      
+      // Add Other... option
+      const otherOption = document.createElement('option');
+      otherOption.value = OTHER_STUDIO_OPTION;
+      otherOption.textContent = OTHER_STUDIO_OPTION;
+      studiosSelect.appendChild(otherOption);
+      
+      // Set current studio
+      if (studios.includes(currentStudio)) {
+        studiosSelect.value = currentStudio;
+      } else {
+        // If current studio isn't in the list, it must be a custom one
+        studiosSelect.value = OTHER_STUDIO_OPTION;
+        document.getElementById('customStudioInput').style.display = 'block';
+        document.getElementById('customStudio').value = currentStudio;
+      }
+      
+      // Add change handler for studio dropdown
+      studiosSelect.onchange = function() {
+        const customInput = document.getElementById('customStudioInput');
+        const customStudioField = document.getElementById('customStudio');
+        
+        if (this.value === OTHER_STUDIO_OPTION) {
+          customInput.style.display = 'block';
+          customStudioField.required = true;
+        } else {
+          customInput.style.display = 'none';
+          customStudioField.required = false;
+          customStudioField.value = '';
+        }
+      };
+      
+      // Add team members to the table
+      teamMembers.forEach(addTeamMemberRow);
+    }
+    
+    function addTeamMember() {
+      addTeamMemberRow({ name: '', roles: '', order: '', notes: '' });
+    }
+    
+    function addTeamMemberRow(member) {
+      const tbody = document.getElementById('teamMembersList');
+      const row = document.createElement('tr');
+      
+      // Add name cell
+      const nameTd = document.createElement('td');
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.name = 'name';
+      nameInput.value = member.name || '';
+      nameTd.appendChild(nameInput);
+      row.appendChild(nameTd);
+      
+      // Add roles cell with multiple select
+      const rolesTd = document.createElement('td');
+      const rolesSelect = document.createElement('select');
+      rolesSelect.name = 'roles';
+      rolesSelect.multiple = true;
+      rolesSelect.size = 4; // Show 4 options at a time
+      
+      // Get saved roles as array (lowercase for comparison)
+      const savedRoles = member.roles ? member.roles.split(',').map(r => r.trim().toLowerCase()) : [];
+      console.log('Member roles:', {
+        member: member,
+        savedRoles: savedRoles
+      });
+      
+      // Add role options
+      const roleTypes = JSON.parse('<?!= JSON.stringify(roleTypes) ?>');
+      console.log('Role types:', roleTypes);
+      
+      roleTypes.forEach(roleObj => {
+        const option = document.createElement('option');
+        option.value = roleObj.role;
+        option.textContent = roleObj.role;
+        const isSelected = savedRoles.includes(roleObj.role.toLowerCase());
+        console.log(`Role ${roleObj.role}: saved=${savedRoles}, includes=${isSelected}`);
+        option.selected = isSelected;
+        rolesSelect.appendChild(option);
+      });
+      rolesTd.appendChild(rolesSelect);
+      row.appendChild(rolesTd);
+      
+      // Add order cell
+      const orderTd = document.createElement('td');
+      const orderInput = document.createElement('input');
+      orderInput.type = 'number';
+      orderInput.name = 'order';
+      orderInput.value = member.order || '';
+      orderTd.appendChild(orderInput);
+      row.appendChild(orderTd);
+      
+      // Add notes cell
+      const notesTd = document.createElement('td');
+      const notesInput = document.createElement('input');
+      notesInput.type = 'text';
+      notesInput.name = 'notes';
+      notesInput.value = member.notes || '';
+      notesTd.appendChild(notesInput);
+      row.appendChild(notesTd);
+      
+      // Add delete button
+      const td = document.createElement('td');
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = () => row.remove();
+      td.appendChild(deleteBtn);
+      row.appendChild(td);
+      
+      tbody.appendChild(row);
+    }
+
+    // Handle form submission
+    document.getElementById('editForm').onsubmit = function(event) {
+      event.preventDefault();
+      const form = event.target;
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+
+      // Get show name, studio, and team members
+      const studiosSelect = form.elements.studios;
+      const studio = studiosSelect.value === OTHER_STUDIO_OPTION 
+        ? form.elements.customStudio.value
+        : studiosSelect.value;
+
+      const data = {
+        oldShowName: showName,
+        newShowName: form.elements.showName.value,
+        studio: studio,
+        teamMembers: []
+      };
+      
+      // Get team members
+      const rows = document.getElementById('teamMembersList').getElementsByTagName('tr');
+      for (const row of rows) {
+        const nameInput = row.querySelector('input[name="name"]');
+        const rolesSelect = row.querySelector('select[name="roles"]');
+        const orderInput = row.querySelector('input[name="order"]');
+        const notesInput = row.querySelector('input[name="notes"]');
+        
+        // Get selected roles
+        const selectedRoles = Array.from(rolesSelect.selectedOptions)
+          .map(opt => opt.value)
+          .join(', ');
+        
+        data.teamMembers.push({
+          name: nameInput.value,
+          roles: selectedRoles,
+          order: orderInput.value,
+          notes: notesInput.value
+        });
+      }
+
+      console.log('Submitting data:', data);
+      
+      google.script.run
+        .withSuccessHandler(function() {
+          console.log('Show updated successfully');
+          google.script.host.close();
+        })
+        .withFailureHandler(function(error) {
+          console.error('Failed to update show:', error);
+          button.disabled = false;
+        })
+        .updateShow(data);
+    };
+
+    // Initialize when page loads
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

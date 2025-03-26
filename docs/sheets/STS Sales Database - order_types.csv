@@ -1,0 +1,6 @@
+type,description,aliases
+Limited,"One-season only, planned ending","Limited Series,Mini-Series,Event Series"
+Ongoing,Multiple seasons possible,"Series,Regular Series,Continuing Series"
+Miniseries,"Short run, typically 4-8 episodes","Mini Series,Limited Event"
+Anthology,Each season different story/cast,"Anthology Series,Season Anthology"
+Pilot,Initial test episode,"Pilot Order,Pilot Commitment"

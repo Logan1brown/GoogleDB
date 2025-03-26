@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script>
+      // Global variables to store configuration and data
+      let config;
+      let formData;
+    </script>
+    <style>
+      .field-group {
+        margin-bottom: 15px;
+      }
+      
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+      }
+      
+      label.required:after {
+        content: ' *';
+        color: red;
+      }
+      
+      .team-member {
+        border: 1px solid #eee;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        position: relative;
+      }
+
+      .team-member-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .remove-member {
+        background: #ff4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+
+      .add-member {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 16px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+
+      .validation-message {
+        color: red;
+        font-size: 0.8em;
+        margin-top: 5px;
+      }
+
+      .form-control {
+        width: 100%;
+        padding: 8px;
+        margin: 2px 0;
+        box-sizing: border-box;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+
+      .form-control:focus {
+        border-color: #4CAF50;
+        outline: none;
+      }
+
+      button[type="submit"] {
+        background: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+      }
+
+      button[type="submit"]:disabled {
+        background: #cccccc;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="formFields"></div>
+    <script>
+      // Initialize form with configuration from server
+      function initializeForm(response, formContainer) {
+        try {
+          // 1. Validate server response
+          if (!response || !response.config || !response.data) {
+            throw new Error('Invalid server response');
+          }
+
+          // 2. Validate form container
+          if (!formContainer) {
+            throw new Error('Form fields container not found');
+          }
+
+          // 3. Validate roles data
+          if (!window.formData.roles) {
+            throw new Error('Role data is missing. Please check the server response.');
+          }
+          if (!Array.isArray(window.formData.roles)) {
+            throw new Error('Invalid role data format. Expected an array.');
+          }
+          if (window.formData.roles.length === 0) {
+            throw new Error('No roles available in the role_types sheet. Please add at least one role.');
+          }
+
+          // 4. Define form fields
+          const FORM_FIELDS = [
+            { name: 'showName', label: 'Show Name', type: 'text', required: false },
+            { name: 'keyCreatives', label: 'Key Creatives', type: 'team', required: false },
+            { name: 'network', label: 'Network', type: 'dropdown', required: true, source: 'networks' },
+            { name: 'studios', label: 'Studio', type: 'dropdown', required: true, source: 'studios' },
+            { name: 'announcementDate', label: 'Announcement Date', type: 'date', required: false },
+            { name: 'genre', label: 'Genre', type: 'dropdown', required: false, source: 'genres' },
+            { name: 'subgenre', label: 'Subgenre', type: 'dropdown', required: false, source: 'subgenres' },
+            { name: 'episodeCount', label: 'Episode Count', type: 'number', required: false },
+            { name: 'sourceType', label: 'Source Material', type: 'dropdown', required: false, source: 'sourceTypes' },
+            { name: 'status', label: 'Status', type: 'dropdown', required: false, source: 'statuses' },
+            { name: 'orderType', label: 'Order Type', type: 'dropdown', required: false, source: 'orderTypes' },
+            { name: 'notes', label: 'Notes', type: 'textarea', required: false }
+          ];
+
+          // 5. Create form structure
+          createFormFields(formContainer, FORM_FIELDS);
+        } catch (error) {
+          console.error('Error initializing form:', error);
+          onFailure(error);
+        }
+      }
+
+      // Create form structure with validation
+      function createFormFields(container, fields) {
+        const form = document.createElement('form');
+        form.id = 'addShowForm';
+        form.onsubmit = function(e) {
+          e.preventDefault();
+          submitForm();
+        };
+        
+        fields.forEach(field => {
+          const fieldGroup = document.createElement('div');
+          fieldGroup.className = 'field-group';
+          
+          const label = document.createElement('label');
+          label.textContent = field.label;
+          if (field.required) {
+            label.className = 'required';
+          }
+          fieldGroup.appendChild(label);
+          
+          let input;
+          
+          if (field.type === 'team') {
+            // Create team members container
+            const teamContainer = document.createElement('div');
+            teamContainer.id = 'teamMembers';
+            fieldGroup.appendChild(teamContainer);
+            
+            // Add button to add new team member
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'add-member';
+            addButton.textContent = 'Add Team Member';
+            addButton.onclick = addTeamMember;
+            fieldGroup.appendChild(addButton);
+          } else if (field.type === 'dropdown') {
+            input = document.createElement('select');
+            input.className = 'form-control';
+            input.name = field.name;
+            input.id = field.name;
+            
+            // Add empty option
+            const emptyOption = document.createElement('option');
+            emptyOption.value = '';
+            emptyOption.textContent = '-- Select --';
+            input.appendChild(emptyOption);
+            
+            // Add options
+            const options = field.source ? (window.formData[field.source] || []) : (field.options || []);
+            
+            if (field.name === 'subgenre') {
+              // Add 'None' option for subgenre
+              const noneOption = document.createElement('option');
+              noneOption.value = 'None';
+              noneOption.textContent = 'None';
+              input.appendChild(noneOption);
+            }
+            
+            options.forEach(option => {
+              const optionElement = document.createElement('option');
+              optionElement.value = option;
+              optionElement.textContent = option;
+              input.appendChild(optionElement);
+            });
+            
+            if (field.required) {
+              input.required = true;
+            }
+            input.onchange = function() {
+              validateField(this);
+            };
+            fieldGroup.appendChild(input);
+          } else if (field.type === 'textarea') {
+            input = document.createElement('textarea');
+            input.className = 'form-control';
+            input.name = field.name;
+            input.id = field.name;
+            input.rows = 4;
+            
+            if (field.required) {
+              input.required = true;
+            }
+            input.oninput = function() {
+              validateField(this);
+            };
+            fieldGroup.appendChild(input);
+          } else {
+            input = document.createElement('input');
+            input.className = 'form-control';
+            input.type = field.type;
+            input.name = field.name;
+            input.id = field.name;
+            
+            if (field.required) {
+              input.required = true;
+            }
+            input.oninput = function() {
+              validateField(this);
+            };
+            fieldGroup.appendChild(input);
+          }
+          
+          // Add validation message container
+          const validationMessage = document.createElement('div');
+          validationMessage.className = 'validation-message';
+          fieldGroup.appendChild(validationMessage);
+          
+          form.appendChild(fieldGroup);
+        });
+        
+        // Add submit button
+        const submitButton = document.createElement('button');
+        submitButton.type = 'submit';
+        submitButton.id = 'submitButton';
+        submitButton.textContent = 'Add Show';
+        form.appendChild(submitButton);
+        
+        container.appendChild(form);
+      }
+
+      // Validate individual field
+      function validateField(field) {
+        const validationMessage = field.parentNode.querySelector('.validation-message');
+        if (!validationMessage) return true; // Skip validation if no message container
+        
+        if (field.required && !field.value) {
+          validationMessage.textContent = 'This field is required';
+          return false;
+        }
+        
+        if (field.type === 'number' && field.value) {
+          const num = parseInt(field.value);
+          if (isNaN(num) || num < 0) {
+            validationMessage.textContent = 'Please enter a valid number';
+            return false;
+          }
+        }
+        
+        validationMessage.textContent = '';
+        return true;
+      }
+
+      // Validate team members
+      function validateTeamMembers() {
+        const teamContainer = document.getElementById('teamMembers');
+        if (!teamContainer) return true;
+        
+        const members = teamContainer.getElementsByClassName('team-member');
+        let isValid = true;
+        
+        for (let member of members) {
+          const nameInput = member.querySelector('input[name^="team-name-"]');
+          const rolesInput = member.querySelector('select[name^="team-roles-"]');
+          
+          if (!nameInput || !nameInput.value.trim()) {
+            const validationMessage = member.querySelector('.validation-message');
+            validationMessage.textContent = 'Name is required';
+            isValid = false;
+          }
+          
+          if (rolesInput && rolesInput.value.trim()) {
+            const roles = rolesInput.value.split(',').map(r => r.trim());
+            const invalidRoles = roles.filter(role => !window.formData.roles.includes(role));
+            
+            if (invalidRoles.length > 0) {
+              const validationMessage = member.querySelector('.validation-message');
+              validationMessage.textContent = `Invalid roles: ${invalidRoles.join(', ')}`;
+              isValid = false;
+            }
+          }
+        }
+        
+        return isValid;
+      }
+
+      // Validate entire form
+      function validateForm() {
+        const form = document.getElementById('addShowForm');
+        if (!form) return false;
+        
+        let isValid = true;
+        
+        // Validate all fields
+        const fields = form.querySelectorAll('input, select, textarea');
+        fields.forEach(field => {
+          if (!validateField(field)) {
+            isValid = false;
+          }
+        });
+        
+        // Validate team members
+        if (!validateTeamMembers()) {
+          isValid = false;
+        }
+        
+        return isValid;
+      }
+
+      // Submit form
+      function submitForm() {
+        const submitButton = document.getElementById('submitButton');
+        if (!submitButton) {
+          console.error('Submit button not found');
+          return;
+        }
+        
+        if (!validateForm()) {
+          alert('Please fix validation errors before submitting');
+          return;
+        }
+
+        // Disable submit button and show loading state
+        submitButton.disabled = true;
+        submitButton.textContent = 'Submitting...';
+
+        const formData = {};
+        console.log('Preparing form data for submission...');
+
+        try {
+          // Get all form fields
+          const form = document.getElementById('addShowForm');
+          if (!form) {
+            throw new Error('Form not found');
+          }
+
+          const formElements = form.elements;
+          
+          // Process regular form fields
+          for (let i = 0; i < formElements.length; i++) {
+            const input = formElements[i];
+            if (!input.name || input.name.startsWith('team-')) continue;
+
+            let value = input.value.trim();
+
+            // Special handling for different field types
+            switch (input.name) {
+              case 'subgenre':
+                // Handle 'None' selection
+                if (value === 'None') {
+                  value = '';
+                }
+                break;
+
+              case 'episodeCount':
+                // Ensure episode count is a number
+                if (value) {
+                  const num = parseInt(value, 10);
+                  value = isNaN(num) ? '' : num;
+                } else {
+                  value = '';
+                }
+                break;
+
+              case 'announcementDate':
+                // Ensure date is in the correct format
+                if (!value) {
+                  value = '';
+                }
+                break;
+            }
+
+            formData[input.name] = value;
+          }
+
+          // Get team members
+          const members = getTeamMembers();
+          formData.teamMembers = members;
+
+          // Format key_creatives string for backward compatibility
+          formData.keyCreatives = members.length > 0 ?
+            members
+              .map(member => member.roles ? `${member.name} (${member.roles})` : member.name)
+              .join(', ') :
+            '';
+
+          console.log('Form data prepared:', formData);
+
+          // Submit form data
+          google.script.run
+            .withSuccessHandler(onSuccess)
+            .withFailureHandler(error => {
+              submitButton.disabled = false;
+              submitButton.textContent = 'Add Show';
+              onFailure(error);
+            })
+            .addNewShow(formData);
+        } catch (error) {
+          console.error('Error preparing form data:', error);
+          submitButton.disabled = false;
+          submitButton.textContent = 'Add Show';
+          onFailure(error);
+        }
+      }
+
+      // Success handler
+      function onSuccess() {
+        alert('Show added successfully!');
+        
+        // Reset form
+        const form = document.getElementById('addShowForm');
+        if (form) {
+          form.reset();
+          
+          // Clear team members
+          const teamContainer = document.getElementById('teamMembers');
+          if (teamContainer) {
+            teamContainer.innerHTML = '';
+          }
+        }
+        
+        // Reset submit button
+        const submitButton = document.getElementById('submitButton');
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Add Show';
+        }
+      }
+
+      // Failure handler
+      function onFailure(error) {
+        console.error('Operation failed:', error);
+        alert('Operation failed: ' + error.message);
+      }
+
+      // Function to add new team member
+      function addTeamMember() {
+        const teamContainer = document.getElementById('teamMembers');
+        if (!teamContainer) return;
+        
+        const memberCount = teamContainer.children.length;
+        const memberId = new Date().getTime(); // Unique ID for this member
+        
+        const memberDiv = document.createElement('div');
+        memberDiv.className = 'team-member';
+        memberDiv.innerHTML = `
+          <div class="team-member-header">
+            <span>Team Member ${memberCount + 1}</span>
+            <button type="button" class="remove-member" onclick="removeTeamMember(this)">Remove</button>
+          </div>
+          <div class="field-group">
+            <input type="text" 
+                   name="team-name-${memberId}" 
+                   placeholder="Name"
+                   class="form-control"
+                   oninput="validateTeamMembers()">
+          </div>
+          <div class="field-group">
+            <select name="team-roles-${memberId}" 
+                    class="form-control"
+                    onchange="validateTeamMembers()">
+              <option value="">-- Select Role --</option>
+              ${window.formData.roles.map(role => 
+                `<option value="${role}">${role}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="validation-message"></div>
+        `;
+        
+        teamContainer.appendChild(memberDiv);
+        updateTeamMemberNumbers();
+      }
+
+      // Function to update team member numbers
+      function updateTeamMemberNumbers() {
+        const teamContainer = document.getElementById('teamMembers');
+        if (!teamContainer) return;
+        
+        const members = teamContainer.getElementsByClassName('team-member');
+        for (let i = 0; i < members.length; i++) {
+          const header = members[i].querySelector('.team-member-header span');
+          if (header) {
+            header.textContent = `Team Member ${i + 1}`;
+          }
+        }
+      }
+
+      // Function to get team members data
+      function getTeamMembers() {
+        const teamContainer = document.getElementById('teamMembers');
+        if (!teamContainer) return [];
+        
+        const members = teamContainer.getElementsByClassName('team-member');
+        const teamMembers = [];
+        
+        for (let i = 0; i < members.length; i++) {
+          const member = members[i];
+          const nameInput = member.querySelector('input[name^="team-name-"]');
+          const rolesInput = member.querySelector('select[name^="team-roles-"]');
+          
+          if (nameInput && nameInput.value.trim()) {
+            teamMembers.push({
+              name: nameInput.value.trim(),
+              roles: rolesInput ? rolesInput.value.trim() : '',
+              order: i + 1
+            });
+          }
+        }
+        
+        return teamMembers;
+      }
+
+      // Initialize form on load
+      function init() {
+        const formContainer = document.getElementById('formFields');
+        if (!formContainer) {
+          console.error('Form fields container not found');
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(response => {
+            try {
+              // Store data globally first
+              window.config = response.config;
+              window.formData = response.data;
+              
+              // Then initialize form
+              initializeForm(response, formContainer);
+            } catch (error) {
+              console.error('Error initializing form:', error);
+              onFailure(error);
+            }
+          })
+          .withFailureHandler(error => {
+            console.error('Failed to get form data:', error);
+            onFailure(error);
+          })
+          .getFormData();
+      }
+
+      // Wait for DOM and Google Apps Script to be ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    </script>
+  </body>
+</html>

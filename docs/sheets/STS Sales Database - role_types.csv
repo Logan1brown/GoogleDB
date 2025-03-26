@@ -1,0 +1,14 @@
+role,category,aliases
+Creator,Creative,"Created By,Creator/EP"
+Writer,Creative,"(W),Written By,Screenwriter"
+Director,Creative,"(D),Directed By"
+Showrunner,Creative,"SR,Show Runner"
+Executive Producer,Production,"EP,(EP),Exec Producer"
+Producer,Production,(P)
+Co-Producer,Production,"Co-EP,Associate Producer"
+Line Producer,Production,Line-P
+Studio Executive,Development,"Studio Exec,Studio Rep"
+Network Executive,Development,"Network Exec,Network Rep"
+Development Executive,Development,"Dev Exec,Development Rep"
+Actor,Talent,"Star,Lead,Cast"
+Host,Talent,"Presenter,MC"
