@@ -12,8 +12,15 @@ from tenacity import (
     retry_if_exception_type
 )
 
-from config.logging_config import setup_logging
-from config.sheets_config import SheetsConfig
+import sys
+from pathlib import Path
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.append(str(project_root))
+
+from src.config.logging_config import setup_logging
+from src.config.sheets_config import SheetsConfig
 
 logger = setup_logging(__name__)
 

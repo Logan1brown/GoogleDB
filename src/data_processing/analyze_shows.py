@@ -138,15 +138,22 @@ class ShowsAnalyzer:
                 # Create mapping from aliases to standard names
                 mapping = {}
                 for _, row in df.iterrows():
+                    # Get the standard name, preserving original case
+                    standard_name = str(row[df.columns[0]])
                     # Add the main name as its own alias (lowercase)
-                    name = str(row.iloc[0]).lower()
-                    mapping[name] = name
+                    mapping[standard_name.lower()] = standard_name
                     
                     # Add aliases if they exist
                     if 'aliases' in df.columns and pd.notna(row['aliases']):
                         aliases = str(row['aliases']).split(',')
                         for alias in aliases:
-                            mapping[alias.strip().lower()] = name
+                            mapping[alias.strip().lower()] = standard_name
+                            
+                    # For subgenres, also add any parent genres as valid values
+                    if key == 'subgenre' and 'parent_genres' in df.columns and pd.notna(row['parent_genres']):
+                        parent_genres = str(row['parent_genres']).split(',')
+                        for genre in parent_genres:
+                            mapping[genre.strip().lower()] = standard_name
                             
                 self.lookups[key] = mapping
                 self.lookup_mtimes[key] = filepath.stat().st_mtime
@@ -168,8 +175,41 @@ class ShowsAnalyzer:
         if pd.isna(value) or field_type not in self.lookups:
             return value
             
-        value = str(value).strip().lower()
-        return self.lookups[field_type].get(value, value)
+        # For subgenres, handle multiple values
+        if field_type == 'subgenre':
+            if pd.isna(value) or not str(value).strip():
+                return ''
+                
+            # Split on commas and clean each subgenre
+            subgenres = [s.strip() for s in str(value).split(',')]
+            normalized = []
+            
+            for subgenre in subgenres:
+                # Skip empty values
+                if not subgenre:
+                    continue
+                    
+                # Try to find a match in lookups
+                norm_value = self.lookups[field_type].get(subgenre.lower())
+                if norm_value:
+                    normalized.append(norm_value)
+                else:
+                    # For unmatched values, ensure Title Case
+                    # Log for review
+                    logger.debug(f'Unmatched subgenre: {subgenre}')
+                    normalized.append(' '.join(word.capitalize() for word in subgenre.split()))
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_normalized = [x for x in normalized if not (x.lower() in seen or seen.add(x.lower()))]
+            
+            # Join with standardized comma spacing
+            return ', '.join(unique_normalized) if unique_normalized else ''
+        
+        # For other fields, simple lookup
+        original = str(value).strip()
+        lookup_key = original.lower()
+        return self.lookups[field_type].get(lookup_key, original)
     
     def _validate_data(self) -> None:
         """Validate cleaned data and log any issues.
@@ -207,9 +247,20 @@ class ShowsAnalyzer:
             'status': 'status'
         }.items():
             if field in self.shows_df.columns and lookup_type in self.lookups:
-                non_standard = self.shows_df[~self.shows_df[field].isin(
-                    set(self.lookups[lookup_type].values())
-                )][field].unique()
+                # Get set of valid values (case-insensitive)
+                valid_values = {v.lower() for v in self.lookups[lookup_type].values()}
+                # Find non-standard values
+                # For subgenres, split on commas and check each value
+                if field == 'subgenre':
+                    non_standard_values = set()
+                    for value in self.shows_df[field].dropna():
+                        subgenres = [s.strip() for s in str(value).split(',')]
+                        for subgenre in subgenres:
+                            if subgenre and subgenre.lower() not in valid_values:
+                                non_standard_values.add(subgenre)
+                    non_standard = sorted(non_standard_values)
+                else:
+                    non_standard = self.shows_df[~self.shows_df[field].str.lower().isin(valid_values)][field].unique()
                 if len(non_standard) > 0:
                     quality_warnings.append(
                         f"Non-standard {field} values: {', '.join(str(x) for x in non_standard if pd.notna(x))}"
@@ -303,9 +354,80 @@ class ShowsAnalyzer:
         self.team_df = self.team_df.iloc[1:].reset_index(drop=True)
         
         # 2. Clean and normalize role fields
-        self.team_df['roles'] = self.team_df['roles'].apply(
-            lambda x: self._normalize_field(x, 'role')
-        )
+        def normalize_roles(roles_str):
+            if pd.isna(roles_str) or not str(roles_str).strip():
+                return ''
+            
+            # Pre-process input
+            roles_str = str(roles_str).strip()
+            
+            # Build reverse lookup for faster alias matching
+            if not hasattr(self, '_role_alias_map'):
+                self._role_alias_map = {}
+                self._compound_roles = set()  # Track multi-word roles
+                for role, data in self.lookups['role'].items():
+                    # Add the main role
+                    role_lower = role.lower()
+                    self._role_alias_map[role_lower] = role
+                    if ' ' in role_lower:
+                        self._compound_roles.add(role_lower)
+                    
+                    # Add aliases
+                    if ',' in data:
+                        for alias in data.split(','):
+                            alias = alias.strip().lower()
+                            self._role_alias_map[alias] = role
+                            if ' ' in alias:
+                                self._compound_roles.add(alias)
+            
+            # First try to match the entire string as it might be a compound role
+            roles_str_lower = roles_str.lower().replace('.', '')
+            if roles_str_lower in self._role_alias_map:
+                return self._role_alias_map[roles_str_lower]
+            
+            # Split on commas and normalize each part
+            roles = [r.strip() for r in roles_str.split(',')]
+            normalized = []
+            
+            for role in roles:
+                role_lower = role.lower().strip().replace('.', '')
+                
+                # Try exact match first
+                if role_lower in self._role_alias_map:
+                    normalized.append(self._role_alias_map[role_lower])
+                    continue
+                
+                # Try splitting on spaces to handle compound roles
+                parts = role_lower.split()
+                if len(parts) > 1:
+                    part_roles = []
+                    for part in parts:
+                        if part in self._role_alias_map:
+                            part_roles.append(self._role_alias_map[part])
+                    if part_roles:
+                        normalized.extend(part_roles)
+                        continue
+                
+                # Try compound role matches
+                matched = False
+                for compound in self._compound_roles:
+                    if compound in role_lower:
+                        normalized.append(self._role_alias_map[compound])
+                        matched = True
+                        break
+                
+                if not matched:
+                    # Log unrecognized role for future lookup table updates
+                    logger.warning(f"Unrecognized role: {role} from {roles_str}")
+                    normalized.append(role.strip('.'))
+            
+            return ', '.join(sorted(set(normalized)))
+        
+        self.team_df['roles'] = self.team_df['roles'].apply(normalize_roles)
+        
+        # Log role standardization results
+        unique_roles = self.team_df['roles'].unique()
+        logger.info(f"Standardized roles: {sorted(r for r in unique_roles if r)}")
         
         # 3. Ensure proper show name relationships
         self.team_df['show_name'] = self.team_df['show_name'].str.strip()
@@ -319,7 +441,7 @@ class ShowsAnalyzer:
         # Data validation
         self._validate_data()
     
-    def generate_basic_stats(self) -> Dict[str, Union[int, float, str]]:
+    def generate_basic_stats(self) -> Dict[str, Union[int, float, Dict]]:
         """Generate basic statistics about the shows.
         
         Returns:
@@ -332,24 +454,148 @@ class ShowsAnalyzer:
         """
         if self.shows_df is None or self.team_df is None:
             self.fetch_data()
+            self.clean_data()
             
-        # TODO: Implement basic statistics generation
-        return {}
+        stats = {}
+        
+        # Basic counts
+        stats['total_shows'] = len(self.shows_df)
+        stats['total_team_members'] = len(self.team_df)
+        stats['avg_team_size'] = len(self.team_df) / len(self.shows_df)
+        
+        # Shows by network (top 10)
+        network_counts = self.shows_df['network'].value_counts()
+        stats['shows_by_network'] = {
+            'top_10': network_counts.head(10).to_dict(),
+            'total_networks': len(network_counts)
+        }
+        
+        # Shows by genre (all)
+        stats['shows_by_genre'] = self.shows_df['genre'].value_counts().to_dict()
+        
+        # Shows by source type
+        stats['shows_by_source'] = self.shows_df['source_type'].value_counts().to_dict()
+        
+        # Shows by status
+        stats['shows_by_status'] = self.shows_df['status'].value_counts().to_dict()
+        
+        # Time-based analysis
+        if 'date' in self.shows_df.columns:
+            yearly_counts = self.shows_df['year'].value_counts().sort_index()
+            stats['shows_by_year'] = yearly_counts.to_dict()
+            stats['shows_by_season'] = self.shows_df['season'].value_counts().to_dict()
+        
+        # Episode analysis
+        stats['episode_stats'] = {
+            'avg_episodes': self.shows_df['episode_count'].mean(),
+            'max_episodes': self.shows_df['episode_count'].max(),
+            'min_episodes': self.shows_df['episode_count'].min()
+        }
+        
+        # Team analysis
+        role_counts = self.team_df['roles'].value_counts()
+        stats['roles'] = {
+            'top_roles': role_counts.head(10).to_dict(),
+            'total_roles': len(role_counts)
+        }
+        
+        # Recent trends (last 12 months)
+        if 'date' in self.shows_df.columns:
+            last_year = datetime.now() - pd.DateOffset(months=12)
+            recent_shows = self.shows_df[self.shows_df['date'] >= last_year]
+            stats['recent_trends'] = {
+                'total_shows': len(recent_shows),
+                'top_networks': recent_shows['network'].value_counts().head(5).to_dict(),
+                'top_genres': recent_shows['genre'].value_counts().head(5).to_dict()
+            }
+        
+        return stats
     
     def generate_profile_report(self, output_file: Optional[str] = None) -> None:
-        """Generate a comprehensive profile report using ydata-profiling.
+        """Generate comprehensive profile reports using ydata-profiling.
+        
+        This generates two reports:
+        1. Shows report with aggregated team metrics
+        2. Team members report with detailed creative analysis
         
         Args:
             output_file: Path to save the HTML report. If None, uses default path in cache_dir.
         """
-        if self.shows_df is None:
+        if self.shows_df is None or self.team_df is None:
             self.fetch_data()
+            self.clean_data()
             
+        # Default output paths
         if output_file is None:
-            output_file = self.cache_dir / f'shows_profile_{datetime.now():%Y%m%d}.html'
+            base_path = self.cache_dir / f'profile_{datetime.now():%Y%m%d}'
+            shows_output = base_path.with_name(f'{base_path.name}_shows.html')
+            team_output = base_path.with_name(f'{base_path.name}_team.html')
+        else:
+            shows_output = Path(output_file)
+            team_output = shows_output.with_name(f'{shows_output.stem}_team.html')
+        
+        logger.info('Generating profile reports...')
+        
+        try:
+            # Debug: Print DataFrame columns
+            logger.info(f'Shows DataFrame columns: {self.shows_df.columns.tolist()}')
+            logger.info(f'Team DataFrame columns: {self.team_df.columns.tolist()}')
             
-        # TODO: Implement profile report generation
-        pass
+            # Add team metrics to shows DataFrame
+            shows_with_team = self.shows_df.copy()
+            team_metrics = self.team_df.groupby('show_name').agg({
+                'name': 'count',
+                'roles': lambda x: len(set(x))
+            }).rename(columns={
+                'name': 'team_size',
+                'roles': 'unique_roles'
+            })
+            shows_with_team = shows_with_team.join(team_metrics, on='show_name')
+            
+            # Create shows profile report
+            shows_profile = ProfileReport(
+                shows_with_team,
+                title='TV Shows Analysis Report',
+                explorative=True,
+                correlations={
+                    'pearson': {'calculate': True},
+                    'spearman': {'calculate': True},
+                    'kendall': {'calculate': True},
+                    'phi_k': {'calculate': True},
+                    'cramers': {'calculate': True}
+                },
+                interactions={'continuous': True},
+                samples={'head': 10, 'tail': 10}
+            )
+            
+            # Create team profile report
+            team_profile = ProfileReport(
+                self.team_df,
+                title='TV Shows Team Analysis Report',
+                explorative=True,
+                correlations={
+                    'pearson': {'calculate': True},
+                    'spearman': {'calculate': True},
+                    'kendall': {'calculate': True},
+                    'phi_k': {'calculate': True},
+                    'cramers': {'calculate': True}
+                },
+                interactions={'continuous': True},
+                samples={'head': 10, 'tail': 10}
+            )
+            
+            # Save reports
+            logger.info(f'Saving shows profile report to {shows_output}')
+            shows_profile.to_file(str(shows_output))
+            
+            logger.info(f'Saving team profile report to {team_output}')
+            team_profile.to_file(str(team_output))
+            
+            logger.info('Profile reports generation completed')
+            
+        except Exception as e:
+            logger.error(f'Error generating profile reports: {str(e)}')
+            raise
 
 # Create singleton instance for global use
 shows_analyzer = ShowsAnalyzer()

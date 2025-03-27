@@ -17,7 +17,7 @@ eOne,Production,Hasbro,Entertainment One
 Gaumont Television,Studio,Independent,
 HBO Productions,Studio,Warner Bros Discovery,HBO Original Productions
 Hello Sunshine,Production,Independent,
-ITV Studios,Studio,ITV,
+ITV Studios,Studio,ITV,Tomorrow Studios
 Legendary Television,Production,Independent,
 Lionsgate Television,Studio,Lionsgate,
 MGM Television,Studio,Amazon,MGM Studios
@@ -33,6 +33,8 @@ Sony Pictures Television,Studio,Sony,SPT
 Temple Hill Entertainment,Production,Independent,
 Universal Content Productions,Studio,NBCU,UCP
 Universal Television,Studio,NBCU,UTV
-Warner Bros Television,Studio,Warner Bros Discovery,"WBTV,WB Television"
+Warner Bros Television,Studio,Warner Bros Discovery,"WBTV,WB Television,Warner Bros. Television"
 Wiip,Production,Independent,
 Working Title Television,Production,NBCU,
+Other,Studio,Other,
+Netflix Studios,Studio,Netflix,Netflix

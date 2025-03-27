@@ -1,24 +1,32 @@
 subgenre,category,aliases,parent_genres
+Action,Story Type,"Action Series, Action Adventure",
 Adult,Age Group,Mature Animation,Animation
-Adventure,Story Type,Action Series,"Action,Fantasy"
+Adventure,Story Type,Adventure Series,"Action,Fantasy"
 Anime,Style,Japanese Animation,Animation
+Anthology,Format,Anthology Series,
 Biography,Source,Life Story,"Documentary,Drama"
 Broadway,Source,Theater Adaptation,Musical
 Character,Focus,Character Study,Drama
 Children,Age Group,"Kids,Youth",Animation
+Comedy,Style,"Comedy Series, Sitcom",
 Competition,Format,Contest Show,"Reality,Sports"
 Contemporary,Setting,Modern Romance,Romance
+Crime,Theme,"Crime Drama,Criminal",Drama
 Current Events,Subject,Contemporary Issues,Documentary
 Cyberpunk,Style,Tech Noir,Sci-Fi
 Dark,Tone,Black Comedy,Comedy
+Dark Comedy,Tone,Black Comedy,Comedy
 Dating,Focus,Romance Reality,"Reality,Romance"
 Documentary,Style,Sports Doc,Sports
-Drama,Style,Sports Drama,Sports
+Dramedy,Style,Dramatic Comedy,"Comedy, Drama"
+Drama,Style,"Character Drama, Dramatic",
 Dystopian,Setting,Post-Apocalyptic,Sci-Fi
 Epic,Scale,High Fantasy,Fantasy
 Espionage,Style,Spy Thriller,Thriller
+Fantasy,Theme,"High Fantasy, Contemporary Fantasy",
+Fashion,Subject,"Style, Fashion Industry",
 Gothic,Style,Gothic Horror,Horror
-Historical,Setting,Period Drama,"Drama,Western"
+Historical,Setting,"Period Drama, History","Drama,Western"
 Investigation,Style,Investigative,"Documentary,Crime"
 Legal,Setting,"Law Drama,Courtroom",Drama
 Lifestyle,Focus,Self Improvement,Reality
@@ -32,20 +40,25 @@ Performance,Style,Stage Musical,Musical
 Political,Focus,"Government,Politics",Thriller
 Procedural,Format,Police Procedural,"Crime,Drama"
 Psychological,Style,Mind Horror,"Horror,Thriller"
-Romantic,Theme,Rom-Com,"Comedy,Romance"
+Romantic,Theme,"Rom-Com,Romance","Comedy,Romance"
+Science Fiction,Theme,"Sci-Fi, SF, Speculative",
 Sitcom,Format,Situation Comedy,Comedy
 Sketch,Format,Variety Show,Comedy
 Slasher,Style,Stalker Horror,Horror
 Space,Setting,Space Opera,Sci-Fi
+Sports,Subject,,
 Spy,Story Type,"Espionage,Secret Agent","Action,Thriller"
 Stop Motion,Style,"Claymation,Puppet",Animation
+Heist,Story Type,"Robbery,Caper","Crime,Thriller"
+Prequel,Format,"Origin Story,Backstory",
+Survival,Story Type,"Survival Story,Wilderness","Action,Thriller"
 Superhero,Story Type,"Super Hero,Comic Book","Action,Fantasy"
 Supernatural,Elements,Paranormal,"Horror,Fantasy"
 Teen,Target,Young Love,Romance
+Thriller,Story Type,"Suspense, Psychological",
 Time Travel,Element,Temporal,Sci-Fi
 True Crime,Source,Crime Documentary,"Crime,Documentary"
 Urban,Setting,Modern Fantasy,Fantasy
+War,Theme,"Military Drama, Combat",
 Workplace,Setting,Office Comedy,Comedy
 Young Adult,Target,Teen Fantasy,Fantasy
-Dark Comedy,Tone,Black Comedy,Comedy
-Crime,Theme,"Crime Drama,Criminal",Drama
