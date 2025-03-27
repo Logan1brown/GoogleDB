@@ -88,17 +88,62 @@ The codebase follows a siloed architecture where each major feature is self-cont
 - **Analysis**: Python-based data processing and network analysis
 - **Visualization**: Interactive HTML visualizations using Plotly
 - **Integration**: Direct Google Sheets connection via gspread
-- **Output Organization**: Structured output directory for analysis results
+
+### Analysis Output Process
+1. **Data Processing**
+   - Raw data fetched from sheets → `src/cache/raw_data/`
+   - Processed data → `src/cache/processed/`
+   - Analysis results → `src/cache/analysis/`
+
+2. **Analysis Output Structure**
+   Each analysis module follows this pattern:
+   ```
+   /output/network_analysis/
+   ├── {analysis_type}/
+   │   ├── data/              # JSON data files
+   │   │   ├── summary.json   # High-level metrics
+   │   │   └── details.json   # Detailed analysis data
+   │   ├── figures/           # Static visualizations
+   │   │   ├── overview.html  # Main visualization
+   │   │   └── details/       # Drill-down visualizations
+   │   └── report.html        # Analysis narrative and insights
+   ```
+
+3. **Visualization Standards**
+   - All interactive plots use Plotly
+   - Consistent color scheme from `src/dashboard/utils/style_config.py`
+   - Standard layout templates in `src/dashboard/utils/plot_templates.py`
+   - All figures include download buttons
+   - All tables are sortable and filterable
+
+## Current Development Focus
+
+### Role Analysis Refinement
+- Fixing role data normalization to properly handle compound roles
+- Enhancing role distribution analysis for single vs multi-role creators
+- Improving network role preference visualization
+- Removing role progression analysis (not providing value)
+
+### Implementation Details
+- Role data stored in `show_team` sheet with compound roles (e.g., "director, writer")
+- Role types defined in `STS Sales Database - role_types.csv`
+- Role normalization implemented in `src/data_processing/creative_networks/role_analysis.py`
+- Core data loading in `src/data_processing/analyze_shows.py`
+
+### Known Issues
+- Role normalization needs improvement for compound roles
+- Network preferences for multi-role creators not properly represented
+- Some role abbreviations may be missed
 
 ## Next Steps
-1. Enhance network analysis visualizations:
-   - Fix role distribution heatmap
-   - Add scrollable tables
-   - Improve data presentation
-2. Develop additional analyses:
-   - Genre trends
-   - Studio performance
-   - Success patterns
+1. Complete role analysis improvements:
+   - Fix role normalization for compound roles
+   - Implement single vs multi-role analysis
+   - Update network preference visualizations
+2. Clean up codebase organization:
+   - Move core analysis into dedicated module
+   - Consolidate dashboard utilities
+   - Organize analysis modules into proper directories
 3. Create comprehensive documentation
 4. Train team on analysis tools
 
