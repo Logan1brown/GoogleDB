@@ -9,26 +9,44 @@ We are transitioning from a custom class-based template system to Plotly's nativ
 
 ### Migration Strategy
 
-1. Template System Setup (🟡 In Progress)
-   - [ ] Create base template (go.layout.Template)
-       - [ ] Brand styles (fonts, colors, margins)
-       - [ ] Common defaults (legend position, hover)
-   - [ ] Create chart type defaults:
-       - [ ] bar.py (colors, hover format)
-       - [ ] heatmap.py (colorscales, axes)
-       - [ ] scatter.py (markers, lines)
-       - [ ] table.py (header styles, sorting)
-       - [ ] sankey.py (node/link styles)
-   - [ ] Create grid layouts:
-       - [ ] dual.py (side-by-side)
-       - [ ] stacked.py (vertical stack)
-       - [ ] with_table.py (chart + data)
+1. Visualization System Setup (🟡 In Progress)
+   - [x] Style Templates complete
+   - [x] Basic Layouts complete
+   - [ ] Analysis Layouts in progress
+   A. Style Templates (via go.layout.Template)
+      - [x] Create base template
+          - [x] Brand styles (fonts, colors, margins)
+          - [x] Common defaults (legend position, hover)
+      - [x] Create chart type defaults:
+          - [x] bar.py (colors, hover format)
+          - [x] heatmap.py (colorscales, axes)
+          - [x] scatter.py (markers, lines)
+          - [x] table.py (header styles, sorting)
+          - [x] sankey.py (node/link styles)
+   
+   B. Grid Layouts (via make_subplots)
+      - [x] Basic Layouts:
+          - [x] chart_only.py (single chart)
+          - [x] chart_table.py (chart + data table)
+          - [x] chart_dual_table.py (chart + two tables)
+          - [x] chart_insights.py (chart + key findings)
+          - [x] chart_insights_table.py (chart + findings + table)
+      
+      - [ ] Analysis Layouts:
+          - [-] market_snapshot.py (complex layout)
+              Next steps:
+              1. Review README specs for Market Snapshot
+              2. Create detailed layout plan
+              3. Implement one section at a time with visual validation
+              4. Focus on proper subplot types and text positioning
 
 2. Component Migration
    a. Move current components to v1/
    b. Create v2 components using Plotly templates:
-      - [ ] Market Snapshot
+      - [-] Market Snapshot (attempted but failed)
         - Uses: defaults/bar + grids/with_table
+        - Initial attempt failed visual inspection
+        - Need to restart with proper layout planning
       - [ ] Content Analysis
         - Uses: defaults/heatmap + grids/stacked
       - [ ] Network Analysis

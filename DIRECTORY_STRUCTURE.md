@@ -77,9 +77,15 @@ GoogleDB/
                     table.py       # Table defaults (header styles)
                     sankey.py      # Network flow defaults
                 grids/             # Grid layout templates
-                    dual.py        # Side by side charts
-                    stacked.py     # Chart above/below
-                    with_table.py  # Chart + data table
+                    # Basic Layouts
+                    chart_only.py          # Single chart
+                    chart_table.py         # Chart + table
+                    chart_dual_table.py    # Chart + two tables
+                    chart_insights.py      # Chart + key findings
+                    chart_insights_table.py # Chart + findings + table
+                    
+                    # Analysis Layouts
+                    market_snapshot.py      # Market analysis dashboard
 
             components/   # Dashboard components
                 snapshot_dashboard.py    # Market snapshot dashboard

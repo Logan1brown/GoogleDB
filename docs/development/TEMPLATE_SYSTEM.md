@@ -1,7 +1,11 @@
-# Plotly Template System
+# Visualization Architecture
 
 ## Overview
-We use Plotly's native template system (`go.layout.Template`) to define reusable styles and layouts. Our implementation follows a three-layer approach:
+Our visualization system is split into two distinct parts:
+1. Style Templates: Using Plotly's native template system (`go.layout.Template`)
+2. Grid Layouts: Using Plotly's subplot system (`make_subplots`)
+
+This separation ensures clear boundaries between styling and structure.
 
 ## 1. Style Configuration
 All style constants are defined in `utils/style_config.py`:
@@ -47,8 +51,44 @@ def create_bar_defaults():
     return template
 ```
 
-### Grid Layouts (`templates/grids/*.py`)
-Define common layout patterns:
+## Grid Layout System (`templates/grids/*.py`)
+Separate from templates, grid layouts are factory functions that create pre-configured figures using `make_subplots`. They handle structural layout only (rows, columns, spacing):
+
+```python
+# grids/dual.py
+def create_dual_grid(title=None, left_title=None, right_title=None):
+    """Create a figure with side-by-side layout."""
+    fig = make_subplots(
+        rows=1, cols=2,
+        horizontal_spacing=0.1,
+        subplot_titles=(left_title, right_title)
+    )
+    return fig
+```
+
+### Usage
+Combining templates with grid layouts:
+```python
+# 1. Create figure with grid layout
+fig = create_dual_grid(
+    title="Dashboard",
+    left_title="Chart 1",
+    right_title="Chart 2"
+)
+
+# 2. Add traces to grid positions
+fig.add_bar(x=x1, y=y1, row=1, col=1)
+fig.add_scatter(x=x2, y=y2, row=1, col=2)
+
+# 3. Apply styling templates
+fig.update_layout(
+    template=create_bar_defaults()
+)
+fig.update_traces(
+    selector={'type': 'scatter'},
+    marker=create_scatter_defaults().data.scatter[0].marker
+)
+```
 ```python
 # grids/with_table.py
 def create_with_table_grid():

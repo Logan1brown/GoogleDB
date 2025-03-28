@@ -1,7 +1,7 @@
 # TV Series Database & Analysis Project
 
 ## Project Overview
-This project manages and analyzes straight-to-series television orders to inform content development and sales strategies. The database currently contains approximately 400 straight-to-series sales orders.
+This project manages and analyzes straight-to-series television orders to inform content development and sales strategies. The database currently contains approximately 450+ straight-to-series sales orders.
 
 ## Implementation Architecture
 
@@ -14,6 +14,7 @@ This project manages and analyzes straight-to-series television orders to inform
     - Team members are stored here with roles and order
     - Changes here automatically update the `key_creatives` field in `shows`
   - Various lookup tables (networks, studios, genres, etc.)
+  (what about the data validation?) (what about apps scripts?) (triggers?) (a complete understanding of our functional structure and database?! very important!) (address next time you read)
 
 ### Data Model
 - `show_team` is the source of truth for team member data
@@ -26,6 +27,117 @@ This project manages and analyzes straight-to-series television orders to inform
 ### Code Structure
 
 The codebase follows a siloed architecture where each major feature is self-contained to prevent changes in one area from affecting others.
+
+### Dashboard
+
+The STS Analysis Dashboard provides insights into the TV series database with a focus on high-confidence metrics. For detailed analysis methodology and metrics, see `docs/analysis/STS_ANALYSIS_FRAMEWORK.md`.
+
+#### Visualization Architecture
+The dashboard's visualization system has two distinct parts:
+
+1. **Style Templates** (`templates/defaults/`): Visual styling via Plotly's template system
+2. **Grid Layouts** (`templates/grids/`): Structural layout via Plotly's subplot system
+
+This separation ensures clean boundaries between styling (colors, fonts) and structure (rows, columns).
+
+For details see:
+- `docs/development/TEMPLATE_SYSTEM.md`: Full architecture overview
+- `docs/development/STYLE_GUIDE.md`: Style standards and examples
+
+#### Dashboard Sections
+
+1. **Dataset Overview**
+   - Total shows, unique creatives, networks, and role types
+   - Filters for shows, creatives, networks, and roles
+   - Data collection scope and limitations
+
+2. **Network Distribution**
+   - Visual breakdown of shows by network
+   - Clear visualization of market share
+   - Interactive bar chart with network details
+
+3. **Key Metrics**
+   - Total Shows: Current database size
+   - Network Concentration: Share from top 3 networks
+   - Top Genre Network: Leading network in most common genre
+
+#### Running the Dashboard
+
+1. Activate the virtual environment:
+   ```bash
+   source venv/bin/activate
+   ```
+
+2. Run the dashboard:
+   ```bash
+   streamlit run src/dashboard/app.py
+   ```
+   Available at http://localhost:8501
+
+3. For development, use the restart script:
+   ```bash
+   ./scripts/restart_streamlit.sh
+   ```
+   This script handles stopping and restarting the dashboard.
+
+   (do we need a validation that this is up to date?)
+
+#### Visualization System
+All visualizations use Plotly's native template system for consistent styling and layouts. See:
+- `docs/development/STYLE_GUIDE.md` for style specifications
+- `docs/development/TEMPLATE_SYSTEM.md` for template architecture and usage
+
+```python
+from src.dashboard.utils.templates import NetworkAnalysisTemplate
+
+# Create chart with standard styling
+fig = NetworkAnalysisTemplate.create_network_chart()
+
+# Add data while maintaining style
+fig.add_trace(...)
+```
+
+##### Analysis Framework & Templates
+
+1. **Market Snapshot** (`snapshot.py`)
+   - Dataset overview from Deadline
+   - Network distribution
+   - Key metrics visualization
+
+2. **Content Strategy** (`content.py`)
+   - Genre analysis templates
+   - Source type analysis
+   - Distribution patterns
+
+3. **Creative Networks** (`network.py`)
+   - Network connections
+   - Network sharing patterns
+   - Flow diagrams (Sankey)
+
+4. **Creative Relationships** (`relationship.py`)
+   - Creator collaborations
+   - Team patterns
+   - Role hierarchies
+
+5. **Genre-Creative** (`genre_creative.py`)
+   - Genre specialization
+   - Creator preferences
+   - Cross-genre patterns
+
+6. **Studio Performance** (`studio.py`)
+   - Production patterns
+   - Success metrics
+   - Comparative analysis
+
+All templates inherit from `base.py` which provides:
+- Common styling (fonts, colors)
+- Grid layouts
+- Annotations
+- Interactive features
+
+All charts include download buttons and follow consistent styling.
+
+Note: The dashboard runs in headless mode by default (configured in `.streamlit/config.toml`)
 
 ### Setup and Logging
 - `setup_env.sh`: Environment setup script for configuring Python environment and dependencies
@@ -88,6 +200,14 @@ The codebase follows a siloed architecture where each major feature is self-cont
 - **Analysis**: Python-based data processing and network analysis
 - **Visualization**: Interactive HTML visualizations using Plotly
 - **Integration**: Direct Google Sheets connection via gspread
+
+### Data Confidence Levels
+See `docs/analysis/DATA_CONFIDENCE.md` for detailed analysis. Current focus is on highest confidence data:
+- **Level 1**: Network, Studio, Genre (primary), Source Type
+- **Level 2**: Team Member core data (names, direct show relationships)
+- **Level 3+**: Temporal data, secondary classifications, and variable data require additional verification
+
+This confidence hierarchy drives our analysis priorities and validation requirements.
 
 ### Analysis Output Process
 1. **Data Processing**
