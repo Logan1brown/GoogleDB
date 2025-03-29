@@ -25,3 +25,5 @@ config/token.json
 # OS
 .DS_Store
 Thumbs.db
+logs/
+output/
