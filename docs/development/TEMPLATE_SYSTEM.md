@@ -205,3 +205,4 @@ fig.update_layout(template=create_bar_defaults())
 2. Only override template defaults when necessary
 3. Keep text positioning consistent across components
 4. Use proper subplot types (xy, domain, indicator)
+5. Follow conventions in [STYLE_GUIDE.md](./STYLE_GUIDE.md)
