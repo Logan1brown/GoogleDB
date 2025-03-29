@@ -34,6 +34,8 @@ function onOpen() {
   // Register features
   AddShowFeature.registerMenuItems(menu);
   SearchEditFeature.registerMenuItems(menu);
+  MigrateRoles.registerMenuItems(menu);
+  SyncShowNames.registerMenuItems(menu);
   
   menu.addToUi();
 }
