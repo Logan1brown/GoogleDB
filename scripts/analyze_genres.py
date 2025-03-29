@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 
 from src.data_processing.analyze_shows import shows_analyzer
-from src.data_processing.genre_analysis import GenreAnalyzer
+from src.data_processing.content_strategy.genre_analysis_2 import GenreAnalyzer
 
 logger = logging.getLogger(__name__)
 

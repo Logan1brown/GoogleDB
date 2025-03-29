@@ -87,11 +87,15 @@ class ShowsAnalyzer:
         try:
             logger.info("Fetching shows data...")
             shows_data = sheets_client.get_shows_data()
-            self.shows_df = pd.DataFrame(shows_data)
+            # First row contains headers
+            headers = [col.lower().replace(' ', '_') for col in shows_data[0]]
+            self.shows_df = pd.DataFrame(shows_data[1:], columns=headers)
             
             logger.info("Fetching team data...")
             team_data = sheets_client.get_team_data()
-            self.team_df = pd.DataFrame(team_data)
+            # First row contains headers
+            headers = [col.lower().replace(' ', '_') for col in team_data[0]]
+            self.team_df = pd.DataFrame(team_data[1:], columns=headers)
             
             self.last_fetch = datetime.now()
             logger.info("Data fetch completed successfully")
@@ -454,50 +458,44 @@ class ShowsAnalyzer:
         """
         if self.shows_df is None or self.team_df is None:
             self.fetch_data()
-            self.clean_data()
             
         stats = {}
         
         # Basic counts
         stats['total_shows'] = len(self.shows_df)
-        stats['total_team_members'] = len(self.team_df)
-        stats['avg_team_size'] = len(self.team_df) / len(self.shows_df)
         
-        # Shows by network (top 10)
-        network_counts = self.shows_df['network'].value_counts()
-        stats['shows_by_network'] = {
-            'top_10': network_counts.head(10).to_dict(),
-            'total_networks': len(network_counts)
-        }
-        
-        # Shows by genre (all)
-        stats['shows_by_genre'] = self.shows_df['genre'].value_counts().to_dict()
-        
-        # Shows by source type
-        stats['shows_by_source'] = self.shows_df['source_type'].value_counts().to_dict()
-        
-        # Shows by status
-        stats['shows_by_status'] = self.shows_df['status'].value_counts().to_dict()
-        
-        # Time-based analysis
+        # Shows by network
+        if 'network' in self.shows_df.columns:
+            network_counts = self.shows_df['network'].value_counts()
+            stats['shows_by_network'] = network_counts.to_dict()
+        else:
+            stats['shows_by_network'] = {}
+            
+        # New shows in last month
         if 'date' in self.shows_df.columns:
-            yearly_counts = self.shows_df['year'].value_counts().sort_index()
-            stats['shows_by_year'] = yearly_counts.to_dict()
-            stats['shows_by_season'] = self.shows_df['season'].value_counts().to_dict()
-        
-        # Episode analysis
-        stats['episode_stats'] = {
-            'avg_episodes': self.shows_df['episode_count'].mean(),
-            'max_episodes': self.shows_df['episode_count'].max(),
-            'min_episodes': self.shows_df['episode_count'].min()
-        }
-        
-        # Team analysis
-        role_counts = self.team_df['roles'].value_counts()
-        stats['roles'] = {
-            'top_roles': role_counts.head(10).to_dict(),
-            'total_roles': len(role_counts)
-        }
+            try:
+                # Convert date column to datetime
+                self.shows_df['date'] = pd.to_datetime(self.shows_df['date'], errors='coerce')
+                
+                # Get year from date
+                self.shows_df['year'] = self.shows_df['date'].dt.year
+                
+                # Calculate new shows
+                last_month = pd.Timestamp.now() - pd.DateOffset(months=1)
+                stats['new_shows_last_month'] = len(self.shows_df[self.shows_df['date'] >= last_month])
+                
+                # Shows by year
+                yearly_counts = self.shows_df['year'].value_counts().sort_index()
+                stats['shows_by_year'] = yearly_counts.to_dict()
+            except Exception as e:
+                logger.error(f"Error processing dates: {e}")
+                stats['new_shows_last_month'] = 0
+                stats['shows_by_year'] = {}
+        else:
+            stats['new_shows_last_month'] = 0
+            stats['shows_by_year'] = {}
+            
+        return stats
         
         # Recent trends (last 12 months)
         if 'date' in self.shows_df.columns:

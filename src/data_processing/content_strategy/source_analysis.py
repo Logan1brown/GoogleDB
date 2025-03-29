@@ -31,12 +31,56 @@ class SourceAnalyzer:
         for source, count in source_counts.items():
             logger.info(f"  {source}: {count} shows")
     
+    def create_distribution_chart(self) -> go.Figure:
+        """Create a bar chart showing the distribution of shows across source types.
+        
+        Returns:
+            Plotly figure object
+        """
+        # Get source counts
+        source_counts = self.shows_df['source_type'].value_counts()
+        
+        # Create chart
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=list(source_counts.index),
+            y=list(source_counts.values),
+            name="Shows per Source Type"
+        ))
+        
+        # Update layout
+        fig.update_layout(
+            xaxis_title="Source Type",
+            yaxis_title="Number of Shows",
+            font_family="Source Sans Pro",
+            showlegend=False,
+            margin=dict(t=20)
+        )
+        
+        return fig
+    
     def generate_source_insights(self) -> Dict:
         """Generate key insights about source type patterns.
         
         Returns:
-            Dictionary containing various source type insights
+            Dictionary containing various source type insights including:
+            - top_source: Most common source type
+            - top_source_count: Number of shows from top source
+            - original_share: Percentage of shows that are original content
+            - network_preferences: Dict of network -> preferred source type
         """
+        # Get source counts
+        source_counts = self.shows_df['source_type'].value_counts()
+        total_shows = len(self.shows_df)
+        
+        # Get top source info
+        top_source = source_counts.index[0]
+        top_source_count = source_counts[top_source]
+        
+        # Calculate original content share
+        original_count = source_counts.get('Original', 0)
+        original_share = (original_count / total_shows) * 100
+        
         # Network source type focus
         network_source = pd.crosstab(
             self.shows_df['network'],
