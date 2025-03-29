@@ -45,9 +45,9 @@ FONTS = {
 }
 ```
 
-## 2. Previewing Grid Layouts
+## 2. Preview System
 
-Use the unified preview script to test any grid layout:
+Validate grid layouts before use:
 ```bash
 python -m src.tests.dashboard.templates.preview_grid [grid_type]
 ```
@@ -103,14 +103,15 @@ Grid layouts:
 
 ```
 ```python
-# grids/with_table.py
-def create_with_table_grid():
-    template = go.layout.Template()
-    template.layout.grid = dict(
-        rows=2, cols=1,
-        pattern='independent'
+# grids/chart_table.py
+def create_chart_table_grid(title: str):
+    """Create a grid with chart and table side by side."""
+    fig = make_subplots(
+        rows=1, cols=2,
+        specs=[[{'type': 'xy'}, {'type': 'table'}]],
+        subplot_titles=[title, 'Data Table']
     )
-    return template
+    return fig
 ```
 
 ## Component Examples
@@ -143,11 +144,7 @@ def create_market_view(data):
     return fig
 ```
 
-## Best Practices
-1. Always use style constants from style_config.py
-2. Create templates using go.layout.Template
-3. Combine defaults and grids in components
-4. Only override template defaults when necessary
+
 
 ## Component Development
 
