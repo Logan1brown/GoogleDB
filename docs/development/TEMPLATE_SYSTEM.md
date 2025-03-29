@@ -1,11 +1,33 @@
 # Visualization Architecture
 
 ## Overview
-Our visualization system is split into two distinct parts:
-1. Style Templates: Using Plotly's native template system (`go.layout.Template`)
-2. Grid Layouts: Using Plotly's subplot system (`make_subplots`)
+Our visualization system follows Plotly's best practices with three distinct layers:
 
-This separation ensures clear boundaries between styling and structure.
+### 1. Base Template Layer (`go.layout.Template`)
+- Lives in `templates/defaults/`
+- Defines visual styling (fonts, colors, etc.)
+- Can have multiple traces for cycling styles
+- Applied via template parameter in update_layout
+- Example: `bar.py`, `scatter.py`
+
+### 2. Grid Layout Layer (`make_subplots`)
+- Lives in `templates/grids/`
+- Defines structure only (rows, cols, specs)
+- Should NOT contain styling
+- Just creates the subplot structure
+- Example: `market_snapshot.py`, `dual.py`
+
+### 3. Style Config Layer (`style_config.py`)
+- Contains constants used by templates
+- No direct styling, just values
+- Single source of truth for styles
+- Example: colors, fonts, margins
+
+This three-layer separation ensures:
+- Clear boundaries between styling and structure
+- Consistent look and feel across components
+- Easy maintenance and updates
+- Proper use of Plotly's template system
 
 ## 1. Style Configuration
 All style constants are defined in `utils/style_config.py`:
@@ -23,25 +45,33 @@ FONTS = {
 }
 ```
 
-## 2. Template Types
+## 2. Previewing Grid Layouts
 
-### Base Template (`templates/base.py`)
-Creates a single base template using style constants:
-```python
-def create_base_template():
-    template = go.layout.Template()
-    template.layout = dict(
-        font=dict(family=FONTS['primary']['family']),
-        paper_bgcolor=COLORS['background'],
-        showlegend=True
-    )
-    return template
+Use the unified preview script to test any grid layout:
+```bash
+python -m src.tests.dashboard.templates.preview_grid [grid_type]
 ```
 
-### Chart Defaults (`templates/defaults/*.py`)
-Define default styles for specific chart types:
+## Preview System
+
+Using the unified preview script:
+```bash
+python -m src.tests.dashboard.templates.preview_grid [grid_type]
+```
+
+The preview system:
+- Lives in `tests/dashboard/templates/preview_grid.py`
+- Validates grid layouts before use in components
+- Provides sample data for visual testing
+- Ensures proper subplot configuration
+
+## Templates & Grids
+
+### Style Defaults (`templates/defaults/*.py`)
 ```python
 # defaults/bar.py
+from ..utils.style_config import COLORS, FONTS
+
 def create_bar_defaults():
     template = go.layout.Template()
     template.data.bar = [go.Bar(
@@ -51,43 +81,26 @@ def create_bar_defaults():
     return template
 ```
 
-## Grid Layout System (`templates/grids/*.py`)
-Separate from templates, grid layouts are factory functions that create pre-configured figures using `make_subplots`. They handle structural layout only (rows, columns, spacing):
-
+### Grid Layouts (`templates/grids/*.py`)
 ```python
-# grids/dual.py
-def create_dual_grid(title=None, left_title=None, right_title=None):
-    """Create a figure with side-by-side layout."""
+# grids/chart_only.py
+from plotly.subplots import make_subplots
+
+def create_chart_grid(title: str, subtitle: str = None):
     fig = make_subplots(
-        rows=1, cols=2,
-        horizontal_spacing=0.1,
-        subplot_titles=(left_title, right_title)
+        rows=1, cols=1,
+        subplot_titles=[title]
     )
     return fig
 ```
 
-### Usage
-Combining templates with grid layouts:
-```python
-# 1. Create figure with grid layout
-fig = create_dual_grid(
-    title="Dashboard",
-    left_title="Chart 1",
-    right_title="Chart 2"
-)
+Grid layouts:
+- Use make_subplots for structure
+- Handle rows, columns, spacing
+- Support subplot titles and types
+- No styling, only layout
+   - Text can be positioned absolutely or relative to data coordinates
 
-# 2. Add traces to grid positions
-fig.add_bar(x=x1, y=y1, row=1, col=1)
-fig.add_scatter(x=x2, y=y2, row=1, col=2)
-
-# 3. Apply styling templates
-fig.update_layout(
-    template=create_bar_defaults()
-)
-fig.update_traces(
-    selector={'type': 'scatter'},
-    marker=create_scatter_defaults().data.scatter[0].marker
-)
 ```
 ```python
 # grids/with_table.py
@@ -100,19 +113,33 @@ def create_with_table_grid():
     return template
 ```
 
-## 3. Usage in Components
-Components combine templates as needed:
+## Component Examples
+
+### Market Snapshot Component
 ```python
-# components/genre_analysis.py
-def create_genre_view():
-    # Start with bar defaults
-    fig = go.Figure(template=create_bar_defaults())
+# components/market_snapshot.py
+def create_market_view(data):
+    # 1. Start with grid layout
+    fig = create_chart_grid(
+        title="Market Distribution",
+        subtitle="Shows by Network"
+    )
     
-    # Add data (styling handled by template)
-    fig.add_bar(x=genres, y=counts)
+    # 2. Add traces to grid
+    fig.add_trace(
+        go.Bar(x=data['networks'], y=data['counts']),
+        row=1, col=1
+    )
     
-    # Add table grid if needed
-    fig.update_layout(template=create_with_table_grid())
+    # 3. Add any annotations
+    fig.add_annotation(
+        text=f"Total Shows: {sum(data['counts'])}",
+        xref="paper", yref="paper",
+        x=0.5, y=1.1
+    )
+    
+    # 4. Apply style defaults
+    fig.update_layout(template=create_bar_defaults())
     return fig
 ```
 
@@ -122,28 +149,62 @@ def create_genre_view():
 3. Combine defaults and grids in components
 4. Only override template defaults when necessary
 
-## Usage Examples
+## Component Development
 
-### Basic Chart
+### 1. Start with Grid Layout
 ```python
-from src.dashboard.utils.templates import create_bar_template
+from ..templates.grids.chart_only import create_chart_grid
 
-fig = go.Figure(template=create_bar_template())
-fig.add_trace(go.Bar(x=categories, y=values))
+# Create base grid structure
+fig = create_chart_grid(
+    title="Market Overview",
+    subtitle="Distribution by Network"
+)
 ```
 
-### Chart with Table
+### 2. Add Traces to Grid
 ```python
-from src.dashboard.utils.templates import create_chart_with_table
+# Add traces to specific grid positions
+fig.add_trace(
+    go.Bar(x=networks, y=counts),
+    row=1, col=1
+)
 
-fig = go.Figure(template=create_chart_with_table())
-fig.add_trace(go.Bar(...), row=1, col=1)
-fig.add_trace(go.Table(...), row=1, col=2)
+# Add any annotations or text
+fig.add_annotation(
+    text="Key Insight",
+    xref="paper", yref="paper",
+    x=0.5, y=1.1
+)
+```
+
+### 3. Apply Style Defaults
+```python
+from ..templates.defaults.bar import create_bar_defaults
+
+# Apply style defaults last
+fig.update_layout(template=create_bar_defaults())
 ```
 
 ## Best Practices
-1. Always inherit from base template
-2. Use template.layout for figure-wide defaults
-3. Use template.data for trace-specific defaults
-4. Use template.layout.*defaults for annotation/shape defaults
-5. Name template elements for later customization
+
+### Component Structure
+1. Components use grid layouts directly - no intermediate templates
+2. Grid layouts handle structure (rows, cols, spacing)
+3. Style defaults handle appearance (colors, fonts, margins)
+4. Preview system validates layouts before use
+
+### Development Flow
+1. Start with grid layout from grids/
+2. Add traces to specific grid positions
+3. Apply style defaults from defaults/
+4. Test with preview system:
+   ```bash
+   python -m src.tests.dashboard.templates.preview_grid [grid_type]
+   ```
+
+### Style Guidelines
+1. Always use constants from style_config.py
+2. Only override template defaults when necessary
+3. Keep text positioning consistent across components
+4. Use proper subplot types (xy, domain, indicator)
