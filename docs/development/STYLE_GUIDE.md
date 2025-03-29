@@ -54,36 +54,36 @@
      - Header: 14px, bold
      - Cells: 12px, regular
 
-### Templates
-All visualizations use Plotly's native template system in `src/dashboard/templates/`:
+### Visualization Architecture
 
-1. **Base Template**: Common styles from style_config.py
-2. **Chart Defaults**: Type-specific styling
-   - `bar.py`: Bar chart defaults
-   - `heatmap.py`: Heatmap defaults
-   - `scatter.py`: Scatter plot defaults
-   - `table.py`: Table defaults
-3. **Grid Layouts**: Common arrangements
-   - `dual.py`: Side-by-side charts
-   - `stacked.py`: Vertical stacking
-   - `with_table.py`: Chart + data table
+For details on the visualization architecture, including templates, grids, and best practices, see [TEMPLATE_SYSTEM.md](./TEMPLATE_SYSTEM.md).
+
+### Component Example
+```python
+from src.dashboard.templates.grids import create_chart_grid
+from src.dashboard.templates.defaults import create_bar_defaults
+
+# 1. Start with grid layout
+fig = create_chart_grid(
+    title="Genre Distribution",
+    subtitle="Shows by Genre"
+)
+
+# 2. Add traces to grid
+fig.add_trace(
+    go.Bar(
+        x=genres,
+        y=counts,
+        hovertemplate='%{y} shows<br>%{x}'
+    ),
+    row=1, col=1
+)
+
+# 3. Apply style defaults
+fig.update_layout(template=create_bar_defaults())
+```
 
 ## Code Structure
-
-### Template Usage
-```python
-from src.dashboard.templates.defaults import create_bar_defaults
-from src.dashboard.templates.grids import create_with_table_grid
-
-# Create figure with bar defaults
-fig = go.Figure(template=create_bar_defaults())
-
-# Add data (styling handled by template)
-fig.add_bar(x=genres, y=counts)
-
-# Apply grid layout if needed
-fig.update_layout(template=create_with_table_grid())
-```
 
 ### Style Configuration
 Style constants are defined in `src/dashboard/utils/style_config.py`:
