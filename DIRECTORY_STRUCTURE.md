@@ -1,119 +1,184 @@
 # Directory Structure
 
+## File Naming Conventions
+
+1. **Analysis Files** (in src/data_processing/):
+   - Named with suffix '_analyzer.py'
+   - Focus on data processing and analysis
+   - Examples: market_analyzer.py, genre_analyzer.py
+
+2. **View Files** (in src/dashboard/components/):
+   - Named with suffix '_view.py'
+   - Focus on visualization and UI
+   - Examples: market_view.py, genre_view.py
+
+## Directory Layout
+
 GoogleDB/
-    README.md                    # Project overview and documentation
-    TASKLIST.md                 # Implementation plan and progress
-    DIRECTORY_STRUCTURE.md      # This file
-    requirements.txt            # Python dependencies
-    setup_env.sh               # Environment setup script
-    .env.example               # Example environment variables
+    # Core Documentation
+    README.md                # Project overview
+    TASKLIST.md             # Current tasks and roadmap
+    STATUS.md               # Project status
+    RETROSPECTIVE.md        # Project learnings
+    DIRECTORY_STRUCTURE.md  # Directory guide
 
-    apps_script/               # Google Apps Script files
-        AddShow.html          # Add show form template
-        AddShowFeature.gs     # Add show functionality
-        MenuManager.gs        # Menu management
-        SearchEditFeature.gs  # Search and edit functionality
-        SearchSidebar.html    # Search sidebar template
-        TeamEditSidebar.html  # Team management sidebar
-        archive/             # Old versions archive
-        v1_archive/          # Version 1 archive
-        v2_archive/          # Version 2 archive
-        v3_archive/          # Version 3 archive
+    # Configuration
+    requirements.txt        # Python dependencies
+    setup_env.sh           # Environment setup
+    .env.example           # Environment template
+    .env                   # Active environment
+    .gitignore             # Git ignore rules
+    test_app.py            # Main test runner
 
-    docs/                      # Documentation and data files
-        analysis/            # Analysis documentation
-            DATA_CONFIDENCE.md    # Data quality assessment
-            NETWORK_ANALYSIS.md   # Network analysis guide
-            STS_ANALYSIS_FRAMEWORK.md # Analysis methodology
-        development/         # Development guides
-            STYLE_GUIDE.md       # Visual styling standards
-            TEMPLATE_SYSTEM.md   # Template architecture
-        sheets/              # Lookup tables and exports
-            STS Sales Database - network_list.csv
-            STS Sales Database - studio_list.csv
-            STS Sales Database - genre_list.csv
-            STS Sales Database - role_types.csv
-            STS Sales Database - source_types.csv
-        user_guides/         # User documentation
-            USER_GUIDE.md    # Main user guide for features
+    # Environment & Settings
+    .streamlit/            # Streamlit config
+        config.toml        # Dashboard settings
+    .pytest_cache/         # Test cache
+    cache/                 # Data cache
+    venv/                  # Virtual env
 
-    logs/                     # Application logs
-        sheets_api.log       # Google Sheets API interaction logs
+    # System Configuration
+    config/                # App settings
+        .env.example       # Config template
+        credentials.json   # API credentials
+        sheets_config.json # Sheets settings
 
-    scripts/                  # Analysis entry points
-        analyze_content.py    # Content analysis script
-        analyze_genres.py     # Genre analysis script
-        analyze_relationships.py # Network relationship script
-        analyze_sources.py    # Source analysis script
-        generate_profile.py   # Profile generation script
+    # Output & Logs
+    output/                # Generated files
+        network_analysis/  # Network diagrams
+        visualizations/    # Chart outputs
+        test_basic_plot.html # Test output
+    logs/                  # Log files
+        sheets_api.log     # API interaction logs
+
+    # Documentation
+    docs/
+        analysis/
+            DATA_CONFIDENCE.md         # Data quality guide
+            STS_ANALYSIS_FRAMEWORK.md  # Analysis methodology
+        development/
+            STYLE_GUIDE.md            # Visual standards
+            TEMPLATE_SYSTEM.md        # Template architecture
+        google_sheets_setup.md      # Sheets integration guide
+        sheets/                     # Data files
+            # Core Data Files (Actively Used)
+            STS Sales Database - shows.csv        # Main show data
+            STS Sales Database - show_team.csv    # Team member data
+            STS Sales Database - role_types.csv   # Role definitions
+            
+            # Reference Lists
+            STS Sales Database - genre_list.csv    # Valid genres
+            STS Sales Database - network_list.csv  # Valid networks
+            STS Sales Database - source_types.csv  # Valid sources
+            STS Sales Database - status_types.csv  # Valid statuses
+            STS Sales Database - studio_list.csv   # Valid studios
+            STS Sales Database - subgenre_list.csv # Valid subgenres
+        user_guides/
+            USER_GUIDE.md            # Usage documentation
+
+    # Apps Script Archives
+    apps_script/              # Google Apps Script code archives
+        archive/             # General archive
+        v1_archive/          # Version 1 backup
+        v2_archive/          # Version 2 backup
+        v3_archive/          # Version 3 backup
+
+    # Scripts
+    scripts/                 # Analysis runners and utilities
+        analysis/           # Analysis entry points
+            analyze_content.py     # Content analysis runner
+            analyze_genres.py      # Genre pattern analysis
+            analyze_sources.py     # Source type analysis
+            analyze_relationships.py # Network analysis
+        
+        utils/             # Utility scripts
+            generate_profile.py    # Profile generation
+            restart_streamlit.sh   # Dashboard restart
+
+    # Tests
+    tests/
+        scripts/          # Script tests
+            test_basic_plot.py   # Basic plot tests
+            test_sunburst.py    # Sunburst chart tests
 
     src/
-        cache/              # Cache directory
         config/             # Python configuration
-            logging_config.py
-            sheets_config.py
-        data_processing/         # Data processing and analysis
-            analyze_shows.py     # Core data analysis utilities
-            content_analysis.py  # Content analysis module
-            export_shows.py      # Data export functionality
-            verify_setup.py      # Setup verification utility
-            content_strategy/    # Content strategy analysis
+            logging_config.py  # Logging settings
+            server_config.py   # Server configuration
+            sheets_config.py   # Sheets API configuration
+            role_config.py     # Shared role definitions
+
+        data_processing/    # Data processing and analysis
+            analyze_shows.py  # Core data fetching and processing
+            content_analysis.py  # Legacy content analysis (to be refactored)
+            
+            content_strategy/ # Content strategy analysis
+                genre_analyzer.py   # Genre pattern analysis
+                source_analyzer.py  # Source type analysis
+            
+            creative_networks/ # Team and role analysis
+                role_analysis.py  # Role patterns and team composition
+            
+            market_analysis/  # Market performance
+                market_analyzer.py  # Market metrics and trends
+
+        dashboard/         # Streamlit dashboard
+            app.py        # Main dashboard entry point
+            
+            components/   # Dashboard views (UI components)
+                market_view.py   # Market overview UI
+                genre_view.py    # Genre analysis UI
+                source_view.py   # Source analysis UI
+            
+            templates/    # Reusable chart templates
+                defaults/  # Chart styling defaults
+                    bar.py      # Bar chart styles
+                    heatmap.py  # Heatmap styles
+                grids/    # Layout templates
+                    chart_only.py  # Single chart layout
+            
+            utils/       # Helper utilities
+                data_processing.py   # Data transforms
+                sheets_client.py     # Sheets API wrapper
+                sheets_connection.py # Connection manager
+                style_config.py      # Style constants
+
+        data_processing/         # Data analysis
+            analyze_shows.py      # Core analysis
+            content_analysis.py   # Content metrics
+            export_shows.py       # Data export
+            verify_setup.py       # Setup checks
+            content_strategy/     # Content analysis
+                genre_analysis.py
                 genre_analysis_2.py
                 source_analysis.py
-            creative_networks/   # Creative network analysis
-                network_connections.py # Network connection analysis
-                role_analysis.py    # Role distribution analysis
-            genre_creative/     # Genre-creative correlations
-            studio_analysis/    # Studio performance analysis
-        dashboard/         # Streamlit dashboard
-            app.py        # Main dashboard application
-            templates/    # Plotly native templates
-                __init__.py          # Registers templates with Plotly
-                base.py             # Single base template with brand styles
-                defaults/           # Chart type defaults
-                    bar.py         # Bar chart defaults (colors, hovers)
-                    heatmap.py     # Heatmap defaults (colorscales)
-                    scatter.py     # Scatter defaults (markers, lines)
-                    table.py       # Table defaults (header styles)
-                    sankey.py      # Network flow defaults
-                grids/             # Grid layout templates
-                    # Basic Layouts
-                    chart_only.py          # Single chart
-                    chart_table.py         # Chart + table
-                    chart_dual_table.py    # Chart + two tables
-                    chart_insights.py      # Chart + key findings
-                    chart_insights_table.py # Chart + findings + table
-                    
-                    # Analysis Layouts
-                    market_snapshot.py      # Market analysis dashboard
+            creative_networks/    # Network analysis
+                network_connections.py
+                network_graph.py
+                network_sharing_analysis.py
+                role_analysis.py
+            market_analysis/     # Market metrics
+                market_trends.py
+                market_share.py
+            studio_analysis/     # Studio analysis
 
-            components/   # Dashboard components
-                snapshot_dashboard.py    # Market snapshot dashboard
-                content_analysis.py      # Genre and source analysis
-                network_analysis.py      # Creative network analysis
-                relationship_analysis.py # Creative relationship analysis
-                studio_analysis.py       # Studio performance analysis
-            utils/        # Helper functions
-                style_config.py          # Style constants (colors, fonts)
-                sheets_client.py         # Sheets API client
-                sheets_connection.py     # Sheets connection manager
-                data_processing.py       # Data processing utilities
-                templates/               # OLD: To be removed after migration
-                    base.py              # Base template + layouts
-                    insight.py           # Insight slide templates
-                    network_analysis.py  # Network viz templates
-                    market_overview.py   # Market data templates
-                    dual_analysis.py     # Multi-chart templates
-        tests/            # Test files
-            conftest.py
-            test_config.py
-            test_connection_stability.py
-            test_dashboard_components.py
-            test_data_processing.py
-            test_sheet_import.py
-            test_sheets_auth.py
-            test_sheets_connection.py
-            test_data/    # Test data files
+        tests/                  # Test suite
+            # Core Tests
+            conftest.py          # Test configuration
+            test_config.py       # Config tests
+            test_connection_stability.py  # Connection tests
+            test_dashboard_components.py  # UI tests
+            test_data_processing.py      # Processing tests
+            test_sheet_import.py         # Import tests
+            test_sheets_auth.py          # Auth tests
+            test_sheets_connection.py    # API tests
+
+            # Test Resources
+            dashboard/          # Dashboard tests
+                templates/      # Template tests
+            test_data/         # Test datasets
+                csv_samples/    # Sample CSV files
+                sheets_responses/ # Mock API responses
                 csv_samples/
                 sheets_responses/
 
@@ -131,9 +196,20 @@ GoogleDB/
 
 ## Directory Guidelines
 
-1. **Keep Related Files Together**:
-    - Dashboard components in `/src/dashboard/components`
-    - Analysis utilities in `/src/dashboard/utils`
+1. **Analysis vs. View Separation**:
+   - Analysis logic goes in `data_processing/` with '_analyzer.py' suffix
+   - UI components go in `dashboard/components/` with '_view.py' suffix
+   - Each view file has a corresponding analyzer file
+
+2. **Module Organization**:
+   - content_strategy/ - Content-focused analysis (genres, sources)
+   - creative_networks/ - Team and role analysis
+   - market_analysis/ - Market performance metrics
+
+3. **Template Usage**:
+   - Basic chart styles in `templates/defaults/`
+   - Layout templates in `templates/grids/`
+   - Only keep actively used templates
     - Tests alongside their respective modules
 
 2. **Configuration Management**:

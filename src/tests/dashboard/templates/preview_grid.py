@@ -11,9 +11,9 @@ from src.dashboard.templates.defaults.scatter import create_scatter_defaults
 
 def preview_market_snapshot():
     """Preview market snapshot grid with sample data."""
-    from src.dashboard.templates.grids.market_snapshot import create_market_snapshot_grid
+    from src.dashboard.templates.grids.chart_insights import create_chart_insights_grid
     
-    fig = create_market_snapshot_grid(
+    fig = create_chart_insights_grid(
         title="TV Series Market Snapshot",
         distribution_title="Current Market Distribution"
     )
@@ -81,9 +81,9 @@ def preview_market_snapshot():
 
 def preview_market_grid():
     """Preview market snapshot grid with sample data."""
-    from src.dashboard.templates.grids.market_snapshot import create_market_snapshot_grid
+    from src.dashboard.templates.grids.chart_insights import create_chart_insights_grid
     
-    fig = create_market_snapshot_grid(
+    fig = create_chart_insights_grid(
         title="TV Series Market Snapshot",
         distribution_title="Current Market Distribution"
     )

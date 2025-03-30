@@ -1,7 +1,7 @@
 """Script to analyze source type patterns."""
 
 from src.data_processing.analyze_shows import ShowsAnalyzer
-from src.data_processing.source_analysis import SourceAnalyzer
+from src.data_processing.content_strategy.source_analyzer import SourceAnalyzer
 
 def main():
     """Run the source type analysis."""
@@ -14,5 +14,4 @@ def main():
     source_analyzer = SourceAnalyzer(shows_analyzer.shows_df)
     source_analyzer.create_source_visualization()
 
-if __name__ == '__main__':
-    main()
+if __name__ == '__mai

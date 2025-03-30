@@ -1,17 +1,3 @@
-role,category,aliases
-Creator,Creative,"c,Created By,Creator/EP"
-Writer,Creative,"w,Written By,Screenwrighter,w ep"
-Director,Creative,"d,Directed By,d ep"
-Showrunner,Creative,"sr,Show Runner,ep sr,ep. sr"
-Executive Producer,Production,"ep,Exec Producer,executive producer"
-Producer,Production,"p,Producer"
-Co-Producer,Production,"Co-EP,Associate Producer,coep,co ep,co-p,co-ep"
-Line Producer,Production,Line-P
-Studio Executive,Development,"Studio Exec,Studio Rep"
-Network Executive,Development,"Network Exec,Network Rep"
-Development Executive,Development,"Dev Exec,Development Rep"
-Actor,Talent,"Star,Lead,Cast"
-Host,Talent,"Presenter,MC"
-Co-Showrunner,Creative,"co-sr,co sr"
-Writer/Executive Producer,Creative,"wep,w ep"
-Creative Producer,Creative,"cp,creative producer"
+version https://git-lfs.github.com/spec/v1
+oid sha256:05ad9343b60b0a9197bd236f3509a957e4676d5cb103aec2e19cb19ab99f8200
+size 772

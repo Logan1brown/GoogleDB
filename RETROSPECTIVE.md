@@ -1,5 +1,21 @@
 # AI Assistant Limitations and Retrospective
 
+## Critical Incidents and Lessons
+
+### Directory Management Incident (2025-03)
+
+**Incident**: During a cleanup of the scripts directory, a poorly constructed command accidentally deleted the entire directory structure.
+
+**Root Cause**:
+1. Lack of proper command validation
+2. No dry-run before executing destructive operations
+3. Insufficient backup checks
+
+**Impact**:
+- Loss of script files and directory structure
+- Required manual recovery
+
+
 ## Known Limitations (User-Observed)
 
 ### Memory and Context

@@ -1,7 +1,3 @@
-status,description,aliases
-Active,Currently airing or in production,"Running,Current,In Production"
-Ended,Completed as planned,"Finished,Complete,Series End"
-Cancelled,Terminated before planned end,"Axed,Discontinued,Not Renewed"
-Development,In pre-production phase,"In Development,Pre-Production"
-Announced,Officially announced but not started,"Greenlit,Ordered"
-Pilot,Pilot ordered or in production,"Pilot Order,Test Episode"
+version https://git-lfs.github.com/spec/v1
+oid sha256:9609f5f332f3df49d04daae261f9ba7f1dfb4907e58a188036f64001317ceeba
+size 433

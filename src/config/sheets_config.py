@@ -22,7 +22,7 @@ class SheetsConfig:
         self.credentials_file = os.getenv('GOOGLE_SHEETS_CREDENTIALS_FILE')
         self.token_file = os.getenv('GOOGLE_SHEETS_TOKEN_FILE')
         self.spreadsheet_id = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
-        self.shows_sheet = os.getenv('SHOWS_SHEET_NAME', 'Shows')
+        self.shows_sheet = os.getenv('SHOWS_SHEET_NAME', 'shows')
         self.team_sheet = os.getenv('TEAM_SHEET_NAME', 'Team Members')
         
         # Validate required variables

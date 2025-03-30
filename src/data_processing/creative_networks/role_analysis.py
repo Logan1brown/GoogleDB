@@ -1,7 +1,19 @@
 """Role Distribution Analysis.
 
-This module focuses on analyzing and visualizing role patterns across networks,
-including role specialization, combinations, and career progression.
+This module serves two main purposes:
+
+1. Creative Networks Analysis (Primary Purpose):
+   - Analyzing team relationships and collaborations
+   - Understanding role patterns and specializations
+   - Network analysis between creators
+   - Career progression and role combinations
+
+2. Market Overview Support:
+   - Providing standardized role categories
+   - Basic role and creator statistics
+   - Team composition analysis
+
+The module uses standard role definitions from config.role_config.
 """
 
 import logging
@@ -13,13 +25,23 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+from config.role_config import STANDARD_ROLES
+
 logger = logging.getLogger(__name__)
 
 class RoleAnalyzer:
-    """Analyzer for role distributions and patterns."""
+    """Analyzer for role distributions and patterns.
     
-    # Role categories
-    ROLE_CATEGORIES = {
+    This class provides both creative network analysis capabilities and
+    basic role statistics used by the market overview. See module docstring
+    for detailed description of its dual purpose.
+    """
+    
+    # Role categories from config
+    ROLE_CATEGORIES = STANDARD_ROLES
+    
+    # Additional role mappings specific to network analysis
+    NETWORK_ROLE_CATEGORIES = {
         'Creator': 'Creative',
         'Writer': 'Creative',
         'Director': 'Creative',
@@ -52,6 +74,10 @@ class RoleAnalyzer:
         self.team_df = team_df
         
         # Ensure required columns exist
+        # Note: 'show_name' is used to join shows_df with team_df.
+        # - shows_df has one row per show (from shows.csv)
+        # - team_df has multiple rows per show (from show_team.csv), one for each team member
+        # Both tables must use 'show_name' as the join key for consistency
         required_cols = {
             'shows_df': ['show_name', 'network'],
             'team_df': ['show_name', 'roles']

@@ -171,6 +171,35 @@ Code organization follows the three-layer architecture:
    - `STREAMLIT_*`: Dashboard config
 
 ### Development Workflow
+
+#### Chart Development Best Practices
+
+1. **Data Preparation**
+   - Convert data to pandas DataFrame early for easier manipulation
+   - Sort data before creating charts to control visual hierarchy
+   - Use DataFrame operations (sort_values, reindex) instead of manual list building
+   - Ensure data is in the right shape before visualization (e.g., wide vs long format)
+
+2. **Chart Configuration**
+   - Store common chart settings in `style_config.py`
+   - Use consistent color scales across related visualizations
+   - Set fixed dimensions based on data size (e.g., cell_size * num_rows)
+   - Place axis labels strategically (e.g., x-axis on top for heatmaps)
+
+3. **Interactive Features**
+   - Customize hover templates for clear data presentation
+   - Use hover_text for rich tooltips with multiple data points
+   - Set fixedrange=True to prevent unwanted zoom/pan
+   - Adjust margins and spacing for better readability
+
+4. **Layout Management**
+   - Use st.columns for responsive multi-chart layouts
+   - Wrap charts in containers with fixed heights
+   - Match chart heights within the same row
+   - Consider aspect ratio for different screen sizes
+
+#### Development Steps
+
 1. **Data Processing**
    ```bash
    python -m src.data_processing.analyze_shows  # Test pipeline

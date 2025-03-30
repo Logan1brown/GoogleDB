@@ -1,6 +1,3 @@
-type,description,aliases
-Limited,"One-season only, planned ending","Limited Series,Mini-Series,Event Series"
-Ongoing,Multiple seasons possible,"Series,Regular Series,Continuing Series"
-Miniseries,"Short run, typically 4-8 episodes","Mini Series,Limited Event"
-Anthology,Each season different story/cast,"Anthology Series,Season Anthology"
-Pilot,Initial test episode,"Pilot Order,Pilot Commitment"
+version https://git-lfs.github.com/spec/v1
+oid sha256:50aad0eb2b24f0edce540e84a109e044f29018b7bc1bd1c3b168cafbf49fe59c
+size 401

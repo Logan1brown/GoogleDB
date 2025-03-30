@@ -11,10 +11,18 @@ This dashboard provides:
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+
+# Data processing and analysis
 from data_processing.analyze_shows import shows_analyzer
-from data_processing.creative_networks.role_analysis import RoleAnalyzer
-from data_processing.content_strategy.source_analysis import SourceAnalyzer
-from data_processing.market_analysis.market_analysis import MarketAnalyzer
+from data_processing.creative_networks.role_analysis import RoleAnalyzer  # Used for both creative networks and market overview
+from data_processing.content_strategy.source_analyzer import analyze_source_patterns
+from data_processing.content_strategy.genre_analyzer import analyze_genre_patterns
+from data_processing.market_analysis.market_analyzer import MarketAnalyzer
+from dashboard.components.genre_view import render_genre_analysis
+from dashboard.components.source_view import render_source_analysis
+
+# Shared configuration
+from config.role_config import STANDARD_ROLES
 
 def main():
     # Custom CSS for section headers
@@ -44,7 +52,6 @@ def main():
         # Initialize analyzers with fresh data
         shows_df, team_df = shows_analyzer.fetch_data(force=True)
         role_analyzer = RoleAnalyzer(shows_df, team_df)
-        source_analyzer = SourceAnalyzer(shows_df)
         market_analyzer = MarketAnalyzer(shows_df, team_df)
     except Exception as e:
         st.error(f"Error initializing data: {str(e)}")
@@ -83,14 +90,8 @@ def main():
                 selected_networks = st.multiselect("Filter Networks", networks)
             with col4:
                 st.metric("Role Types", f"{insights['total_roles']:,}")
-                # Use standard roles from RoleAnalyzer
-                standard_roles = [
-                    'Creator', 'Writer', 'Director', 'Showrunner', 'Co-Showrunner',
-                    'Writer/Executive Producer', 'Creative Producer',
-                    'Executive Producer', 'Producer', 'Co-Producer', 'Line Producer',
-                    'Studio Executive', 'Network Executive', 'Development Executive',
-                    'Actor', 'Host'
-                ]
+                # Use standard roles from shared config
+                standard_roles = list(STANDARD_ROLES.keys())
                 selected_roles = st.multiselect("Filter Roles", sorted(standard_roles))
         except Exception as e:
             st.error(f"Error displaying dataset metrics: {str(e)}")
@@ -131,37 +132,27 @@ def main():
             )
         
     elif page == "Genre Analysis":
-        st.header("Genre Analysis")
-        st.info("Genre Analysis page is under development. Check back soon!")
+        try:
+            # Run genre analysis
+            analysis_results = analyze_genre_patterns(shows_df)
+            
+            # Render genre analysis component
+            render_genre_analysis(analysis_results)
+        except Exception as e:
+            st.error(f"Error displaying genre analysis: {str(e)}")
+
             
     elif page == "Source Analysis":
-        # Get source insights
-        insights = source_analyzer.generate_source_insights()
+        st.markdown('<p class="section-header">Source Type Analysis</p>', unsafe_allow_html=True)
         
-        # Source Distribution Section
-        st.markdown('<p class="section-header">Source Distribution</p>', unsafe_allow_html=True)
-        
-        # Create and display source distribution chart
-        fig = source_analyzer.create_distribution_chart()
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Source Metrics Section
-        st.markdown('<p class="section-header">Source Insights</p>', unsafe_allow_html=True)
-        
-        # Display metrics
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric(
-                "Most Common Source",
-                insights['top_source'],
-                f"{insights['top_source_count']} Shows"
-            )
-        with col2:
-            st.metric(
-                "Original Content",
-                f"{insights['original_share']:.1f}%",
-                help="Percentage of shows that are original content"
-            )
+        try:
+            # Get source insights
+            source_insights = analyze_source_patterns(shows_df)
+            
+            # Render source analysis component
+            render_source_analysis(source_insights)
+        except Exception as e:
+            st.error(f"Error analyzing source patterns: {str(e)}")
     
 if __name__ == "__main__":
     main()

@@ -89,7 +89,23 @@ class ShowsAnalyzer:
             shows_data = sheets_client.get_shows_data()
             # First row contains headers
             headers = [col.lower().replace(' ', '_') for col in shows_data[0]]
+            
+            # Rename 'shows' to 'show_name' to match show_team.csv
+            # This is important because:
+            # 1. shows.csv has one row per show with 'shows' column
+            # 2. show_team.csv has multiple rows per show with 'show_name' column
+            # 3. We need to join these tables on the same column name
+            headers = ['show_name' if h == 'shows' else h for h in headers]
+            logger.info(f"Number of rows in shows_data: {len(shows_data)}")
+            if len(shows_data) > 1:
+                logger.info(f"First data row: {shows_data[1]}")
+            
             self.shows_df = pd.DataFrame(shows_data[1:], columns=headers)
+            
+            
+            logger.info(f"DataFrame shape: {self.shows_df.shape}")
+            logger.info(f"DataFrame columns: {list(self.shows_df.columns)}")
+            logger.info(f"First few rows:\n{self.shows_df.head()}")
             
             logger.info("Fetching team data...")
             team_data = sheets_client.get_team_data()
@@ -304,26 +320,30 @@ class ShowsAnalyzer:
         # Clean shows DataFrame
         logger.info("Cleaning shows data...")
         
-        # 1. Fix column names and remove empty columns
-        self.shows_df.columns = self.shows_df.iloc[0]
-        self.shows_df = self.shows_df.iloc[1:].reset_index(drop=True)
+        # 1. Remove empty columns
         self.shows_df = self.shows_df.loc[:, self.shows_df.columns.notna()]
         self.shows_df = self.shows_df.loc[:, self.shows_df.columns != '']
         
-        # 2. Handle dates
-        logger.info("Processing dates...")
-        self.shows_df['date'] = pd.to_datetime(self.shows_df['date'], errors='coerce')
-        self.shows_df['year'] = self.shows_df['date'].dt.year
-        self.shows_df['month'] = self.shows_df['date'].dt.month
-        self.shows_df['quarter'] = self.shows_df['date'].dt.quarter
+        # Replace empty strings with NaN for better handling
+        self.shows_df = self.shows_df.replace('', pd.NA)
         
-        # Add season
-        self.shows_df['season'] = self.shows_df['month'].map(
-            lambda m: 'Winter' if m in [12,1,2] else
-                     'Spring' if m in [3,4,5] else
-                     'Summer' if m in [6,7,8] else
-                     'Fall' if m in [9,10,11] else None
-        )
+        # 2. Handle dates if present
+        logger.info("Processing dates...")
+        if 'date' in self.shows_df.columns:
+            self.shows_df['date'] = pd.to_datetime(self.shows_df['date'], errors='coerce')
+            
+            # Extract date components for valid dates
+            self.shows_df['year'] = self.shows_df['date'].dt.year
+            self.shows_df['month'] = self.shows_df['date'].dt.month
+            self.shows_df['quarter'] = self.shows_df['date'].dt.quarter
+            self.shows_df['season'] = self.shows_df['month'].map(
+                lambda m: 'Winter' if m in [12,1,2] else
+                         'Spring' if m in [3,4,5] else
+                         'Summer' if m in [6,7,8] else
+                         'Fall' if m in [9,10,11] else None
+            )
+        
+
         
         # 3. Normalize categorical fields using lookup tables
         logger.info("Normalizing categorical fields...")
@@ -343,12 +363,13 @@ class ShowsAnalyzer:
                     lambda x: self._normalize_field(x, lookup_type)
                 )
         
-        # 4. Handle numeric fields
+        # 4. Handle numeric fields if present
         logger.info("Processing numeric fields...")
-        self.shows_df['episode_count'] = pd.to_numeric(
-            self.shows_df['episode_count'], 
-            errors='coerce'
-        ).fillna(0).astype(int)
+        if 'episode_count' in self.shows_df.columns:
+            self.shows_df['episode_count'] = pd.to_numeric(
+                self.shows_df['episode_count'],
+                errors='coerce'
+            ).fillna(0).astype(int)
         
         # Clean team DataFrame
         logger.info("Cleaning team data...")
@@ -427,18 +448,21 @@ class ShowsAnalyzer:
             
             return ', '.join(sorted(set(normalized)))
         
-        self.team_df['roles'] = self.team_df['roles'].apply(normalize_roles)
-        
-        # Log role standardization results
-        unique_roles = self.team_df['roles'].unique()
-        logger.info(f"Standardized roles: {sorted(r for r in unique_roles if r)}")
+        if 'roles' in self.team_df.columns:
+            self.team_df['roles'] = self.team_df['roles'].apply(normalize_roles)
+            
+            # Log role standardization results
+            unique_roles = self.team_df['roles'].unique()
+            logger.info(f"Standardized roles: {sorted(r for r in unique_roles if r)}")
         
         # 3. Ensure proper show name relationships
-        self.team_df['show_name'] = self.team_df['show_name'].str.strip()
-        
-        # 4. Sort team members by show and order
-        self.team_df['order'] = pd.to_numeric(self.team_df['order'], errors='coerce').fillna(999)
-        self.team_df = self.team_df.sort_values(['show_name', 'order'])
+        if 'show_name' in self.team_df.columns:
+            self.team_df['show_name'] = self.team_df['show_name'].str.strip()
+            
+            # 4. Sort team members by show and order
+            if 'order' in self.team_df.columns:
+                self.team_df['order'] = pd.to_numeric(self.team_df['order'], errors='coerce').fillna(999)
+                self.team_df = self.team_df.sort_values(['show_name', 'order'])
         
         logger.info("Data cleaning completed")
         

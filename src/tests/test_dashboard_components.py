@@ -4,7 +4,7 @@ Tests for Streamlit dashboard components
 import pytest
 from unittest.mock import patch
 import streamlit as st
-from dashboard.components import source_analysis, network_analysis, trend_analysis
+from dashboard.components import source_view, network_analysis, trend_analysis
 
 @pytest.fixture
 def mock_streamlit():

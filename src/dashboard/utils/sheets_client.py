@@ -97,6 +97,10 @@ class SheetsClient:
             worksheet = self.get_worksheet(worksheet_name)
             data = worksheet.get_all_values()
             logger.info(f"Retrieved {len(data)} rows from {worksheet_name}")
+            if data:
+                logger.info(f"First row (headers): {data[0]}")
+                if len(data) > 1:
+                    logger.info(f"Second row (first data row): {data[1]}")
             return data
         except Exception as e:
             logger.error(f"Failed to get values from {worksheet_name}: {e}")
