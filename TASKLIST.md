@@ -4,17 +4,21 @@
 
 ### Component Development
 1. Network Analysis (Creative Networks Refactor)
-   - Network Sharing Component
-     - [ ] Split from network_connections.py
-     - [ ] Convert to functional style
-     - [ ] Add shared talent table
-     - [ ] Implement network metrics
-
-   - Network Graph Component
+   - Network Connections Dashboard
      - [ ] Extract from network_connections.py
-     - [ ] Create force-directed graph
-     - [ ] Add interactive node exploration
-     - [ ] Show connection details on hover
+     - [ ] Force-directed network graph
+     - [ ] Success stories section
+     - [ ] High-level metrics
+     - [ ] Interactive network overview
+     - [ ] Links to sharing dashboard
+
+   - Network Sharing Dashboard
+     - [ ] New component from scratch
+     - [ ] Shared talent tables
+     - [ ] Network pair analysis
+     - [ ] Role transition tracking
+     - [ ] Creator history views
+     - [ ] Filtering and sorting
 
    - Role Analysis
      - [ ] Refactor role_analysis.py
