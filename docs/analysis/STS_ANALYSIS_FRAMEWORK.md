@@ -82,24 +82,30 @@ Maps talent relationships using Level 2 confidence data.
   - Cross-network success tracking
   - Partnership performance metrics
 
-- **Talent Pool Analysis**:
-  - Exclusive talent identification
-  - Shared talent tracking
-  - Network overlap measurement
-  - Creator show counts
-  - Network-specific creator lists
+- **Layered Creator Search**:
+  - Primary Network Filter (must match ALL)
+    - Find creators across specific networks
+    - Network-specific show counts
+    - Detailed show listings
+  - Secondary Genre Filter (optional, match ANY)
+    - Genre-specific show counts
+    - Cross-network genre patterns
+    - Genre specialization insights
+  - Progressive Results Display
+    - Expandable creator details
+    - Network and genre breakdowns
+    - Smart show listing (3 or fewer)
 
 - **Visualization Components**:
-  - Sunburst chart of talent distribution
-  - Network connection tables
-  - Network details breakdown
-
-- **Network Graph**:
-  - Interactive network visualization
-  - Node size by show count
-  - Edge weight by shared creators
-  - Tooltips with detailed stats
-  - Download options
+  - Network Graph:
+    - Interactive network visualization
+    - Node size by show count
+    - Edge weight by shared creators
+    - Tooltips with detailed stats
+  - Success Stories:
+    - Scrollable story container
+    - Emerging collaborations
+    - Partnership metrics
 
 ### Network Sharing
 - **Cross-Network Activity**: Creators working across networks
@@ -135,10 +141,17 @@ Maps talent relationships using Level 2 confidence data.
 - Team composition analysis
 - Success rates of different team structures
 
-### Genre-Creative Analysis
-- Creator genre specialization
-- Genre-specific team structures
-- Cross-genre creator activity
+### Combined Content Strategy
+- **Layered Analysis Pattern**:
+  - Network + Genre + Source combinations
+  - Primary/secondary filter hierarchy
+  - Cross-dimensional insights
+
+- **Content Strategy Insights**:
+  - Network preferences by genre and source
+  - Creator adaptability across types
+  - Genre-source correlations
+  - Market gap identification
 
 ### Studio Performance
 - Independent studio success rates
