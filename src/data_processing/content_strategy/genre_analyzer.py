@@ -12,8 +12,8 @@ from typing import Dict, List, Tuple
 import pandas as pd
 import plotly.graph_objects as go
 
-from src.dashboard.templates.defaults.heatmap import create_heatmap_defaults
-from src.dashboard.templates.grids.chart_insights import create_chart_insights_grid
+from dashboard.templates.defaults.heatmap import create_heatmap_defaults
+from dashboard.templates.grids.chart_insights import create_chart_insights_grid
 
 logger = logging.getLogger(__name__)
 

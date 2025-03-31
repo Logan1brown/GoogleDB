@@ -20,6 +20,8 @@ from data_processing.content_strategy.genre_analyzer import analyze_genre_patter
 from data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from dashboard.components.genre_view import render_genre_analysis
 from dashboard.components.source_view import render_source_analysis
+from dashboard.components.connections_view import render_network_connections_dashboard
+from data_processing.creative_networks.connections_analyzer import analyze_network_connections
 
 # Shared configuration
 from config.role_config import STANDARD_ROLES
@@ -45,7 +47,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Choose a View",
-        ["Market Snapshot", "Genre Analysis", "Source Analysis"]
+        ["Market Snapshot", "Genre Analysis", "Source Analysis", "Network Connections"]
     )
     
     try:
@@ -148,11 +150,19 @@ def main():
         try:
             # Get source insights
             source_insights = analyze_source_patterns(shows_df)
-            
-            # Render source analysis component
             render_source_analysis(source_insights)
         except Exception as e:
-            st.error(f"Error analyzing source patterns: {str(e)}")
+            st.error(f"Error displaying source analysis: {str(e)}")
+            
+    elif page == "Network Connections":
+        st.markdown('<p class="section-header">Network Connections Analysis</p>', unsafe_allow_html=True)
+        
+        try:
+            # Run network analysis
+            analysis_results = analyze_network_connections(shows_df, team_df)
+            render_network_connections_dashboard(shows_df, team_df, analysis_results)
+        except Exception as e:
+            st.error(f"Error analyzing network connections: {str(e)}")
     
 if __name__ == "__main__":
     main()

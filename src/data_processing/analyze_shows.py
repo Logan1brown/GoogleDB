@@ -111,7 +111,11 @@ class ShowsAnalyzer:
             team_data = sheets_client.get_team_data()
             # First row contains headers
             headers = [col.lower().replace(' ', '_') for col in team_data[0]]
+            logger.info(f"Team data headers: {headers}")
+            if len(team_data) > 1:
+                logger.info(f"First team data row: {team_data[1]}")
             self.team_df = pd.DataFrame(team_data[1:], columns=headers)
+            logger.info(f"Team DataFrame columns: {list(self.team_df.columns)}")
             
             self.last_fetch = datetime.now()
             logger.info("Data fetch completed successfully")
