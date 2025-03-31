@@ -13,8 +13,7 @@ class SheetsConfig:
     
     # Only request the specific scopes we need
     SCOPES = [
-        'https://www.googleapis.com/auth/spreadsheets.readonly'  # Read-only access
-        # Add .write scope only if needed: 'https://www.googleapis.com/auth/spreadsheets'
+        'https://www.googleapis.com/auth/spreadsheets'  # Full access for writing
     ]
     
     def __init__(self):

@@ -57,6 +57,34 @@ GoogleDB/
             DATA_CONFIDENCE.md         # Data quality guide
             STS_ANALYSIS_FRAMEWORK.md  # Analysis methodology
         development/
+
+    # Source Code
+    src/
+        # Core Application
+        dashboard/         # Streamlit dashboard
+            pages/        # Dashboard pages
+            utils/        # Dashboard utilities
+            app.py        # Main dashboard
+
+        # Data Processing
+        data_processing/
+            external/     # External API integrations
+                tmdb/    # TMDB API integration
+                    __init__.py
+                    client.py     # API client
+                    models.py     # Data models
+                    cache.py      # Caching layer
+                    matcher.py    # Show matching logic
+                    scripts/     # TMDB-specific scripts
+                        match_shows.py
+
+        # General Scripts
+        scripts/          # Utility scripts
+            test_tmdb.py  # TMDB API testing
+
+        # Tests
+        tests/            # Test suite
+            test_tmdb_client.py  # TMDB client tests
             STYLE_GUIDE.md            # Visual standards
             TEMPLATE_SYSTEM.md        # Template architecture
         google_sheets_setup.md      # Sheets integration guide

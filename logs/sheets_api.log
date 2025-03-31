@@ -15382,3 +15382,96 @@ Results: 3/3 successful connections
 2025-03-30 00:27:11,819 - src.dashboard.utils.sheets_client - INFO - First row (headers): ['show_name', 'name', 'roles', 'order', 'notes']
 2025-03-30 00:27:11,819 - src.dashboard.utils.sheets_client - INFO - Second row (first data row): ['6666', 'Taylor Sheridan', 'Executive Producer', '1', '']
 2025-03-30 00:27:11,820 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-30 21:41:46,516 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-30 21:42:03,395 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-30 21:42:39,242 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-30 21:42:40,500 - __main__ - INFO - Updated 350 shows with TMDB information
+2025-03-30 22:22:48,367 - data_processing.analyze_shows - INFO - Checking lookup tables...
+2025-03-30 22:22:48,368 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - network_list.csv
+2025-03-30 22:22:48,380 - data_processing.analyze_shows - DEBUG - Loaded 85 mappings for network
+2025-03-30 22:22:48,380 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - studio_list.csv
+2025-03-30 22:22:48,385 - data_processing.analyze_shows - DEBUG - Loaded 63 mappings for studio
+2025-03-30 22:22:48,385 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - genre_list.csv
+2025-03-30 22:22:48,399 - data_processing.analyze_shows - DEBUG - Loaded 60 mappings for genre
+2025-03-30 22:22:48,400 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - subgenre_list.csv
+2025-03-30 22:22:48,407 - data_processing.analyze_shows - DEBUG - Loaded 149 mappings for subgenre
+2025-03-30 22:22:48,407 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - source_types.csv
+2025-03-30 22:22:48,411 - data_processing.analyze_shows - DEBUG - Loaded 44 mappings for source
+2025-03-30 22:22:48,411 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - order_types.csv
+2025-03-30 22:22:48,413 - data_processing.analyze_shows - DEBUG - Loaded 17 mappings for order
+2025-03-30 22:22:48,413 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - status_types.csv
+2025-03-30 22:22:48,415 - data_processing.analyze_shows - DEBUG - Loaded 21 mappings for status
+2025-03-30 22:22:48,415 - data_processing.analyze_shows - INFO - Loading/reloading lookup table: STS Sales Database - role_types.csv
+2025-03-30 22:22:48,418 - data_processing.analyze_shows - DEBUG - Loaded 49 mappings for role
+2025-03-30 22:22:48,632 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-30 22:22:49,059 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-30 22:22:49,565 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-30 22:22:49,644 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-30 22:22:49,884 - src.dashboard.utils.sheets_client - INFO - Retrieved 468 rows from shows
+2025-03-30 22:22:49,884 - src.dashboard.utils.sheets_client - INFO - First row (headers): ['shows', 'key_creatives', 'network', 'studio', 'date', 'genre', 'subgenre', 'episode_count', 'source_type', 'status', 'order_type', 'notes', 'TMDB_ID', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:22:49,885 - src.dashboard.utils.sheets_client - INFO - Second row (first data row): ['Avatar: The Last Airbender', 'Albert Kim, Dan Lin, Lindsey Liberatore, Michael Goi, Roseanne Liang, Jabbar Raisani', 'Netflix', 'Netflix', '2021-01-01', 'Sci-Fi & Fantasy', 'Action & Adventure, Drama, Family', '', 'TV Show', '', '', '', '82452', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:22:49,885 - data_processing.analyze_shows - INFO - Number of rows in shows_data: 468
+2025-03-30 22:22:49,885 - data_processing.analyze_shows - INFO - First data row: ['Avatar: The Last Airbender', 'Albert Kim, Dan Lin, Lindsey Liberatore, Michael Goi, Roseanne Liang, Jabbar Raisani', 'Netflix', 'Netflix', '2021-01-01', 'Sci-Fi & Fantasy', 'Action & Adventure, Drama, Family', '', 'TV Show', '', '', '', '82452', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:22:49,888 - data_processing.analyze_shows - INFO - DataFrame shape: (467, 42)
+2025-03-30 22:22:49,888 - data_processing.analyze_shows - INFO - DataFrame columns: ['show_name', 'key_creatives', 'network', 'studio', 'date', 'genre', 'subgenre', 'episode_count', 'source_type', 'status', 'order_type', 'notes', 'tmdb_id', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:22:49,932 - data_processing.analyze_shows - INFO - First few rows:
+                    show_name  ...  
+0  Avatar: The Last Airbender  ...  
+1                       FUBAR  ...  
+2                   One Piece  ...  
+3                 Supercrooks  ...  
+4                  Animaniacs  ...  
+
+[5 rows x 42 columns]
+2025-03-30 22:22:49,932 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-30 22:22:49,963 - src.dashboard.utils.sheets_client - INFO - Retrieved 468 rows from shows
+2025-03-30 22:22:49,963 - src.dashboard.utils.sheets_client - INFO - First row (headers): ['shows', 'key_creatives', 'network', 'studio', 'date', 'genre', 'subgenre', 'episode_count', 'source_type', 'status', 'order_type', 'notes', 'TMDB_ID', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:22:49,963 - src.dashboard.utils.sheets_client - INFO - Second row (first data row): ['Avatar: The Last Airbender', 'Albert Kim, Dan Lin, Lindsey Liberatore, Michael Goi, Roseanne Liang, Jabbar Raisani', 'Netflix', 'Netflix', '2021-01-01', 'Sci-Fi & Fantasy', 'Action & Adventure, Drama, Family', '', 'TV Show', '', '', '', '82452', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:22:49,963 - data_processing.analyze_shows - INFO - Number of rows in shows_data: 468
+2025-03-30 22:22:49,963 - data_processing.analyze_shows - INFO - First data row: ['Avatar: The Last Airbender', 'Albert Kim, Dan Lin, Lindsey Liberatore, Michael Goi, Roseanne Liang, Jabbar Raisani', 'Netflix', 'Netflix', '2021-01-01', 'Sci-Fi & Fantasy', 'Action & Adventure, Drama, Family', '', 'TV Show', '', '', '', '82452', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:22:49,965 - data_processing.analyze_shows - INFO - DataFrame shape: (467, 42)
+2025-03-30 22:22:49,965 - data_processing.analyze_shows - INFO - DataFrame columns: ['show_name', 'key_creatives', 'network', 'studio', 'date', 'genre', 'subgenre', 'episode_count', 'source_type', 'status', 'order_type', 'notes', 'tmdb_id', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:22:50,004 - data_processing.analyze_shows - INFO - First few rows:
+                    show_name  ...  
+0  Avatar: The Last Airbender  ...  
+1                       FUBAR  ...  
+2                   One Piece  ...  
+3                 Supercrooks  ...  
+4                  Animaniacs  ...  
+
+[5 rows x 42 columns]
+2025-03-30 22:22:50,004 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-30 22:22:51,296 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-30 22:22:51,372 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-30 22:22:51,610 - src.dashboard.utils.sheets_client - INFO - Retrieved 2496 rows from show_team
+2025-03-30 22:22:51,610 - src.dashboard.utils.sheets_client - INFO - First row (headers): ['show_name', 'name', 'roles', 'order', 'notes']
+2025-03-30 22:22:51,610 - src.dashboard.utils.sheets_client - INFO - Second row (first data row): ['6666', 'Taylor Sheridan', 'Executive Producer', '1', '']
+2025-03-30 22:22:51,611 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-30 22:22:51,696 - src.dashboard.utils.sheets_client - INFO - Retrieved 2496 rows from show_team
+2025-03-30 22:22:51,696 - src.dashboard.utils.sheets_client - INFO - First row (headers): ['show_name', 'name', 'roles', 'order', 'notes']
+2025-03-30 22:22:51,698 - src.dashboard.utils.sheets_client - INFO - Second row (first data row): ['6666', 'Taylor Sheridan', 'Executive Producer', '1', '']
+2025-03-30 22:22:51,701 - data_processing.analyze_shows - INFO - Data fetch completed successfully
+2025-03-30 22:23:02,586 - data_processing.analyze_shows - INFO - Fetching shows data...
+2025-03-30 22:23:02,779 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: shows
+2025-03-30 22:23:03,242 - src.dashboard.utils.sheets_client - INFO - Retrieved 468 rows from shows
+2025-03-30 22:23:03,242 - src.dashboard.utils.sheets_client - INFO - First row (headers): ['shows', 'key_creatives', 'network', 'studio', 'date', 'genre', 'subgenre', 'episode_count', 'source_type', 'status', 'order_type', 'notes', 'TMDB_ID', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:23:03,242 - src.dashboard.utils.sheets_client - INFO - Second row (first data row): ['Avatar: The Last Airbender', 'Albert Kim, Dan Lin, Lindsey Liberatore, Michael Goi, Roseanne Liang, Jabbar Raisani', 'Netflix', 'Netflix', '2021-01-01', 'Sci-Fi & Fantasy', 'Action & Adventure, Drama, Family', '', 'TV Show', '', '', '', '82452', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:23:03,242 - data_processing.analyze_shows - INFO - Number of rows in shows_data: 468
+2025-03-30 22:23:03,242 - data_processing.analyze_shows - INFO - First data row: ['Avatar: The Last Airbender', 'Albert Kim, Dan Lin, Lindsey Liberatore, Michael Goi, Roseanne Liang, Jabbar Raisani', 'Netflix', 'Netflix', '2021-01-01', 'Sci-Fi & Fantasy', 'Action & Adventure, Drama, Family', '', 'TV Show', '', '', '', '82452', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:23:03,245 - data_processing.analyze_shows - INFO - DataFrame shape: (467, 42)
+2025-03-30 22:23:03,245 - data_processing.analyze_shows - INFO - DataFrame columns: ['show_name', 'key_creatives', 'network', 'studio', 'date', 'genre', 'subgenre', 'episode_count', 'source_type', 'status', 'order_type', 'notes', 'tmdb_id', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+2025-03-30 22:23:03,279 - data_processing.analyze_shows - INFO - First few rows:
+                    show_name  ...  
+0  Avatar: The Last Airbender  ...  
+1                       FUBAR  ...  
+2                   One Piece  ...  
+3                 Supercrooks  ...  
+4                  Animaniacs  ...  
+
+[5 rows x 42 columns]
+2025-03-30 22:23:03,279 - data_processing.analyze_shows - INFO - Fetching team data...
+2025-03-30 22:23:04,664 - src.dashboard.utils.sheets_client - DEBUG - Successfully accessed worksheet: show_team
+2025-03-30 22:23:04,989 - src.dashboard.utils.sheets_client - INFO - Retrieved 2496 rows from show_team
+2025-03-30 22:23:04,989 - src.dashboard.utils.sheets_client - INFO - First row (headers): ['show_name', 'name', 'roles', 'order', 'notes']
+2025-03-30 22:23:04,989 - src.dashboard.utils.sheets_client - INFO - Second row (first data row): ['6666', 'Taylor Sheridan', 'Executive Producer', '1', '']
+2025-03-30 22:23:04,990 - data_processing.analyze_shows - INFO - Data fetch completed successfully

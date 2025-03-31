@@ -36,11 +36,57 @@
 
 ## Backlog 📋
 
+### TMDB Data Enrichment
+1. Show Details
+   - [ ] Episode counts for Season 1
+   - [ ] Show status (In Production, Ended, etc.)
+   - [ ] Show summaries in notes
+   - [ ] Order type information
+   - [ ] Air dates and schedule
+   - [ ] Production companies
+
+2. Implementation & Testing
+   - [ ] Create feature branch `feature/tmdb-success-metrics`
+   - [ ] Success score calculation (0-100)
+   - [ ] Test scoring with known shows
+     - [ ] Long-running hits (e.g., Stranger Things)
+     - [ ] Quick cancellations
+     - [ ] Limited series
+     - [ ] Shows with missing data
+   - [ ] Validate season/episode counts
+   - [ ] Test data pipeline with sample set
+   - [ ] Create rollback plan for sheets/db
+   - [ ] Success tier assignment
+   - [ ] Limited vs ongoing classification
+   - [ ] Database schema updates
+   - [ ] Sheets column additions
+
+3. Enhanced Analysis
+   - [ ] Episode count distribution by network
+   - [ ] Show lifecycle analysis
+   - [ ] Production timeline visualization
+   - [ ] Success rate by show type
+   - [ ] Network programming patterns
+
+### Data Refinement
+
+2. Show Classification
+   - [ ] Limited vs ongoing series refinement
+   - [ ] Production status standardization
+   - [ ] Order type patterns
+   - [ ] Format evolution (mini-series, anthology, etc.)
+
+3. Success Metrics Refinement
+   - [ ] Network-specific success patterns
+   - [ ] Genre-specific success thresholds
+   - [ ] International market impact
+   - [ ] Franchise/universe success patterns
+
 ### Analysis Types
 1. Performance Metrics
-   - Network rankings
-   - Growth patterns
-   - Market share
+   - [ ] Network rankings
+   - [ ] Growth patterns
+   - [ ] Market share
 
 ## Completed ✅
 
@@ -49,6 +95,10 @@
 - [x] Dependencies and requirements
 - [x] Google Sheets integration
 - [x] Authentication and security
+- [x] TMDB API integration
+- [x] Genre system standardization
+- [x] Data validation and lookup tables
+- [x] Sheet synchronization tools
 
 ### Data Pipeline
 - [x] Data fetching and caching

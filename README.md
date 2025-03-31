@@ -32,17 +32,24 @@ This project is structured as a data pipeline and analysis system with three mai
 
 ### Data Model
 A three-layer system that separates:
-1. Storage: Google Sheets backend for raw data entry and validation
-2. Processing: Python analysis pipeline using pandas and ydata-profiling
+1. Storage: Google Sheets backend for raw data entry and validation, integrated with TMDB for show metadata
+2. Processing: Python analysis pipeline using pandas, with TMDB data enrichment
 3. Presentation: Streamlit dashboard with Plotly visualizations
+
+### External Data Sources
+1. **TMDB Integration**
+   - Show metadata validation and enrichment
+   - Genre standardization using TMDB's official genre system
+   - Automated ID linking and data synchronization
 
 ### Implementation
 Code organization follows the three-layer architecture:
 
-1. **Data Storage** (`src/data_processing/`)
-   - `sheets/`: Google Sheets integration
-   - `validation/`: Data validation rules
-   - `cache/`: Local data caching
+1. **Data Storage & Integration** (`src/data_processing/`)
+   - `sheets/`: Google Sheets integration with read/write capabilities
+   - `external/tmdb/`: TMDB API client and data synchronization
+   - `validation/`: Data validation rules and lookup tables
+   - `cache/`: Local data caching with TTL support
 
 2. **Analysis Pipeline** (`src/data_processing/`)
    - `content_strategy/`: Content trends analysis
@@ -55,6 +62,17 @@ Code organization follows the three-layer architecture:
    - `app.py`: Streamlit entry point
 
 ## Data Layer
+
+### Data Sources
+1. **Google Sheets**
+   - Primary data entry and storage
+   - Live validation using data validation rules
+   - Lookup tables for genre and team data
+
+2. **TMDB Integration**
+   - Show metadata validation
+   - Official genre categorization
+   - Automated data enrichment
 
 ### Database Structure
 - **Primary Database**: Google Sheets
@@ -145,6 +163,24 @@ Code organization follows the three-layer architecture:
 
 
 ## Development Guide
+
+### Development Tools
+1. **Code Quality**
+   - Type hints and docstrings
+   - Unit tests with pytest
+   - Code formatting with black
+
+2. **Data Management**
+   - Google Sheets API client with rate limiting
+   - TMDB API client with caching
+   - Data validation and lookup table management
+   - Sheet synchronization tools
+
+3. **Documentation**
+   - Inline documentation
+   - API documentation
+   - Usage examples
+   - Data flow diagrams
 
 ### Prerequisites
 - Python 3.8+

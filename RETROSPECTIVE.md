@@ -83,6 +83,26 @@ This ensures that even if I refresh after STATUS.md hasn't been updated, I still
 3. Hallucination of non-existent files/content
 4. Tendency to delete/lose content during edits
 5. Second-guessing of previously verified information
+6. Limited persistence of behavioral patterns
+
+#### Pattern Persistence Limitation (2025-03-30)
+
+**Observation**: While the memory system effectively stores static information (API keys, configurations) and knowledge (best practices, technical details), it struggles to maintain complex behavioral patterns like "check command status every 20 turns".
+
+**Analysis**:
+The memory system can store:
+- Static information (API keys, configs)
+- Knowledge/facts (best practices, technical details)
+- Simple preferences (formatting, error handling)
+
+But struggles with:
+- Maintaining state (turn counters, command lists)
+- Executing periodic behaviors
+- Complex decision-making patterns
+
+**Impact**: Behavioral patterns requested by users (like periodic status checks) may be remembered as concepts but fail to be consistently executed.
+
+**Root Cause**: The memory system appears designed for declarative knowledge ("what") rather than procedural patterns ("how"). While I can store the rule "check every 20 turns", I cannot maintain the actual state and execution of that pattern effectively.
 
 ## Self-Identified Limitations
 
