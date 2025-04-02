@@ -133,8 +133,11 @@ def create_network_graph(shows_df: pd.DataFrame, team_df: pd.DataFrame) -> go.Fi
         node_y.append(y)
         # Just network name for label
         node_text.append(node)
-        # Creator count for hover
-        hover_text.append(f"{node}<br>{G.nodes[node]['people_count']} creators")
+        # Get connected networks
+        connected = [n for n in G.neighbors(node)]
+        connected_text = "<br>Connected to: " + ", ".join(connected) if connected else ""
+        # Creator count and connections for hover
+        hover_text.append(f"{node}<br>{G.nodes[node]['people_count']} creators{connected_text}")
         node_size.append(G.nodes[node]['size'])  # Size is already scaled
     
     nodes_trace = go.Scatter(

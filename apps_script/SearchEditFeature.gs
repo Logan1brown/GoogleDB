@@ -35,7 +35,7 @@ const SearchEditFeature = {
 
       // Get column indices for snake_case sheet headers
       const columnIndices = {
-        showName: headers.indexOf('show_name'),
+        showName: headers.indexOf('shows'),
         network: headers.indexOf('network'),
         studios: headers.indexOf('studios'),
         genre: headers.indexOf('genre'),
@@ -165,7 +165,7 @@ function getCurrentShowData() {
   if (row < 2) return null; // Skip header row
   
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const showNameCol = headers.indexOf('show_name');
+  const showNameCol = headers.indexOf('shows');
   if (showNameCol === -1) {
     throw new Error('Show Name column not found in shows sheet. Headers: ' + headers.join(', '));
   }

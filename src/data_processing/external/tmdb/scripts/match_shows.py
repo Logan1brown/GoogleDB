@@ -1,5 +1,6 @@
 """Match shows against TMDB with confidence scoring."""
 import csv
+import re
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -129,45 +130,88 @@ def get_confidence_level(score: int) -> MatchConfidence:
         return MatchConfidence.MEDIUM
     return MatchConfidence.LOW
 
+def get_search_variations(title: str) -> List[str]:
+    """Get search variations for a title."""
+    variations = [title]
+    
+    # Handle "The" prefix/suffix
+    if title.lower().startswith('the '):
+        variations.append(title[4:])
+    elif not title.lower().startswith('the '):
+        variations.append(f'The {title}')
+        
+    # Remove special characters
+    clean = re.sub(r'[^\w\s]', '', title)
+    if clean != title:
+        variations.append(clean)
+        
+    return list(set(variations))  # Remove duplicates
+
 def match_show(client: TMDBClient, show: Dict, team_csv_path: str) -> ShowMatch:
     """Match a single show against TMDB."""
     title = show['shows']
-    notes = []
+    best_match = None
+    best_score = -1
+    best_details = None
+    best_notes = []
     
-    # Search for show
-    results = client.search_tv_show(title)
-    if not results:
-        return ShowMatch(show, None, MatchConfidence.LOW, 0, ["No results found"], show.get('genre', ''), '')
+    # Try variations of the title
+    for search_title in get_search_variations(title):
+        results = client.search_tv_show(search_title)
+        if not results:
+            continue
+            
+        # Score all results from this search
+        for result in results:
+            try:
+                details = client.get_tv_show_details(result.id)
+                credits = client.get_tv_show_credits(result.id)
+                
+                # Score components
+                title_score = score_title_match(title, details.name)
+                network_score = score_network_match(show['network'], details.networks)
+                
+                our_eps = load_show_eps(show['shows'], team_csv_path)
+                tmdb_eps = get_tmdb_eps(credits)
+                ep_score, ep_notes = score_ep_matches(our_eps, tmdb_eps)
+                
+                total_score = title_score + network_score + ep_score
+                notes = [
+                    f"Title score: {title_score}/60",
+                    f"Network score: {network_score}/25",
+                    f"EP score: {ep_score}/15",
+                    f"Matched using search term: {search_title}"
+                ] + ep_notes
+                
+                # Update if this is the best match so far
+                if total_score > best_score:
+                    best_score = total_score
+                    best_match = result
+                    best_details = details
+                    best_notes = notes
+            except Exception as e:
+                print(f"Error processing result {result.id}: {e}")
+                continue
     
-    # Get best match
-    best_match = results[0]
-    
-    # Get full details and credits
-    details = client.get_tv_show_details(best_match.id)
-    credits = client.get_tv_show_credits(best_match.id)
+    if not best_match:
+        return ShowMatch(
+            show, None, MatchConfidence.LOW, 0,
+            ["No results found"], show.get('genre', ''), ''
+        )
     
     # Extract genres
     our_genres = show.get('genre', '')
-    tmdb_genres = ','.join([g.name for g in details.genres]) if details else ''
+    tmdb_genres = ','.join([g.name for g in best_details.genres]) if best_details else ''
     
-    # Score components
-    title_score = score_title_match(title, details.name)
-    notes.append(f"Title score: {title_score}/60")
-    
-    network_score = score_network_match(show['network'], details.networks)
-    notes.append(f"Network score: {network_score}/25")
-    
-    our_eps = load_show_eps(show['shows'], team_csv_path)
-    tmdb_eps = get_tmdb_eps(credits)
-    ep_score, ep_notes = score_ep_matches(our_eps, tmdb_eps)
-    notes.append(f"EP score: {ep_score}/15")
-    notes.extend(ep_notes)
-    
-    # Calculate total score
-    total_score = title_score + network_score + ep_score
-    confidence = get_confidence_level(total_score)
-    
-    return ShowMatch(show, details, confidence, total_score, notes, our_genres, tmdb_genres)
+    return ShowMatch(
+        show,
+        best_details,
+        get_confidence_level(best_score),
+        best_score,
+        best_notes,
+        our_genres,
+        tmdb_genres
+    )
 
 def main():
     # Load environment variables
@@ -191,7 +235,7 @@ def main():
     client = TMDBClient()
     
     # Load and process shows
-    shows = load_shows(shows_csv)  # Process all shows
+    shows = load_shows(shows_csv, limit=10)  # Process first 10 shows for testing
     
     # Process each show
     results = []

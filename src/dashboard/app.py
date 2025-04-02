@@ -21,6 +21,7 @@ from data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from dashboard.components.genre_view import render_genre_analysis
 from dashboard.components.source_view import render_source_analysis
 from dashboard.components.connections_view import render_network_connections_dashboard
+from dashboard.components.studio_view import render_studio_performance_dashboard
 from data_processing.creative_networks.connections_analyzer import analyze_network_connections
 
 # Shared configuration
@@ -47,7 +48,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Choose a View",
-        ["Market Snapshot", "Genre Analysis", "Source Analysis", "Network Connections"]
+        ["Market Snapshot", "Genre Analysis", "Source Analysis", "Network Connections", "Studio Performance"]
     )
     
     try:
@@ -163,6 +164,14 @@ def main():
             render_network_connections_dashboard(shows_df, team_df, analysis_results)
         except Exception as e:
             st.error(f"Error analyzing network connections: {str(e)}")
+            
+    elif page == "Studio Performance":
+        st.markdown('<p class="section-header">Studio Performance Analysis</p>', unsafe_allow_html=True)
+        
+        try:
+            render_studio_performance_dashboard(shows_df)
+        except Exception as e:
+            st.error(f"Error analyzing studio performance: {str(e)}")
     
 if __name__ == "__main__":
     main()

@@ -1,5 +1,23 @@
 # AI Assistant Limitations and Retrospective
 
+## Positive Insights and Discoveries
+
+### Google Sheets Caching Behavior (2025-03)
+
+**Discovery**: Apps Script column references can work despite mismatches due to Google Sheets caching behavior.
+
+**Context**:
+- Code was looking for 'show_name' column
+- Actual column name was 'shows'
+- Worked initially due to caching
+- Cache invalidated after column removal/re-addition
+
+**Learning**:
+1. Don't rely on caching to mask column name mismatches
+2. Column references that "mysteriously work" might break on sheet modifications
+3. Always ensure code explicitly matches sheet structure
+4. Sheet operations like adding/removing columns can invalidate cache
+
 ## Critical Incidents and Lessons
 
 ### Directory Management Incident (2025-03)

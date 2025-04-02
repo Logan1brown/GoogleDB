@@ -157,21 +157,61 @@ class ShowsAnalyzer:
                 
             try:
                 logger.info(f"Loading/reloading lookup table: {filename}")
-                df = pd.read_csv(filepath)
+                
+                # Special handling for studio list to handle comments
+                if key == 'studio':
+                    # Read the file line by line to handle comments properly
+                    studios = []
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        # Read header first
+                        reader = csv.reader(f)
+                        header = next(reader)
+                        
+                        # Process remaining rows
+                        for row in reader:
+                            if not row or not row[0] or row[0].startswith('#'):
+                                continue
+                            studio = row[0].strip()
+                            if studio:  # Only add rows with a studio name
+                                studios.append(row)
+                    
+                    # Create DataFrame with the filtered rows
+                    df = pd.DataFrame(studios, columns=header)
+                    # Only include Studios - everything else will be marked as Other
+                    df = df[df['type'] == 'Studio']
+                else:
+                    df = pd.read_csv(filepath)
                 
                 # Create mapping from aliases to standard names
                 mapping = {}
                 for _, row in df.iterrows():
                     # Get the standard name, preserving original case
                     standard_name = str(row[df.columns[0]])
-                    # Add the main name as its own alias (lowercase)
-                    mapping[standard_name.lower()] = standard_name
+                    
+                    # For studios, also store category information
+                    if key == 'studio' and 'category' in df.columns:
+                        category = str(row['category']).strip() if pd.notna(row['category']) else 'Other'
+                        mapping[standard_name.lower()] = {
+                            'name': standard_name,
+                            'category': category
+                        }
+                    else:
+                        # Add the main name as its own alias (lowercase)
+                        mapping[standard_name.lower()] = standard_name
                     
                     # Add aliases if they exist
                     if 'aliases' in df.columns and pd.notna(row['aliases']):
                         aliases = str(row['aliases']).split(',')
                         for alias in aliases:
-                            mapping[alias.strip().lower()] = standard_name
+                            alias_clean = alias.strip().lower()
+                            if alias_clean:  # Skip empty aliases
+                                if key == 'studio':
+                                    mapping[alias_clean] = {
+                                        'name': standard_name,
+                                        'category': category
+                                    }
+                                else:
+                                    mapping[alias_clean] = standard_name
                             
                     # For subgenres, also add any parent genres as valid values
                     if key == 'subgenre' and 'parent_genres' in df.columns and pd.notna(row['parent_genres']):
@@ -194,34 +234,46 @@ class ShowsAnalyzer:
             field_type: Type of field (network, studio, etc.)
             
         Returns:
-            Normalized value
+            Normalized value with categories for studios
         """
         if pd.isna(value) or field_type not in self.lookups:
             return value
             
-        # For subgenres, handle multiple values
-        if field_type == 'subgenre':
+        # Handle fields that support multiple comma-separated values
+        if field_type in ['subgenre', 'studio']:
             if pd.isna(value) or not str(value).strip():
                 return ''
                 
-            # Split on commas and clean each subgenre
-            subgenres = [s.strip() for s in str(value).split(',')]
+            # Split on commas and clean each value
+            values = [s.strip() for s in str(value).split(',')]
             normalized = []
             
-            for subgenre in subgenres:
+            for val in values:
                 # Skip empty values
-                if not subgenre:
+                if not val:
+                    continue
+                    
+                # Handle "Other:" prefix for studios
+                if field_type == 'studio' and val.startswith('Other:'):
+                    normalized.append(val)  # Keep Other: entries as is
                     continue
                     
                 # Try to find a match in lookups
-                norm_value = self.lookups[field_type].get(subgenre.lower())
+                norm_value = self.lookups[field_type].get(val.lower())
                 if norm_value:
-                    normalized.append(norm_value)
+                    if field_type == 'studio':
+                        normalized.append(norm_value['name'])  # Use canonical name for studios
+                    else:
+                        normalized.append(norm_value)
                 else:
-                    # For unmatched values, ensure Title Case
-                    # Log for review
-                    logger.debug(f'Unmatched subgenre: {subgenre}')
-                    normalized.append(' '.join(word.capitalize() for word in subgenre.split()))
+                    # For unmatched values
+                    if field_type == 'studio':
+                        # Unmatched studios get Other: prefix
+                        normalized.append(f"Other: {val}")
+                    else:
+                        # For other fields like subgenres, ensure Title Case
+                        logger.debug(f'Unmatched {field_type}: {val}')
+                        normalized.append(' '.join(word.capitalize() for word in val.split()))
             
             # Remove duplicates while preserving order
             seen = set()
@@ -233,7 +285,13 @@ class ShowsAnalyzer:
         # For other fields, simple lookup
         original = str(value).strip()
         lookup_key = original.lower()
-        return self.lookups[field_type].get(lookup_key, original)
+        norm_value = self.lookups[field_type].get(lookup_key)
+        
+        # Handle studio dictionary format
+        if field_type == 'studio' and isinstance(norm_value, dict):
+            return norm_value['name']
+        
+        return norm_value if norm_value else original
     
     def _validate_data(self) -> None:
         """Validate cleaned data and log any issues.
@@ -314,6 +372,15 @@ class ShowsAnalyzer:
         - Standardizing dates
         - Normalizing categorical fields using lookup tables
         - Creating derived features
+        
+        TODO(Multi-Studio Support): Currently, shows with multiple studios are treated as a single
+        studio string. This needs to be updated to properly handle multiple studios per show,
+        similar to how subgenres are handled. This will require:
+        1. Updating the data model to support multiple studios per show
+        2. Modifying studio-based analytics and aggregations
+        3. Updating the dashboard to handle multi-studio shows
+        4. Migrating existing data and reports
+        See docs/proposals/studio_name_normalization.md for more details.
         """
         if self.shows_df is None or self.team_df is None:
             self.fetch_data()

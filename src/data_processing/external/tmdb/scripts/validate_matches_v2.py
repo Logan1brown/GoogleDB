@@ -10,6 +10,13 @@ root_dir = Path(__file__).parent.parent.parent.parent.parent.parent
 sys.path.append(str(root_dir))
 
 from src.data_processing.external.tmdb.tmdb_client import TMDBClient
+from src.data_processing.external.tmdb.scripts.match_shows import (
+    score_title_match,
+    score_network_match,
+    score_ep_matches,
+    get_tmdb_eps,
+    get_confidence_level
+)
 
 def load_matches(csv_path: str) -> pd.DataFrame:
     """Load matches from CSV."""
@@ -145,30 +152,43 @@ def main():
                                     st.write(f"TMDB ID: {result.id}")
                                     st.write(f"Overview: {result.overview}")
                                     st.write(f"First Air Date: {result.first_air_date}")
-                                    st.write(f"Network: {', '.join(n.name for n in result.networks) if result.networks else 'N/A'}")
-                                    if result.id != row['tmdb_id']:
-                                        if st.button(f"Use this match", key=f"use_{idx}_{result.id}"):
-                                            try:
-                                                # Get details for the new match
-                                                details = client.get_tv_show_details(result.id)
-                                                
-                                                # Find the row index
-                                                show_idx = matches_df.index[matches_df['show_name'] == row['show_name']].item()
-                                                
-                                                # Update the DataFrame
-                                                matches_df.at[show_idx, 'tmdb_id'] = result.id
-                                                matches_df.at[show_idx, 'tmdb_name'] = details.name
-                                                matches_df.at[show_idx, 'tmdb_network'] = ','.join(n.name for n in details.networks) if details.networks else ''
-                                                matches_df.at[show_idx, 'tmdb_genre'] = ','.join(g.name for g in details.genres) if details.genres else ''
-                                                matches_df.at[show_idx, 'validated'] = 'False'
-                                                
-                                                # Save changes
-                                                save_matches(matches_df, csv_path)
-                                                
-                                                # Force Streamlit to rerun
-                                                st.experimental_rerun()
-                                            except Exception as e:
-                                                st.error(f"Error updating match: {e}")
+                                    st.write(f"Networks: {', '.join(n.name for n in result.networks) if result.networks else 'N/A'}")
+                                    if st.button(f"Use this match", key=f"use_{idx}_{result.id}"):
+                                        try:
+                                            # Get details and credits for scoring
+                                            details = client.get_tv_show_details(result.id)
+                                            credits = client.get_tv_show_credits(result.id)
+                                            
+                                            # Score the match
+                                            title_score = score_title_match(row['show_name'], details.name)
+                                            network_score = score_network_match(row['our_network'], details.networks)
+                                            
+                                            our_eps = row['our_eps'].split(',') if pd.notna(row['our_eps']) else []
+                                            tmdb_eps = get_tmdb_eps(credits)
+                                            ep_score, ep_notes = score_ep_matches(our_eps, tmdb_eps)
+                                            
+                                            total_score = title_score + network_score + ep_score
+                                            
+                                            # Find the row index
+                                            show_idx = matches_df.index[matches_df['show_name'] == row['show_name']].item()
+                                            
+                                            # Update the DataFrame
+                                            matches_df.at[show_idx, 'tmdb_id'] = result.id
+                                            matches_df.at[show_idx, 'tmdb_name'] = details.name
+                                            matches_df.at[show_idx, 'tmdb_network'] = ','.join(n.name for n in details.networks) if details.networks else ''
+                                            matches_df.at[show_idx, 'tmdb_genres'] = ','.join(g.name for g in details.genres) if details.genres else ''
+                                            matches_df.at[show_idx, 'score'] = total_score
+                                            matches_df.at[show_idx, 'confidence'] = get_confidence_level(total_score).value
+                                            matches_df.at[show_idx, 'validated'] = False
+                                            
+                                            # Save changes
+                                            save_matches(matches_df, csv_path)
+                                            
+                                            # Force Streamlit to rerun
+                                            st.experimental_rerun()
+                                        except Exception as e:
+                                            st.error(f"Error updating match: {e}")
+
                         else:
                             st.write("No matches found")
                     except Exception as e:
