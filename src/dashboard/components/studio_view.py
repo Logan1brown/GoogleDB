@@ -282,11 +282,6 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame) -> None:
             fig = create_studio_graph(shows_df)
             st.plotly_chart(fig, use_container_width=True)
             
-            # Add note about graph
-            st.info(
-                "💡 The size of each node represents the number of shows. "
-                "Connections indicate shared networks between studios."
-            )
         
         with col2:
             # Create tabs for Studio Filter and Success Stories

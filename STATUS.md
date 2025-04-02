@@ -1,47 +1,36 @@
-# Status [2025-04-01T15:16]
+# Status [2025-04-01T18:37]
 
 Progress: (task tracking)
-- Previous: Implemented multi-studio support and normalization
-- Current: Completed studio data validation and normalization
-- Next: Expand TMDB show matching and data integration
+- Previous: Completed studio data validation and normalization
+- Current: Starting TMDB show matching and data enhancement
+- Next: Implement success metrics and episode details
 
 Implementation: (current focus)
-- TMDB Integration:
-  1. Current Status:
-     - Studio normalization complete with validation
-     - Multi-studio support implemented
-     - Data validation rules in place
-  2. Next Steps:
-     - Match remaining shows to TMDB database
-     - Import complete cast/crew data
-     - Verify existing show information
-     - Implement official genre system
-  3. Integration Plan:
-     - Identify shows without TMDB IDs
-     - Use API to search and verify matches
-     - Import additional show metadata
-     - Update genre categorizations
+- TMDB Integration Phase 1:
+     - Identify and match shows without TMDB IDs
+     - Search API for potential matches
+     - Verify and confirm matches
+     - Document any unmatched shows
 
 Working files: (ONLY 3 current files)
-1. docs/sheets/STS Sales Database - studio_list_2.csv (active updates)
-2. docs/proposals/studio_name_normalization.md (reference)
+1. src/data_processing/external/tmdb/scripts/match_shows.py (show matching)
+2. src/data_processing/external/tmdb/scripts/validate_matches.py (validation)
+3. docs/sheets/STS Sales Database - shows.csv (for matching)
 
 Reference docs: (current task best practices)
-- docs/proposals/studio_name_normalization.md (studio categories)
-- docs/sheets/STS Sales Database - studio_list.csv (original data)
+- docs/proposals/tmdb_data_integration.md (integration plan)
+- docs/proposals/tmdb_success_metrics.md (metrics definition)
 
 Specs: (current task requirements)
-- Accurate studio categorization (vertically integrated vs independent)
-- Consistent parent company tracking
-- Complete alias coverage
-- Consider performance with large result sets
+- Accurate show matching with TMDB database
+- Proper handling of unmatched shows
+- Efficient API usage within rate limits
+- Data validation before updates
 
 Insights: (new patterns discovered)
-- Layered filtering powerful for complex queries
-- Primary (required) + Secondary (optional) pattern works well
-- Could extend to genre + source views
-- Progressive disclosure helps manage information density
-
+- Focus on exact title matches first
+- Handle special characters in show names
+- Consider year/network for disambiguation
 
 Rules: (global working limits)
 - Plan refactor if file > 500 lines

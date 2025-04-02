@@ -30,10 +30,22 @@ def load_matches(csv_path: str) -> pd.DataFrame:
 
 def save_matches(df: pd.DataFrame, csv_path: str):
     """Save matches back to CSV."""
-    print(f"Saving matches to {csv_path}")
+    # Print file content before save
+    print("\nBefore save:")
+    if Path(csv_path).exists():
+        with open(csv_path) as f:
+            print(f.read())
+    
+    # Save new content
+    print(f"\nSaving matches to {csv_path}")
     print(f"DataFrame has {len(df)} rows")
-    print(f"Validation status counts:\n{df['validated'].value_counts()}")
     df.to_csv(csv_path, index=False)
+    
+    # Print file content after save
+    print("\nAfter save:")
+    with open(csv_path) as f:
+        print(f.read())
+    
     print("Save completed")
     
 def search_tmdb(client: TMDBClient, show_name: str):
@@ -52,6 +64,63 @@ def search_tmdb(client: TMDBClient, show_name: str):
             st.error(f"Error getting details for {show.name}: {e}")
     return details
 
+def update_match(show_name: str, tmdb_id: int):
+    """Callback for updating a match."""
+    csv_path = Path(__file__).parent.parent.parent.parent.parent.parent / "docs/sheets/tmdb_matches.csv"
+    
+    try:
+        # Get TMDB details
+        client = TMDBClient(api_key=st.session_state.tmdb_api_key)
+        details = client.get_tv_show_details(tmdb_id)
+        credits = client.get_tv_show_credits(tmdb_id)
+        
+        # Score the match
+        show_idx = st.session_state.matches_df.index[st.session_state.matches_df['show_name'] == show_name].item()
+        row = st.session_state.matches_df.loc[show_idx]
+        
+        title_score = score_title_match(row['show_name'], details.name)
+        network_score = score_network_match(row['our_network'], details.networks)
+        our_eps = row['our_eps'].split(',') if pd.notna(row['our_eps']) else []
+        tmdb_eps = get_tmdb_eps(credits)
+        ep_score, ep_notes = score_ep_matches(our_eps, tmdb_eps)
+        total_score = title_score + network_score + ep_score
+        
+        # Store old values for feedback
+        old_name = row['tmdb_name'] if pd.notna(row['tmdb_name']) else 'No previous match'
+        
+        # Update both DataFrames
+        updates = {
+            'tmdb_id': tmdb_id,
+            'tmdb_name': details.name,
+            'tmdb_network': ','.join(n.name for n in details.networks) if details.networks else '',
+            'tmdb_genres': ','.join(g.name for g in details.genres) if details.genres else '',
+            'score': total_score,
+            'confidence': get_confidence_level(total_score).value,
+            'validated': False,
+            'match_notes': f'Updated match to {details.name} (ID: {tmdb_id})'
+        }
+        
+        for df in [st.session_state.matches_df, st.session_state.filtered_df]:
+            for col, value in updates.items():
+                df.at[show_idx, col] = value
+        
+        # Save changes
+        save_matches(st.session_state.matches_df, csv_path)
+        
+        # Store update info in session state
+        st.session_state.last_update = {
+            'show_name': show_name,
+            'old_match': old_name,
+            'new_match': details.name,
+            'new_score': total_score,
+            'new_confidence': get_confidence_level(total_score).value
+        }
+        
+        st.rerun()
+        
+    except Exception as e:
+        st.error(f"Error updating match: {str(e)}")
+
 def main():
     st.title("TMDB Match Validation")
     
@@ -61,7 +130,7 @@ def main():
         with open(env_path) as f:
             for line in f:
                 if line.startswith('TMDB_API_KEY='):
-                    tmdb_api_key = line.split('=')[1].strip()
+                    st.session_state.tmdb_api_key = line.split('=')[1].strip()
                     break
     
     # Load matches
@@ -69,15 +138,17 @@ def main():
     if not csv_path.exists():
         st.error("No matches file found. Please run the matcher first.")
         return
-        
-    matches_df = load_matches(str(csv_path))
+    
+    # Initialize session state
+    if 'matches_df' not in st.session_state:
+        st.session_state.matches_df = load_matches(str(csv_path))
     
     # Add filters
     col1, col2 = st.columns(2)
     with col1:
         confidence_filter = st.selectbox(
             "Filter by confidence:",
-            ["All"] + list(matches_df["confidence"].unique())
+            ["All"] + list(st.session_state.matches_df["confidence"].unique())
         )
     with col2:
         validated_filter = st.selectbox(
@@ -86,17 +157,20 @@ def main():
         )
     
     # Apply filters
-    filtered_df = matches_df.copy()
+    filtered_df = st.session_state.matches_df.copy()
     if confidence_filter != "All":
         filtered_df = filtered_df[filtered_df["confidence"] == confidence_filter]
     if validated_filter != "All":
         is_validated = validated_filter == "Validated"
         filtered_df = filtered_df[filtered_df["validated"] == is_validated]
     
+    # Store filtered_df in session state
+    st.session_state.filtered_df = filtered_df
+    
     # Show progress
-    total = len(matches_df)
-    validated = len(matches_df[matches_df["validated"] == True])
-    not_validated = len(matches_df[matches_df["validated"] == False])
+    total = len(st.session_state.matches_df)
+    validated = len(st.session_state.matches_df[st.session_state.matches_df["validated"] == True])
+    not_validated = len(st.session_state.matches_df[st.session_state.matches_df["validated"] == False])
     st.progress(validated / total)
     st.write(f"Validated (True): {validated}/{total} shows")
     st.write(f"Not Validated (False): {not_validated}/{total} shows")
@@ -135,14 +209,36 @@ def main():
                 # Make key unique by including row index
                 key = f"validate_{idx}_{row['tmdb_id']}"
                 current = bool(row["validated"])  # Convert to bool explicitly
-                st.write(f"Current status: {'Validated' if current else 'Not Validated'}")
-                validated = st.checkbox("Validate", value=current, key=key)
+                
+                # Show current validation status with color
+                status_color = "green" if current else "red"
+                st.markdown(f"<p style='color: {status_color}'>Current status: {'✓ Validated' if current else '✗ Not Validated'}</p>", unsafe_allow_html=True)
+                
+                # Add validation checkbox
+                validated = st.checkbox("Mark as Validated", value=current, key=key, help="Check this box to validate the match")
+                
+                if validated != current:
+                    # Update both DataFrames
+                    show_idx = st.session_state.matches_df.index[st.session_state.matches_df['show_name'] == row['show_name']].item()
+                    for df in [st.session_state.matches_df, st.session_state.filtered_df]:
+                        df.at[show_idx, 'validated'] = validated
+                    
+                    # Save changes
+                    save_matches(st.session_state.matches_df, csv_path)
+                    
+                    # Show clear feedback
+                    if validated:
+                        st.success(f"✓ Successfully validated '{row['show_name']}' and saved to CSV")
+                    else:
+                        st.warning(f"✗ Removed validation for '{row['show_name']}' and saved to CSV")
+                    
+                    st.rerun()
                 
                 # Add TMDB search button
                 if st.button("Search TMDB", key=f"search_{idx}"):
                     st.write("Alternative matches from TMDB:")
                     try:
-                        client = TMDBClient(api_key=tmdb_api_key)
+                        client = TMDBClient(api_key=st.session_state.tmdb_api_key)
                         results = search_tmdb(client, row['show_name'])
                         
                         if results:
@@ -154,54 +250,46 @@ def main():
                                     st.write(f"First Air Date: {result.first_air_date}")
                                     st.write(f"Networks: {', '.join(n.name for n in result.networks) if result.networks else 'N/A'}")
                                     if st.button(f"Use this match", key=f"use_{idx}_{result.id}"):
-                                        try:
-                                            # Get details and credits for scoring
-                                            details = client.get_tv_show_details(result.id)
-                                            credits = client.get_tv_show_credits(result.id)
-                                            
-                                            # Score the match
-                                            title_score = score_title_match(row['show_name'], details.name)
-                                            network_score = score_network_match(row['our_network'], details.networks)
-                                            
-                                            our_eps = row['our_eps'].split(',') if pd.notna(row['our_eps']) else []
-                                            tmdb_eps = get_tmdb_eps(credits)
-                                            ep_score, ep_notes = score_ep_matches(our_eps, tmdb_eps)
-                                            
-                                            total_score = title_score + network_score + ep_score
-                                            
-                                            # Find the row index
-                                            show_idx = matches_df.index[matches_df['show_name'] == row['show_name']].item()
-                                            
-                                            # Update the DataFrame
-                                            matches_df.at[show_idx, 'tmdb_id'] = result.id
-                                            matches_df.at[show_idx, 'tmdb_name'] = details.name
-                                            matches_df.at[show_idx, 'tmdb_network'] = ','.join(n.name for n in details.networks) if details.networks else ''
-                                            matches_df.at[show_idx, 'tmdb_genres'] = ','.join(g.name for g in details.genres) if details.genres else ''
-                                            matches_df.at[show_idx, 'score'] = total_score
-                                            matches_df.at[show_idx, 'confidence'] = get_confidence_level(total_score).value
-                                            matches_df.at[show_idx, 'validated'] = False
-                                            
-                                            # Save changes
-                                            save_matches(matches_df, csv_path)
-                                            
-                                            # Force Streamlit to rerun
-                                            st.experimental_rerun()
-                                        except Exception as e:
-                                            st.error(f"Error updating match: {e}")
-
+                                        # Update in the main DataFrame
+                                        show_idx = st.session_state.matches_df.index[st.session_state.matches_df['show_name'] == row['show_name']].item()
+                                        
+                                        # Get TMDB details
+                                        client = TMDBClient(api_key=st.session_state.tmdb_api_key)
+                                        details = client.get_tv_show_details(result.id)
+                                        credits = client.get_tv_show_credits(result.id)
+                                        
+                                        # Score the match
+                                        title_score = score_title_match(row['show_name'], details.name)
+                                        network_score = score_network_match(row['our_network'], details.networks)
+                                        our_eps = row['our_eps'].split(',') if pd.notna(row['our_eps']) else []
+                                        tmdb_eps = get_tmdb_eps(credits)
+                                        ep_score, ep_notes = score_ep_matches(our_eps, tmdb_eps)
+                                        total_score = title_score + network_score + ep_score
+                                        
+                                        # Update DataFrame
+                                        updates = {
+                                            'tmdb_id': result.id,
+                                            'tmdb_name': details.name,
+                                            'tmdb_network': ','.join(n.name for n in details.networks) if details.networks else '',
+                                            'tmdb_genres': ','.join(g.name for g in details.genres) if details.genres else '',
+                                            'score': total_score,
+                                            'confidence': get_confidence_level(total_score).value,
+                                            'validated': False,
+                                            'match_notes': f'Updated match to {details.name} (ID: {result.id})'
+                                        }
+                                        
+                                        # Update the main DataFrame
+                                        for col, value in updates.items():
+                                            st.session_state.matches_df.at[show_idx, col] = value
+                                        
+                                        # Save changes
+                                        save_matches(st.session_state.matches_df, csv_path)
+                                        st.success(f"✓ Updated '{row['show_name']}' to match '{details.name}' with score {total_score}")
+                                        st.rerun()
                         else:
                             st.write("No matches found")
                     except Exception as e:
                         st.error(f"Error searching TMDB: {e}")
-                
-                if validated != current:
-                    idx = matches_df.index[matches_df['tmdb_id'] == int(row['tmdb_id'])].tolist()
-                    if idx:
-                        matches_df.loc[idx[0], 'validated'] = bool(validated)  # Store as bool
-                        save_matches(matches_df, csv_path)
-                        st.success(f"Saved validation status: {'Validated' if validated else 'Not Validated'}")
-            
-            st.divider()
     
     # Save button (backup)
     if st.button("Force Save"):

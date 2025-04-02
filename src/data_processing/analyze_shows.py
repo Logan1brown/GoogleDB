@@ -81,41 +81,23 @@ class ShowsAnalyzer:
             Tuple of (shows_df, team_df)
         """
         if not force and self.shows_df is not None and self.team_df is not None:
-            logger.info("Using cached data from last fetch at %s", self.last_fetch)
+            logger.debug("Using cached data from last fetch at %s", self.last_fetch)
             return self.shows_df, self.team_df
             
         try:
-            logger.info("Fetching shows data...")
+            logger.info("Fetching data...")
             shows_data = sheets_client.get_shows_data()
             # First row contains headers
             headers = [col.lower().replace(' ', '_') for col in shows_data[0]]
             
             # Rename 'shows' to 'show_name' to match show_team.csv
-            # This is important because:
-            # 1. shows.csv has one row per show with 'shows' column
-            # 2. show_team.csv has multiple rows per show with 'show_name' column
-            # 3. We need to join these tables on the same column name
             headers = ['show_name' if h == 'shows' else h for h in headers]
-            logger.info(f"Number of rows in shows_data: {len(shows_data)}")
-            if len(shows_data) > 1:
-                logger.info(f"First data row: {shows_data[1]}")
             
             self.shows_df = pd.DataFrame(shows_data[1:], columns=headers)
             
-            
-            logger.info(f"DataFrame shape: {self.shows_df.shape}")
-            logger.info(f"DataFrame columns: {list(self.shows_df.columns)}")
-            logger.info(f"First few rows:\n{self.shows_df.head()}")
-            
-            logger.info("Fetching team data...")
             team_data = sheets_client.get_team_data()
-            # First row contains headers
             headers = [col.lower().replace(' ', '_') for col in team_data[0]]
-            logger.info(f"Team data headers: {headers}")
-            if len(team_data) > 1:
-                logger.info(f"First team data row: {team_data[1]}")
             self.team_df = pd.DataFrame(team_data[1:], columns=headers)
-            logger.info(f"Team DataFrame columns: {list(self.team_df.columns)}")
             
             self.last_fetch = datetime.now()
             logger.info("Data fetch completed successfully")
@@ -513,8 +495,10 @@ class ShowsAnalyzer:
                         break
                 
                 if not matched:
-                    # Log unrecognized role for future lookup table updates
-                    logger.warning(f"Unrecognized role: {role} from {roles_str}")
+                    # Add to unrecognized roles set (will be logged once at end)
+                    if not hasattr(self, '_unrecognized_roles'):
+                        self._unrecognized_roles = set()
+                    self._unrecognized_roles.add(role)
                     normalized.append(role.strip('.'))
             
             return ', '.join(sorted(set(normalized)))
@@ -522,9 +506,9 @@ class ShowsAnalyzer:
         if 'roles' in self.team_df.columns:
             self.team_df['roles'] = self.team_df['roles'].apply(normalize_roles)
             
-            # Log role standardization results
-            unique_roles = self.team_df['roles'].unique()
-            logger.info(f"Standardized roles: {sorted(r for r in unique_roles if r)}")
+            # Log role standardization results and any unrecognized roles
+            if hasattr(self, '_unrecognized_roles') and self._unrecognized_roles:
+                logger.warning(f"Unrecognized roles found: {sorted(self._unrecognized_roles)}")
         
         # 3. Ensure proper show name relationships
         if 'show_name' in self.team_df.columns:
@@ -590,8 +574,6 @@ class ShowsAnalyzer:
             stats['new_shows_last_month'] = 0
             stats['shows_by_year'] = {}
             
-        return stats
-        
         # Recent trends (last 12 months)
         if 'date' in self.shows_df.columns:
             last_year = datetime.now() - pd.DateOffset(months=12)
@@ -602,6 +584,7 @@ class ShowsAnalyzer:
                 'top_genres': recent_shows['genre'].value_counts().head(5).to_dict()
             }
         
+        logger.info(f"Analysis complete - {stats['show_count']} shows processed")
         return stats
     
     def generate_profile_report(self, output_file: Optional[str] = None) -> None:

@@ -14,9 +14,9 @@ def setup_logging(name: str) -> logging.Logger:
     
     # Prevent duplicate handlers
     if not logger.handlers:
-        # Console handler with INFO level
+        # Console handler with WARNING level (less verbose)
         console = logging.StreamHandler(sys.stdout)
-        console.setLevel(logging.INFO)
+        console.setLevel(logging.WARNING)
         console.setFormatter(logging.Formatter(
             '%(asctime)s - %(levelname)s - %(message)s'
         ))

@@ -235,7 +235,7 @@ def main():
     client = TMDBClient()
     
     # Load and process shows
-    shows = load_shows(shows_csv, limit=10)  # Process first 10 shows for testing
+    shows = load_shows(shows_csv)  # Process all shows
     
     # Process each show
     results = []
