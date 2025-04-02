@@ -2,31 +2,35 @@
 
 ## Current Sprint 🔄
 
-### TMDB Integration: Show Matching
-1. Show Data Enhancement
-   - [ ] Identify shows without TMDB IDs
-   - [ ] Search API for potential matches
-   - [ ] Verify and confirm matches
-   - [ ] Document unmatched shows
+### TMDB Work - Success Metrics
+
+1. Create TMDB Success Metrics Sheet
+   - [ ] Number of seasons
+   - [ ] Episodes per season
+   - [ ] Total episode count
+   - [ ] Average episodes/season
+   - [ ] Status (Returning/Planned/etc)
+   - [ ] Last air date
+   - [ ] Success score (0-100)
+
+2. Update Shows Sheet
+   - [ ] Notes column (TMDB overview)
+   - [ ] Order type column (limited vs ongoing)
+   - [ ] Status column (Active/Development/Cancelled)
+   - [ ] Episode count column (Season 1)
+   - [ ] Success score column (0-100)
+
+3. Data Collection Pipeline
+   - [ ] Pull raw TMDB data
+   - [ ] Calculate success scores
+   - [ ] Map TMDB statuses to our statuses
+   - [ ] Determine order types
+   - [ ] Extract season 1 episode counts
+
+### Implementation & Testing
 
 ### Backlog
 
-TMDB Work  - Success Metrics
-     - [ ] Number of seasons
-     - [ ] Episodes per season
-     - [ ] Production status (map TMDB status: Returning Series→Active, Planned/In Production→Development)
-     - [ ] Last air date
-     - [ ] Success score calculation
-     - [ ] Success tier assignment
-   - Episode Details
-     - [ ] Total episode count
-     - [ ] Season 1 episode count (maps to Episode Count)
-     - [ ] Average episodes/season
-   - Show Information
-     - [ ] Show overview/summary mapped to Notes
-     - [ ] Series type (limited if: single season + not in production, or has limited/miniseries keywords)
-
-2. Implementation & Testing
    - [ ] Create feature branch `feature/tmdb-success-metrics`
    - [ ] Success score calculation (0-100)
    - [ ] Test scoring with known shows
@@ -77,8 +81,12 @@ TMDB Work  - Success Metrics
 
 ## Completed ✅
 
-
-
+### TMDB Integration: Show Matching
+1. Show Data Enhancement
+   - [x] Identify shows without TMDB IDs
+   - [x] Search API for potential matches
+   - [x] Verify and confirm matches
+   - [x] Document unmatched shows
 
 ### Must Have 
 - Reliable data sync with Google Sheets

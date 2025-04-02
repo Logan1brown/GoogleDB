@@ -4,7 +4,7 @@ from functools import wraps
 from typing import Any, Dict, List, Optional, Union
 from .tmdb_cache import TMDBCache, cache_response
 from .tmdb_logger import log_api_call
-from .tmdb_models import TVShow, TVShowDetails, Genre
+from .tmdb_models import TVShow, TVShowDetails, Genre, TVShowSeason
 from urllib.parse import quote
 
 import requests
@@ -242,4 +242,22 @@ class TMDBClient:
         params = {'language': language}
         response = self._make_request(endpoint, params)
         return response
+        
+    @cache_response(model_type=TVShowSeason)
+    @log_api_call
+    def get_tv_show_season(self, show_id: int, season_number: int, language: str = 'en-US') -> TVShowSeason:
+        """Get detailed information about a specific TV show season.
+        
+        Args:
+            show_id: TMDB ID of the show
+            season_number: Season number to get details for
+            language: ISO 639-1 language code (default: en-US)
+            
+        Returns:
+            Season information including episodes list
+        """
+        endpoint = f"/tv/{show_id}/season/{season_number}"
+        params = {'language': language}
+        response = self._make_request(endpoint, params)
+        return TVShowSeason.model_validate(response)
 

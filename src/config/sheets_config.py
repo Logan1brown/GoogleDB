@@ -23,6 +23,7 @@ class SheetsConfig:
         self.spreadsheet_id = os.getenv('GOOGLE_SHEETS_SPREADSHEET_ID')
         self.shows_sheet = os.getenv('SHOWS_SHEET_NAME', 'shows')
         self.team_sheet = os.getenv('TEAM_SHEET_NAME', 'Team Members')
+        self.tmdb_metrics_sheet = os.getenv('TMDB_METRICS_SHEET_NAME', 'tmdb_success_metrics')
         
         # Validate required variables
         self._validate_config()
