@@ -86,8 +86,10 @@ def update_shows_sheet(sheets_client: SheetsClient, updates_df: pd.DataFrame, te
         print(updates_df[['Title', 'TMDB_ID', 'status', 'order_type', 'episode_count', 'success_score', 'notes']])
         return
     
-    # Update each show that has TMDB data
-    rows_updated = 0
+    # Prepare batch updates for shows that have changed
+    batch_updates = []
+    update_ranges = []
+    
     for idx, row in shows_data.iterrows():
         if pd.notna(row.get('TMDB_ID')):
             # Get TMDB updates for this show
@@ -97,20 +99,38 @@ def update_shows_sheet(sheets_client: SheetsClient, updates_df: pd.DataFrame, te
                 
             show_updates = show_updates.iloc[0]
             
-            # Update cells that have changed
+            # Check which cells need updating
             for col in ['notes', 'order_type', 'status', 'episode_count']:
                 if col in show_updates and show_updates[col] != row.get(col, ''):
                     # Convert numpy types to Python types
                     value = show_updates[col]
-                    if isinstance(value, (np.int64, np.int32)):
+                    if pd.isna(value) or (isinstance(value, float) and (np.isnan(value) or np.isinf(value))):
+                        value = ''
+                    elif isinstance(value, (np.int64, np.int32)):
                         value = int(value)
                     elif isinstance(value, (np.float64, np.float32)):
                         value = float(value)
-                    shows_sheet.update_cell(idx + 2, shows_data.columns.get_loc(col) + 1, value)
-                    rows_updated += 1
-                    time.sleep(0.1)  # Add 100ms delay between updates to stay within quota
+                    
+                    # Get A1 notation for cell
+                    col_letter = chr(ord('A') + shows_data.columns.get_loc(col))
+                    cell_range = f'{col_letter}{idx + 2}'
+                    
+                    update_ranges.append(cell_range)
+                    batch_updates.append([[value]])
     
-    print(f"Updated {rows_updated} cells in Shows sheet")
+    if batch_updates:
+        # Do all updates in one batch request
+        body = {
+            'valueInputOption': 'USER_ENTERED',
+            'data': [{
+                'range': f'{shows_sheet.title}!{cell_range}',
+                'values': values
+            } for cell_range, values in zip(update_ranges, batch_updates)]
+        }
+        shows_sheet.spreadsheet.values_batch_update(body)
+        print(f"Updated {len(batch_updates)} cells in Shows sheet")
+    else:
+        print("No cells needed updating in Shows sheet")
 
 def main(test_mode: bool = False, show_id: Optional[int] = None):
     """Update sheets with TMDB data from CSVs."""
@@ -119,20 +139,18 @@ def main(test_mode: bool = False, show_id: Optional[int] = None):
     
     # Read CSVs from the correct directory
     csv_dir = Path('/Users/loganbrown/Desktop/GoogleDB/docs/sheets/TMDB csv')
-    metrics_df = pd.read_csv(csv_dir / 'success_metrics.csv')
     updates_df = pd.read_csv(csv_dir / 'shows_updates.csv')
     
     if show_id is not None:
         # Filter to just one show for testing
-        metrics_df = metrics_df[metrics_df['TMDB_ID'] == show_id]
         updates_df = updates_df[updates_df['TMDB_ID'] == show_id]
-        if len(metrics_df) == 0:
-            print(f"Error: Show ID {show_id} not found in metrics data")
+        if len(updates_df) == 0:
+            print(f"Error: Show ID {show_id} not found in updates data")
             return
-        print(f"\nTesting with show: {metrics_df.iloc[0]['Title']} (ID: {show_id})")
+        print(f"\nTesting with show: {updates_df.iloc[0]['Title']} (ID: {show_id})")
     
-    # Update both sheets
-    update_tmdb_metrics_sheet(sheets_client, metrics_df, test_mode)
+    # Only update shows sheet since metrics is already done
+    # update_tmdb_metrics_sheet(sheets_client, metrics_df, test_mode)
     update_shows_sheet(sheets_client, updates_df, test_mode)
     
     if test_mode:

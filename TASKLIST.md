@@ -2,49 +2,9 @@
 
 ## Current Sprint 🔄
 
-### TMDB Work - Success Metrics
-
-1. Create TMDB Success Metrics Sheet
-   - [ ] Number of seasons
-   - [ ] Episodes per season
-   - [ ] Total episode count
-   - [ ] Average episodes/season
-   - [ ] Status (Returning/Planned/etc)
-   - [ ] Last air date
-   - [ ] Success score (0-100)
-
-2. Update Shows Sheet
-   - [ ] Notes column (TMDB overview)
-   - [ ] Order type column (limited vs ongoing)
-   - [ ] Status column (Active/Development/Cancelled)
-   - [ ] Episode count column (Season 1)
-   - [ ] Success score column (0-100)
-
-3. Data Collection Pipeline
-   - [ ] Pull raw TMDB data
-   - [ ] Calculate success scores
-   - [ ] Map TMDB statuses to our statuses
-   - [ ] Determine order types
-   - [ ] Extract season 1 episode counts
-
 ### Implementation & Testing
 
 ### Backlog
-
-   - [ ] Create feature branch `feature/tmdb-success-metrics`
-   - [ ] Success score calculation (0-100)
-   - [ ] Test scoring with known shows
-     - [ ] Long-running hits (e.g., Stranger Things)
-     - [ ] Quick cancellations
-     - [ ] Limited series
-     - [ ] Shows with missing data
-   - [ ] Validate season/episode counts
-   - [ ] Test data pipeline with sample set
-   - [ ] Create rollback plan for sheets/db
-   - [ ] Success tier assignment
-   - [ ] Limited vs ongoing classification
-   - [ ] Database schema updates
-   - [ ] Sheets column additions
 
 ### Components
 1. Network Connections Dashboard
@@ -80,6 +40,19 @@
      - [ ] Export and sharing options
 
 ## Completed ✅
+
+### TMDB Integration: Success Metrics
+1. Data Pipeline & Sheets Integration
+   - [x] Pull raw TMDB data
+   - [x] Calculate success scores (0-100)
+   - [x] Map TMDB statuses to our statuses
+   - [x] Determine order types (limited vs ongoing)
+   - [x] Extract season/episode counts
+   - [x] Update Success Metrics sheet
+   - [x] Update Shows sheet with TMDB data
+   - [x] Test with various show types
+   - [x] Implement batch updates
+   - [x] Error handling and validation
 
 ### TMDB Integration: Show Matching
 1. Show Data Enhancement

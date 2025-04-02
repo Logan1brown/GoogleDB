@@ -45,11 +45,44 @@ A three-layer system that separates:
 ### Implementation
 Code organization follows the three-layer architecture:
 
-1. **Data Storage & Integration** (`src/data_processing/`)
-   - `sheets/`: Google Sheets integration with read/write capabilities
-   - `external/tmdb/`: TMDB API client and data synchronization
-   - `validation/`: Data validation rules and lookup tables
-   - `cache/`: Local data caching with TTL support
+1. **Data Storage & Integration**
+   - **Python Layer** (`src/data_processing/`)
+     - `sheets/`: Google Sheets integration with read/write capabilities
+     - `external/tmdb/`: TMDB API client and data synchronization
+     - `validation/`: Data validation rules and lookup tables
+     - `cache/`: Local data caching with TTL support
+   
+   - **Apps Script Layer** (`apps_script/`)
+     - Scripts:
+       - `SyncTMDBSuccessScore.gs`: Real-time success score sync
+       - `AddShowFeature.gs`: Show entry and validation
+       - `SearchEditFeature.gs`: Search and edit interface
+       - `MenuManager.gs`: Custom menu integration
+       - `normalizeStudioNames.gs`: Studio name standardization
+       - `AutoUpdateShowNames.gs`: Show name sync
+       - `SyncShowNames.gs`: Name consistency checks
+       - `MigrateRoles.gs`: Role system updates
+     
+     - UI Templates:
+       - `AddShow.html`: Show entry form
+       - `SearchSidebar.html`: Search interface
+       - `TeamEditSidebar.html`: Team editing panel
+     
+     - Triggers:
+       - `onOpen`: Initialize custom menu
+       - `onEdit`: 
+         - Validate data entry
+         - Update show names
+         - Sync TMDB success scores
+       - `onChange`:
+         - Studio name normalization
+         - Role system updates
+     
+     - Advantages:
+       - Higher API quotas than external access
+       - Real-time triggers and validation
+       - Direct sheet manipulation
+       - Custom UI integration
 
 2. **Analysis Pipeline** (`src/data_processing/`)
    - `content_strategy/`: Content trends analysis
@@ -94,7 +127,31 @@ Code organization follows the three-layer architecture:
    - Real-time validation and normalization
    - Automated field updates and cross-references
 
-2. **Processing Pipeline** (`ShowsAnalyzer`)
+2. **TMDB Update Pipeline**
+   - **Data Pull** (`pull_tmdb_success_metrics_new.py`)
+     - Fetch show details from TMDB API
+     - Calculate success metrics and scores
+     - Map TMDB statuses to internal statuses
+     - Generate CSV files:
+       - `success_metrics.csv`: TMDB metrics and scores
+       - `shows_updates.csv`: Status and metadata updates
+
+   - **Sheet Updates** (`update_tmdb_sheets.py`)
+     - Update Success Metrics sheet with TMDB data
+     - Batch update Shows sheet with:
+       - Notes (show overview)
+       - Order type (limited vs ongoing)
+       - Status (Active/Development/Cancelled)
+       - Episode count (Season 1)
+       - Success score (0-100)
+     - **Note**: Due to Google Sheets API write quotas (60 requests/minute), large updates should be done through Apps Script instead
+
+   - **Score Sync** (`SyncTMDBSuccessScore.gs`)
+     - Apps Script trigger for real-time updates
+     - Copy success scores to Shows sheet
+     - Maintain data consistency
+
+3. **Processing Pipeline** (`ShowsAnalyzer`)
    - Load from sheets using lookup tables
    - Clean and standardize data:
      - Normalize categorical fields
