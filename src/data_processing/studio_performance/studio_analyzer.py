@@ -83,14 +83,11 @@ def analyze_studio_relationships(shows_df: pd.DataFrame) -> Dict:
     
     # Load studio categories
     try:
-        print("Loading studio categories...")
         studio_categories = pd.read_csv('docs/sheets/STS Sales Database - studio_list_2.csv')
-        print(f"Found {len(studio_categories)} studios in categories list")
         
         # Get indies (large and mid-size)
         indies_mask = studio_categories['category'].fillna('').str.contains('Independent', case=False)
         indie_df = studio_categories[indies_mask].copy()
-        print(f"Found {len(indie_df)} indie studios in categories")
         
         # Build list of indie studios including aliases
         indie_studios = set()
@@ -99,14 +96,10 @@ def analyze_studio_relationships(shows_df: pd.DataFrame) -> Dict:
             if pd.notna(row['aliases']):
                 indie_studios.update(row['aliases'].split(','))
         
-        print(f"Indie studios with aliases: {indie_studios}")
-        
         # Filter to only studios that exist in our data
         indie_studios = [s for s in indie_studios if s in studio_sizes.index]
-        print(f"Indie studios in our data: {indie_studios}")
         
     except Exception as e:
-        print(f"Warning: Could not load studio categories: {e}")
         indie_studios = []
     indie_insights = {}
     

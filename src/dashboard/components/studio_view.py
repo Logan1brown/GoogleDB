@@ -31,7 +31,6 @@ def create_studio_graph(shows_df: pd.DataFrame) -> go.Figure:
     # Get top 15 studios by total shows (excluding empty/whitespace studios)
     studio_sizes = pd.Series({s: count for s, count in analysis['studio_sizes'].items() 
                             if s and not s.isspace()})
-    print("Studios:", sorted(studio_sizes.index))  # Debug print
     top_studios = studio_sizes.nlargest(15)
     
     # Get network distribution for each studio
