@@ -250,12 +250,15 @@
       }
       
       showLoading(true);
+      console.log('Adding team member:', { name, role });
       google.script.run
-        .withSuccessHandler(() => {
+        .withSuccessHandler((result) => {
+          console.log('Successfully added team member');
           loadTeamMembers();
           cancelNewMember();
         })
         .withFailureHandler(error => {
+          console.error('Failed to add team member:', error);
           showError(error);
           showLoading(false);
         })

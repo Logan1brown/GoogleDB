@@ -119,9 +119,16 @@ const AddShowFeature = {
 
   // Update key creatives in shows sheet based on show_team data
   updateKeyCreatives: function(showName) {
+    Logger.log('Updating key creatives for show:', showName);
+    
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const showTeamSheet = ss.getSheetByName(DB_CONFIG.showTeamSheet);
     const showsSheet = ss.getSheetByName(DB_CONFIG.sheetName);
+    
+    Logger.log('Got sheets:', {
+      showTeamSheet: showTeamSheet ? 'found' : 'not found',
+      showsSheet: showsSheet ? 'found' : 'not found'
+    });
     
     // Get all data from both sheets
     const showTeamData = showTeamSheet.getDataRange().getValues();
@@ -131,15 +138,25 @@ const AddShowFeature = {
     const showTeamHeaders = showTeamData[0];
     const showsHeaders = showsData[0];
     
-    // Get column indices for show_team sheet
+    Logger.log('Headers:', {
+      showTeam: showTeamHeaders,
+      shows: showsHeaders
+    });
+    
+    // Get column indices for show_team sheet (uses 'show_name' in first column)
     const showNameColTeam = 0;  // First column
     const nameColTeam = 1;      // Second column
     const rolesColTeam = 2;     // Third column
     const orderColTeam = 3;     // Fourth column
     
-    // Get column indices for shows sheet
-    const showNameColShows = showsHeaders.indexOf('show_name');
+    // Get column indices for shows sheet (uses 'shows' column for show names)
+    const showNameColShows = showsHeaders.indexOf('shows');
     const keyCreativesCol = showsHeaders.indexOf('key_creatives');
+    
+    Logger.log('Column indices:', {
+      showNameColShows,
+      keyCreativesCol
+    });
     
     if (keyCreativesCol === -1) {
       throw new Error('Could not find key_creatives column in shows sheet');

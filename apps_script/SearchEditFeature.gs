@@ -237,19 +237,36 @@ function getTeamMembers(showName) {
 
 // Add a new team member
 function addTeamMember(name, role) {
+  Logger.log('addTeamMember called with:', { name, role });
+  
   const showData = getCurrentShowData();
+  Logger.log('Current show data:', showData);
   if (!showData) throw new Error('No show selected');
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const teamSheet = ss.getSheetByName(DB_CONFIG.showTeamSheet);
   
+  Logger.log('Got team sheet:', teamSheet ? 'found' : 'not found');
   if (!teamSheet) throw new Error('Team sheet not found');
   
+  Logger.log('Adding team member:', {
+    show: showData.showName,
+    name: name,
+    role: role
+  });
+
   // Add new row with show name, member name, and role
   teamSheet.appendRow([showData.showName, name, role]);
   
+  Logger.log('Calling updateKeyCreatives for show:', showData.showName);
   // Update key_creatives in shows sheet
-  AddShowFeature.updateKeyCreatives(showData.showName);
+  try {
+    AddShowFeature.updateKeyCreatives(showData.showName);
+    Logger.log('Successfully updated key_creatives');
+  } catch (error) {
+    Logger.log('Error updating key_creatives:', error);
+    throw error;
+  }
   
   return getTeamMembers(showData.showName);
 }
@@ -429,4 +446,50 @@ function removeTeamMember(index) {
   return getTeamMembers(showData.showName);
 }
 
-
+// Test function to run directly in Apps Script editor
+function testAddTeamMember() {
+  Logger.log('Starting test');
+  try {
+    // Get the shows sheet
+    Logger.log('Getting active spreadsheet...');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    Logger.log('Looking for sheet:', DB_CONFIG.sheetName);
+    const showsSheet = ss.getSheetByName(DB_CONFIG.sheetName);
+    Logger.log('Shows sheet found:', showsSheet ? 'yes' : 'no');
+    if (!showsSheet) throw new Error('Shows sheet not found');
+    
+    // Get headers
+    const headers = showsSheet.getRange(1, 1, 1, showsSheet.getLastColumn()).getValues()[0];
+    Logger.log('Found headers:', headers);
+    const showNameCol = headers.indexOf('shows');
+    if (showNameCol === -1) throw new Error('shows column not found');
+    Logger.log('Found shows column at index:', showNameCol);
+    
+    // Get first show name from the sheet
+    const data = showsSheet.getDataRange().getValues();
+    let showName = null;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][showNameCol]) {
+        showName = data[i][showNameCol];
+        break;
+      }
+    }
+    if (!showName) throw new Error('No shows found in sheet');
+    
+    Logger.log('Found show:', showName);
+    
+    // Override getCurrentShowData for this test
+    const originalGetCurrentShowData = getCurrentShowData;
+    getCurrentShowData = () => ({ showName: showName });
+    
+    // Add team member
+    addTeamMember('Test Member', 'Producer');
+    Logger.log('Test completed successfully');
+    
+    // Restore original function
+    getCurrentShowData = originalGetCurrentShowData;
+  } catch (error) {
+    Logger.log('Test failed - Error message: ' + error.message);
+    Logger.log('Error stack: ' + error.stack);
+  }
+}

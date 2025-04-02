@@ -1,14 +1,22 @@
 // Automatically update show names in show_team when they change in shows
 function onEdit(e) {
+  Logger.log('onEdit triggered');
+  Logger.log('Event object:', e);
+
   // Only run if editing the shows sheet
   const sheetName = e.source.getActiveSheet().getName();
+  Logger.log('Sheet name:', sheetName);
   if (sheetName !== 'shows') return;
   
   // Only run if editing column A (show names)
-  if (e.range.getColumn() !== 1) return;
+  const column = e.range.getColumn();
+  Logger.log('Column edited:', column);
+  if (column !== 1) return;
   
   // Only run if editing below the header row
-  if (e.range.getRow() <= 1) return;
+  const row = e.range.getRow();
+  Logger.log('Row edited:', row);
+  if (row <= 1) return;
   
   // Get the old and new values
   const oldValue = e.oldValue;
