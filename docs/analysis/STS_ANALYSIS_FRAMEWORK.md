@@ -33,16 +33,7 @@ Visualizes market share through interactive bar chart showing:
    - Shows count in top genre
    - Names the dominant genre
 
-## Content Strategy
-Analyzes content patterns using Level 1 confidence data.
-
-### Genre Analysis
-- **Distribution Chart**: Interactive bar chart showing:
-  - Shows per genre (sorted by volume)
-  - Tooltips with counts and percentages
-  - Download options via Plotly toolbar
-  - Follows style guide (see `docs/development/STYLE_GUIDE.md`)
-
+## Genre Analysis
 - **Network Genre Heatmap**:
   - Genre distribution across networks
   - Percentage-based color intensity (Viridis scale)
@@ -59,7 +50,7 @@ Analyzes content patterns using Level 1 confidence data.
   - Primary/secondary genre identification
   - Network-specific genre preferences
 
-### Source Type Analysis
+## Source Analysis
 - **Distribution Chart**: Interactive visualization of:
   - Shows per source type
   - Source-specific tooltips
@@ -73,49 +64,106 @@ Analyzes content patterns using Level 1 confidence data.
   - Source diversity scoring (Shannon entropy)
   - Network source specialization
 
-## Creative Networks
-Maps talent relationships using Level 2 confidence data.
+## Network Analysis
+Maps talent relationships using network data.
 
-### Network Connections
-- **Multi-Network Success Stories**:
-  - Known creative partnerships
-  - Cross-network success tracking
-  - Partnership performance metrics
+### Network Overview
+- **Core Metrics**:
+  - Total networks count
+  - Total unique creators
+  - Cross-network activity percentage
 
-- **Layered Creator Search**:
-  - Primary Network Filter (must match ALL)
-    - Find creators across specific networks
-    - Network-specific show counts
-    - Detailed show listings
-  - Secondary Genre Filter (optional, match ANY)
-    - Genre-specific show counts
-    - Cross-network genre patterns
-    - Genre specialization insights
-  - Progressive Results Display
-    - Expandable creator details
-    - Network and genre breakdowns
-    - Smart show listing (3 or fewer)
+### Network Graph
+- **Interactive Visualization**:
+  - Node size represents show count
+  - Connections show shared talent
+  - Network-to-network relationship view
 
-- **Visualization Components**:
-  - Network Graph:
-    - Interactive network visualization
-    - Node size by show count
-    - Edge weight by shared creators
-    - Tooltips with detailed stats
-  - Success Stories:
-    - Scrollable story container
-    - Emerging collaborations
-    - Partnership metrics
+### Network Filter
+- **Creator Search**:
+  - Filter by network
+  - View creator details
+  - Show listings
+  - Network distribution
 
-### Network Sharing
-- **Cross-Network Activity**: Creators working across networks
-- **Network Groups**: Common network combinations
-- **Metrics**:
-  - Cross-network flow
-  - Network overlap analysis
-  - Creator network range
+### Success Stories
+- **Multi-Network Activity**:
+  - Success stories
+  - Network partnerships
+  - Creator metrics
 
-### Role Analysis
+## Studio Performance
+Maps studio activity and relationships.
+
+### Studio Overview
+- **Core Metrics**:
+  - Total studios count
+  - Studio show volumes
+  - Network partnership rates
+
+### Studio Distribution
+- **Interactive Graph**:
+  - Top 15 studios by show count
+  - Network distribution per studio
+  - Studio-network relationships
+
+### Studio Filter
+- **Studio Analysis**:
+  - Filter by studio
+  - Show details
+  - Network partners
+  - Genre breakdown
+
+### Success Stories
+- **Studio Highlights**:
+  - Top performing studios
+  - Network collaborations
+  - Show portfolio
+
+# Future Analysis Areas
+
+## Success Metrics
+Integrate into Existing Components
+- Add success score averages to genre breakdowns
+- Show success rates by source type
+- Compare network performance via success metrics
+-This gives immediate context to our existing analysis
+
+    Market Snapshot
+    - Add "Average Success Score" to Key Metrics
+    -      Add "Network Concentration" (e.g., "Top 3: 45%")
+    -      Add "Vertical Integration" (e.g., "VI Studios: 45%")
+    -      Add "Top Success Network" (e.g., "HBO: 85/100")
+    -      Add "Multi-Network Success" (e.g., "4 Networks > 80/100")
+    - Add success score distribution chart next to network distribution
+    - Add success rate filter option (e.g., "Show only high success (>70)")
+
+    Genre Analysis
+    - Add success score column to Network Genre Heatmap
+    - Add average success score per genre
+    - Color-code genres by success rate
+    - Add "Genre Success Leaders" section showing top performing genres
+
+    Source Analysis
+    - Add success rate comparison between source types
+    - Show which sources tend to lead to higher success
+    - Add success metrics to source-specific tooltips
+
+    Network Analysis
+    - Add success metrics to network overview stats
+    - Color network nodes by average success score
+    - Add success stories to network filter view
+    - Show success rate distribution per network
+
+New Success-Focused Component
+- This could dive deeper into patterns that cross-cut the other categories
+- Features could include:
+- Success score distribution/histogram
+- Top performers analysis
+- Risk factors (what correlates with low scores)
+- Multi-factor analysis (e.g., genre + source combinations)
+
+## Role Analysis - depends on data refinement
 - **Role Categories**:
   - Creative (Creator, Writer, Director, Showrunner)
   - Production (Executive Producer, Producer, Line Producer)
@@ -134,14 +182,12 @@ Maps talent relationships using Level 2 confidence data.
   - Career progression tracking
   - Role diversity metrics
 
-## Future Analysis Areas
-
-### Creative Relationships
+## Creative Relationships - depends on data refinement
 - Creator collaboration patterns
-- Team composition analysis
+- Team composition analysis 
 - Success rates of different team structures
 
-### Combined Content Strategy
+## Combined Content Strategy - component impovement
 - **Layered Analysis Pattern**:
   - Network + Genre + Source combinations
   - Primary/secondary filter hierarchy
@@ -153,14 +199,9 @@ Maps talent relationships using Level 2 confidence data.
   - Genre-source correlations
   - Market gap identification
 
-### Studio Performance
-- Independent studio success rates
-- Studio-network relationships
-- Genre strengths by studio
+# Implementation Notes
 
-## Implementation Notes
-
-### Data Processing Structure
+## Data Processing Structure
 ```
 src/data_processing/
 ├── market_analysis/       # High-level market overview
@@ -178,7 +219,7 @@ src/data_processing/
 └── studio_analysis/      # Studio performance
 ```
 
-### Output Structure
+## Output Structure
 ```
 output/
 ├── network_analysis/     # Network-focused insights

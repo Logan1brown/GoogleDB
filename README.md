@@ -77,12 +77,6 @@ Code organization follows the three-layer architecture:
        - `onChange`:
          - Studio name normalization
          - Role system updates
-     
-     - Advantages:
-       - Higher API quotas than external access
-       - Real-time triggers and validation
-       - Direct sheet manipulation
-       - Custom UI integration
 
 2. **Analysis Pipeline** (`src/data_processing/`)
    - `content_strategy/`: Content trends analysis

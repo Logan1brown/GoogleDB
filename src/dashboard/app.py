@@ -11,10 +11,20 @@ This dashboard provides:
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+import logging
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 # Data processing and analysis
 from data_processing.analyze_shows import shows_analyzer
-from data_processing.creative_networks.role_analysis import RoleAnalyzer  # Used for both creative networks and market overview
 from data_processing.content_strategy.source_analyzer import analyze_source_patterns
 from data_processing.content_strategy.genre_analyzer import analyze_genre_patterns
 from data_processing.market_analysis.market_analyzer import MarketAnalyzer
@@ -23,9 +33,7 @@ from dashboard.components.source_view import render_source_analysis
 from dashboard.components.connections_view import render_network_connections_dashboard
 from dashboard.components.studio_view import render_studio_performance_dashboard
 from data_processing.creative_networks.connections_analyzer import analyze_network_connections
-
-# Shared configuration
-from config.role_config import STANDARD_ROLES
+import plotly.graph_objects as go
 
 def main():
     # Custom CSS for section headers
@@ -54,7 +62,6 @@ def main():
     try:
         # Initialize analyzers with fresh data
         shows_df, team_df = shows_analyzer.fetch_data(force=True)
-        role_analyzer = RoleAnalyzer(shows_df, team_df)
         market_analyzer = MarketAnalyzer(shows_df, team_df)
     except Exception as e:
         st.error(f"Error initializing data: {str(e)}")
@@ -62,77 +69,13 @@ def main():
         return
     
     if page == "Market Snapshot":
-        # Get market insights
-        insights = market_analyzer.generate_market_insights()
-        
-        # Dataset Overview
-        st.markdown('<p class="section-header">Dataset Overview</p>', unsafe_allow_html=True)
-        
-        st.markdown("""
-        This analysis is based on a curated dataset of straight-to-series orders tracked from Deadline Hollywood.
-        While comprehensive within its scope, please note:
-        - Focus is on straight-to-series orders rather than traditional pilots
-        - Data collection is more complete for recent years
-        - Some historical data may be incomplete
-        """)
-        
         try:
-            # Display key dataset metrics
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Total Shows", f"{insights['total_shows']:,}")
-                shows = sorted(shows_df['show_name'].unique())
-                selected_shows = st.multiselect("Filter Shows", shows, max_selections=5)
-            with col2:
-                st.metric("Unique Creatives", f"{insights['total_creatives']:,}")
-                creatives = sorted(team_df['name'].unique())
-                selected_creatives = st.multiselect("Filter Creatives", creatives, max_selections=5)
-            with col3:
-                st.metric("Networks", f"{insights['total_networks']:,}")
-                networks = sorted(shows_df['network'].unique())
-                selected_networks = st.multiselect("Filter Networks", networks)
-            with col4:
-                st.metric("Role Types", f"{insights['total_roles']:,}")
-                # Use standard roles from shared config
-                standard_roles = list(STANDARD_ROLES.keys())
-                selected_roles = st.multiselect("Filter Roles", sorted(standard_roles))
+            from dashboard.components.market_view import render_market_snapshot
+            render_market_snapshot(market_analyzer)
         except Exception as e:
-            st.error(f"Error displaying dataset metrics: {str(e)}")
+            st.error(f"Error displaying market snapshot: {str(e)}")
         
-        # Network Distribution Section
-        st.markdown('<p class="section-header">Network Distribution</p>', unsafe_allow_html=True)
-        
-        try:
-            # Create and display network chart
-            fig = market_analyzer.create_network_chart()
-            st.plotly_chart(fig, use_container_width=True)
-        except Exception as e:
-            st.error(f"Error creating network visualization: {str(e)}")
-            
-        # Key Metrics Section
-        st.markdown('<p class="section-header">Key Metrics</p>', unsafe_allow_html=True)
-        
-        # Add metrics
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric(
-                "Total Shows", 
-                f"{insights['total_shows']:,}",
-                help="Shows currently in database"
-            )
-        with col2:
-            st.metric(
-                "Network Concentration", 
-                f"{insights['network_concentration']:.1f}%",
-                help=f"Share of shows from top 3 networks: {', '.join(insights['top_3_networks'])}"
-            )
-        with col3:
-            st.metric(
-                "Top Genre Network", 
-                insights['top_genre_network'],
-                f"{insights['top_genre_count']} {insights['top_genre']} Shows",
-                help=f"Network with most shows in {insights['top_genre']} genre"
-            )
+
         
     elif page == "Genre Analysis":
         try:

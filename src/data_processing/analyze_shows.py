@@ -39,14 +39,14 @@ class ShowsAnalyzer:
     
     # Lookup table file names
     LOOKUP_TABLES = {
-        'network': 'STS Sales Database - network_list.csv',
-        'studio': 'STS Sales Database - studio_list.csv',
-        'genre': 'STS Sales Database - genre_list.csv',
-        'subgenre': 'STS Sales Database - subgenre_list.csv',
-        'source': 'STS Sales Database - source_types.csv',
-        'order': 'STS Sales Database - order_types.csv',
-        'status': 'STS Sales Database - status_types.csv',
-        'role': 'STS Sales Database - role_types.csv'
+        'network': 'network_list',
+        'studio': 'studio_list',
+        'genre': 'genre_list',
+        'subgenre': 'subgenre_list',
+        'source': 'source_types',
+        'order': 'order_types',
+        'status': 'status_types',
+        'role': 'role_types'
     }
     
     def __init__(self, cache_dir: Optional[str] = None):
@@ -93,11 +93,12 @@ class ShowsAnalyzer:
             # Rename 'shows' to 'show_name' to match show_team.csv
             headers = ['show_name' if h == 'shows' else h for h in headers]
             
-            self.shows_df = pd.DataFrame(shows_data[1:], columns=headers)
+            self.shows_df = pd.DataFrame(shows_data[1:], columns=headers).reset_index(drop=True)
+            logger.info(f"Initial shows_df shape after loading: {self.shows_df.shape}, has_duplicates: {self.shows_df.index.has_duplicates}")
             
             team_data = sheets_client.get_team_data()
             headers = [col.lower().replace(' ', '_') for col in team_data[0]]
-            self.team_df = pd.DataFrame(team_data[1:], columns=headers)
+            self.team_df = pd.DataFrame(team_data[1:], columns=headers).reset_index(drop=True)
             
             self.last_fetch = datetime.now()
             logger.info("Data fetch completed successfully")
@@ -124,90 +125,80 @@ class ShowsAnalyzer:
         """
         logger.info("Checking lookup tables...")
         
-        for key, filename in self.LOOKUP_TABLES.items():
-            filepath = self.lookup_dir / filename
+        for key in self.LOOKUP_TABLES:
+            self._load_lookup_table(key)
             
-            # Skip if file doesn't exist
-            if not filepath.exists():
-                logger.warning(f"Lookup table not found: {filename}")
-                continue
+    def _load_lookup_table(self, table_name: str) -> Dict[str, str]:
+        """Load lookup table from Google Sheets.
+
+        Args:
+            table_name: Name of the lookup table to load
+
+        Returns:
+            Dictionary mapping non-canonical to canonical values
+        """
+        if table_name not in self.LOOKUP_TABLES:
+            logger.warning(f"Unknown lookup table: {table_name}")
+            return {}
             
-            # Skip if file hasn't been modified
-            if not self._should_reload_lookup(key, filepath):
-                logger.debug(f"Lookup table {filename} unchanged, using cached version")
-                continue
+        sheet_name = self.LOOKUP_TABLES[table_name]
+        logger.info(f"Loading/reloading lookup table: {sheet_name}")
+        
+        try:
+            # Load data from Google Sheets
+            data = sheets_client.get_all_values(sheet_name)
+            if not data or len(data) < 2:  # Need at least header + one row
+                logger.warning(f"Empty or invalid lookup table: {sheet_name}")
+                return {}
                 
-            try:
-                logger.info(f"Loading/reloading lookup table: {filename}")
+            headers = data[0]
+            df = pd.DataFrame(data[1:], columns=headers)
+            
+            # Create mapping from aliases to standard names
+            mapping = {}
+            for _, row in df.iterrows():
+                # Get the standard name, preserving original case
+                standard_name = str(row[df.columns[0]])
                 
-                # Special handling for studio list to handle comments
-                if key == 'studio':
-                    # Read the file line by line to handle comments properly
-                    studios = []
-                    with open(filepath, 'r', encoding='utf-8') as f:
-                        # Read header first
-                        reader = csv.reader(f)
-                        header = next(reader)
-                        
-                        # Process remaining rows
-                        for row in reader:
-                            if not row or not row[0] or row[0].startswith('#'):
-                                continue
-                            studio = row[0].strip()
-                            if studio:  # Only add rows with a studio name
-                                studios.append(row)
-                    
-                    # Create DataFrame with the filtered rows
-                    df = pd.DataFrame(studios, columns=header)
-                    # Only include Studios - everything else will be marked as Other
-                    df = df[df['type'] == 'Studio']
+                # For studios, also store category information
+                if table_name == 'studio' and 'category' in df.columns:
+                    category = str(row['category']).strip() if pd.notna(row['category']) else 'Other'
+                    mapping[standard_name.lower()] = {
+                        'name': standard_name,
+                        'category': category
+                    }
                 else:
-                    df = pd.read_csv(filepath)
+                    # Add the main name as its own alias (lowercase)
+                    mapping[standard_name.lower()] = standard_name
                 
-                # Create mapping from aliases to standard names
-                mapping = {}
-                for _, row in df.iterrows():
-                    # Get the standard name, preserving original case
-                    standard_name = str(row[df.columns[0]])
-                    
-                    # For studios, also store category information
-                    if key == 'studio' and 'category' in df.columns:
-                        category = str(row['category']).strip() if pd.notna(row['category']) else 'Other'
-                        mapping[standard_name.lower()] = {
-                            'name': standard_name,
-                            'category': category
-                        }
-                    else:
-                        # Add the main name as its own alias (lowercase)
-                        mapping[standard_name.lower()] = standard_name
-                    
-                    # Add aliases if they exist
-                    if 'aliases' in df.columns and pd.notna(row['aliases']):
-                        aliases = str(row['aliases']).split(',')
-                        for alias in aliases:
-                            alias_clean = alias.strip().lower()
-                            if alias_clean:  # Skip empty aliases
-                                if key == 'studio':
-                                    mapping[alias_clean] = {
-                                        'name': standard_name,
-                                        'category': category
-                                    }
-                                else:
-                                    mapping[alias_clean] = standard_name
-                            
-                    # For subgenres, also add any parent genres as valid values
-                    if key == 'subgenre' and 'parent_genres' in df.columns and pd.notna(row['parent_genres']):
-                        parent_genres = str(row['parent_genres']).split(',')
-                        for genre in parent_genres:
-                            mapping[genre.strip().lower()] = standard_name
-                            
-                self.lookups[key] = mapping
-                self.lookup_mtimes[key] = filepath.stat().st_mtime
-                logger.debug(f"Loaded {len(mapping)} mappings for {key}")
-                
-            except Exception as e:
-                logger.error(f"Error loading {filename}: {str(e)}")
-                
+                # Add aliases if they exist
+                if 'aliases' in df.columns and pd.notna(row['aliases']):
+                    aliases = str(row['aliases']).split(',')
+                    for alias in aliases:
+                        alias_clean = alias.strip().lower()
+                        if alias_clean:  # Skip empty aliases
+                            if table_name == 'studio':
+                                mapping[alias_clean] = {
+                                    'name': standard_name,
+                                    'category': category
+                                }
+                            else:
+                                mapping[alias_clean] = standard_name
+                        
+                # For subgenres, also add any parent genres as valid values
+                if table_name == 'subgenre' and 'parent_genres' in df.columns and pd.notna(row['parent_genres']):
+                    parent_genres = str(row['parent_genres']).split(',')
+                    for genre in parent_genres:
+                        mapping[genre.strip().lower()] = standard_name
+                        
+            self.lookups[table_name] = mapping
+            logger.debug(f"Loaded {len(mapping)} mappings for {table_name}")
+            return mapping
+            
+        except Exception as e:
+            logger.error(f"Error loading lookup table {sheet_name}: {e}")
+            return {}   
+        
     def _normalize_field(self, value: str, field_type: str) -> str:
         """Normalize a field value using lookup tables.
         
@@ -221,32 +212,23 @@ class ShowsAnalyzer:
         if pd.isna(value) or field_type not in self.lookups:
             return value
             
-        # Handle fields that support multiple comma-separated values
-        if field_type in ['subgenre', 'studio']:
+        # For studio and subgenre fields that support multiple values
+        if field_type in ['studio', 'subgenre']:
+            logger.debug(f"Normalizing {field_type} value: {value}")
             if pd.isna(value) or not str(value).strip():
                 return ''
                 
-            # Split on commas and clean each value
-            values = [s.strip() for s in str(value).split(',')]
-            normalized = []
-            
-            for val in values:
-                # Skip empty values
-                if not val:
-                    continue
-                    
-                # Handle "Other:" prefix for studios
-                if field_type == 'studio' and val.startswith('Other:'):
-                    normalized.append(val)  # Keep Other: entries as is
-                    continue
-                    
-                # Try to find a match in lookups
-                norm_value = self.lookups[field_type].get(val.lower())
-                if norm_value:
+            # Split by comma and normalize each value
+            values = []
+            for val in str(value).split(','):
+                val = val.strip().lower()
+                if val in self.lookups[field_type]:
+                    # For studios, keep track of categories
                     if field_type == 'studio':
-                        normalized.append(norm_value['name'])  # Use canonical name for studios
+                        studio_info = self.lookups[field_type][val]
+                        values.append(studio_info['name'])
                     else:
-                        normalized.append(norm_value)
+                        values.append(self.lookups[field_type][val])
                 else:
                     # For unmatched values
                     if field_type == 'studio':
@@ -373,9 +355,26 @@ class ShowsAnalyzer:
         # Clean shows DataFrame
         logger.info("Cleaning shows data...")
         
-        # 1. Remove empty columns
+        # 1. Remove empty columns and ensure unique column names
+        # First, drop columns that are entirely empty or have empty names
         self.shows_df = self.shows_df.loc[:, self.shows_df.columns.notna()]
-        self.shows_df = self.shows_df.loc[:, self.shows_df.columns != '']
+        
+        # Clean column names and handle duplicates
+        new_columns = []
+        seen_columns = set()
+        for col in self.shows_df.columns:
+            col = str(col).strip()
+            if not col:  # Empty column name
+                continue
+            base_col = col
+            counter = 1
+            while col in seen_columns:
+                col = f"{base_col}_{counter}"
+                counter += 1
+            new_columns.append(col)
+            seen_columns.add(col)
+            
+        self.shows_df.columns = new_columns
         
         # Replace empty strings with NaN for better handling
         self.shows_df = self.shows_df.replace('', pd.NA)
@@ -400,6 +399,11 @@ class ShowsAnalyzer:
         
         # 3. Normalize categorical fields using lookup tables
         logger.info("Normalizing categorical fields...")
+        logger.info(f"Shows_df shape before normalization: {self.shows_df.shape}, has_duplicates: {self.shows_df.index.has_duplicates}")
+        
+        # Reset index before normalization
+        self.shows_df = self.shows_df.reset_index(drop=True)
+        
         field_mappings = {
             'network': 'network',
             'studio': 'studio',
@@ -415,6 +419,9 @@ class ShowsAnalyzer:
                 self.shows_df[col] = self.shows_df[col].apply(
                     lambda x: self._normalize_field(x, lookup_type)
                 )
+                
+        # Reset index again after normalization
+        self.shows_df = self.shows_df.reset_index(drop=True)
         
         # 4. Handle numeric fields if present
         logger.info("Processing numeric fields...")
@@ -424,8 +431,20 @@ class ShowsAnalyzer:
                 errors='coerce'
             ).fillna(0).astype(int)
         
+        # Log data quality stats
+        self._validate_data()
+        
+        # Reset index to ensure clean indices
+        self.shows_df = self.shows_df.reset_index(drop=True)
+        self.team_df = self.team_df.reset_index(drop=True)
+        
+        logger.info(f"Shows_df shape after cleaning: {self.shows_df.shape}, has_duplicates: {self.shows_df.index.has_duplicates}")
+        if self.shows_df.index.has_duplicates:
+            logger.warning(f"Duplicate indices in shows_df after cleaning: {self.shows_df[self.shows_df.index.duplicated()].index.tolist()}")
+        
         # Clean team DataFrame
         logger.info("Cleaning team data...")
+        logger.info(f"Shows_df shape after normalization: {self.shows_df.shape}, has_duplicates: {self.shows_df.index.has_duplicates}")
         
         # 1. Fix column names
         self.team_df.columns = self.team_df.iloc[0]

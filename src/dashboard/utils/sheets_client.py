@@ -95,9 +95,29 @@ class SheetsClient:
         """Get all values from a worksheet with retries."""
         try:
             worksheet = self.get_worksheet(worksheet_name)
-            data = worksheet.get_all_values()
+            raw_data = worksheet.get_all_values()
+            
+            if not raw_data:
+                return []
+                
+            # Find the last non-empty column in the header row
+            header = raw_data[0]
+            last_col = 0
+            for i, col in enumerate(header):
+                if col.strip():
+                    last_col = i
+                    
+            # Trim all rows to remove empty trailing columns
+            data = [row[:last_col + 1] for row in raw_data]
+            
             logger.debug(f"Retrieved {len(data)} rows from {worksheet_name}")
+            logger.debug(f"Trimmed columns from {len(raw_data[0])} to {last_col + 1}")
             return data
+            
+            logger.debug(f"Retrieved {len(cleaned_data)} rows from {worksheet_name}")
+            logger.debug(f"Cleaned headers: {cleaned_data[0]}")
+            return cleaned_data
+            
         except Exception as e:
             logger.error(f"Failed to get values from {worksheet_name}: {e}")
             raise
