@@ -23,6 +23,10 @@ logging.basicConfig(
     ]
 )
 
+# Set up Plotly template for consistent styling
+import plotly.io as pio
+pio.templates.default = "plotly_white"
+
 # Data processing and analysis
 from data_processing.analyze_shows import shows_analyzer
 from data_processing.content_strategy.source_analyzer import analyze_source_patterns

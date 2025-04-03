@@ -6,7 +6,13 @@ COLORS = {
         'secondary': 'rgb(120, 120, 120)'
     },
     'background': '#FFFFFF',
-    'accent': 'rgb(55, 83, 109)'
+    'accent': 'rgb(55, 83, 109)',
+    'success': {
+        'high': 'rgb(72, 17, 121)',    # Dark purple (Viridis)
+        'medium': 'rgb(26, 152, 80)',   # Green (Viridis)
+        'low': 'rgb(253, 231, 37)',     # Yellow (Viridis)
+        'none': 'rgb(220, 220, 220)'    # Grey
+    }
 }
 
 FONTS = {

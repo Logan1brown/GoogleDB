@@ -1,0 +1,137 @@
+"""
+Success Analyzer Component.
+Calculates success metrics for shows based on reliable data.
+
+=== CRITICAL COLUMN NAME DIFFERENCE ===
+There are two different column names for show titles that must be maintained:
+1. shows sheet: uses 'shows' column
+2. show_team sheet: uses 'show_name' column
+NEVER try to normalize or rename these columns - they must stay different.
+"""
+from dataclasses import dataclass
+from typing import Dict, List, Optional
+import pandas as pd
+import numpy as np
+
+from ..external.tmdb.tmdb_models import ShowStatus
+
+
+@dataclass
+class SuccessConfig:
+    """Configuration for success calculations."""
+    # Season achievements (40%)
+    SEASON2_VALUE: int = 40  # Show renewed for S2
+    ADDITIONAL_SEASON_VALUE: int = 20  # Each season after S2
+    
+    # Episode volume scoring (40% of total)
+    EPISODE_BASE_POINTS: int = 20     # Points awarded for reaching min threshold
+    EPISODE_BONUS_POINTS: int = 20    # Additional points for reaching high threshold
+    EPISODE_MIN_THRESHOLD: int = 8    # Minimum episodes needed for base points
+    EPISODE_BONUS_THRESHOLD: int = 10  # Episodes needed for bonus points
+    
+    # Status modifiers
+    STATUS_MODIFIERS: Dict[str, float] = None
+    
+    def __post_init__(self):
+        self.STATUS_MODIFIERS = {
+            'Returning Series': 1.2,  # 20% bonus for active shows
+            'Ended': 1.0,            # Base multiplier for completed shows
+            'Canceled': 0.8,         # 20% penalty for canceled shows
+        }
+
+
+class SuccessAnalyzer:
+    """
+    Analyzes show success based on reliable metrics.
+    Only calculates scores for shows with reliable data (Returning, Ended, Canceled).
+    """
+    def __init__(self, config: Optional[SuccessConfig] = None):
+        self.config = config or SuccessConfig()
+        
+    def analyze_market(self, shows_df: pd.DataFrame) -> Dict:
+        """
+        Calculate success metrics for all reliable shows in the market.
+        Returns thresholds and tiers based on the highest scores.
+        """
+        # Filter to reliable shows only
+        reliable_shows = shows_df[shows_df['tmdb_status'].isin(ShowStatus.RELIABLE)]
+        if reliable_shows.empty:
+            return {
+                'max_score': 0,
+                'high_threshold': 0,
+                'medium_threshold': 0,
+                'shows': {}
+            }
+            
+        # Calculate scores for all reliable shows
+        scores = []
+        for _, show in reliable_shows.iterrows():
+            score = self.calculate_success(show)
+            # === CRITICAL: Column Name Difference ===
+            # We're working with the shows sheet here, which uses 'shows' column
+            # Do NOT use 'show_name' which is only for the show_team sheet
+            scores.append({
+                'show_id': show['tmdb_id'],
+                'name': show['shows'],  # Shows column from shows sheet
+                'score': score
+            })
+            
+        # Get max score and set tier thresholds
+        max_score = max(s['score'] for s in scores) if scores else 0
+        return {
+            'max_score': max_score,
+            'high_threshold': max_score * 0.8,  # High: Top 20%
+            'medium_threshold': max_score * 0.5,  # Medium: Top 50%
+            'shows': {
+                s['show_id']: {
+                    'name': s['name'],
+                    'score': s['score'],
+                    'tier': self._get_tier(s['score'], max_score)
+                }
+                for s in scores
+            }
+        }
+        
+    def calculate_success(self, show: pd.Series) -> float:
+        """Calculate success score for a single show."""
+        if show['tmdb_status'] not in ShowStatus.RELIABLE:
+            return 0
+            
+        score = 0
+        
+        # Season achievements
+        if pd.notna(show['tmdb_seasons']):
+            seasons = int(show['tmdb_seasons'])
+            if seasons >= 2:
+                score += self.config.SEASON2_VALUE
+                extra_seasons = seasons - 2
+                if extra_seasons > 0:
+                    score += extra_seasons * self.config.ADDITIONAL_SEASON_VALUE
+                
+        # Episode volume points (40% of total possible)
+        if pd.notna(show['tmdb_avg_eps']):
+            try:
+                avg_eps = float(show['tmdb_avg_eps'])
+                if avg_eps >= self.config.EPISODE_BONUS_THRESHOLD:
+                    # High volume show (10+ episodes)
+                    score += self.config.EPISODE_BASE_POINTS + self.config.EPISODE_BONUS_POINTS
+                elif avg_eps >= self.config.EPISODE_MIN_THRESHOLD:
+                    # Standard volume show (8-9 episodes)
+                    score += self.config.EPISODE_BASE_POINTS
+                # No points if below minimum
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid episode count value: {show['tmdb_avg_eps']}")
+            
+        # Apply status modifier
+        modifier = self.config.STATUS_MODIFIERS.get(show['tmdb_status'], 1.0)
+        score *= modifier
+        
+        return max(0, score)  # Don't allow negative scores
+        
+    def _get_tier(self, score: float, max_score: float) -> str:
+        """Get success tier based on score relative to max."""
+        if score >= max_score * 0.8:
+            return 'high'
+        elif score >= max_score * 0.5:
+            return 'medium'
+        return 'low'

@@ -137,6 +137,14 @@ class SheetsClient:
         except Exception as e:
             logger.error(f"Failed to get team data: {e}")
             raise
+            
+    def get_tmdb_metrics(self) -> list[list]:
+        """Get TMDB metrics data with proper error handling."""
+        try:
+            return self.get_all_values(self.config.tmdb_metrics_sheet)
+        except Exception as e:
+            logger.error(f"Failed to get TMDB metrics: {e}")
+            raise
 
 # Create singleton instance
 sheets_client = SheetsClient()

@@ -8,6 +8,12 @@ Main components:
 2. Statistical analysis
 3. Report generation using ydata-profiling
 4. Results caching
+
+=== CRITICAL COLUMN NAME DIFFERENCE ===
+There are two different column names for show titles that must be maintained:
+1. shows sheet: uses 'shows' column
+2. show_team sheet: uses 'show_name' column
+NEVER try to normalize or rename these columns - they must stay different.
 """
 
 import logging
@@ -87,14 +93,32 @@ class ShowsAnalyzer:
         try:
             logger.info("Fetching data...")
             shows_data = sheets_client.get_shows_data()
-            # First row contains headers
+            # === CRITICAL: Column Name Difference ===
+            # The shows sheet uses 'shows' for the title column
+            # The show_team sheet uses 'show_name'
+            # These must remain different - DO NOT try to normalize them
             headers = [col.lower().replace(' ', '_') for col in shows_data[0]]
             
-            # Rename 'shows' to 'show_name' to match show_team.csv
-            headers = ['show_name' if h == 'shows' else h for h in headers]
-            
+            # Initialize shows dataframe with original column names
+            # The 'shows' column must stay as 'shows' - do not rename to show_name
             self.shows_df = pd.DataFrame(shows_data[1:], columns=headers).reset_index(drop=True)
             logger.info(f"Initial shows_df shape after loading: {self.shows_df.shape}, has_duplicates: {self.shows_df.index.has_duplicates}")
+            
+            # Get TMDB metrics
+            tmdb_data = sheets_client.get_tmdb_metrics()
+            tmdb_headers = [col.lower().replace(' ', '_') for col in tmdb_data[0]]
+            tmdb_df = pd.DataFrame(tmdb_data[1:], columns=tmdb_headers).reset_index(drop=True)
+            
+            # Merge TMDB metrics with shows data
+            tmdb_id_col = 'tmdb_id'
+            if tmdb_id_col in self.shows_df.columns and tmdb_id_col in tmdb_df.columns:
+                # Convert TMDB_ID to string for merging
+                self.shows_df[tmdb_id_col] = self.shows_df[tmdb_id_col].astype(str)
+                tmdb_df[tmdb_id_col] = tmdb_df[tmdb_id_col].astype(str)
+                self.shows_df = pd.merge(self.shows_df, tmdb_df, on=tmdb_id_col, how='left')
+                logger.info(f"Shows_df shape after TMDB merge: {self.shows_df.shape}")
+            else:
+                logger.warning("Could not merge TMDB metrics - missing TMDB_ID column")
             
             team_data = sheets_client.get_team_data()
             headers = [col.lower().replace(' ', '_') for col in team_data[0]]

@@ -4,6 +4,17 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+
+class ShowStatus:
+    """Valid show statuses for success calculation."""
+    RELIABLE = ['Returning Series', 'Ended', 'Canceled']
+    UNRELIABLE = ['Planned', 'In Production']
+    
+    @classmethod
+    def is_reliable(cls, status: str) -> bool:
+        """Check if a show status is considered reliable for success metrics."""
+        return status in cls.RELIABLE
+
 class Genre(BaseModel):
     """Genre model from TMDB."""
     id: int
