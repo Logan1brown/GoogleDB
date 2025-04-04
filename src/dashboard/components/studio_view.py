@@ -169,8 +169,14 @@ def render_studio_filter(shows_df: pd.DataFrame, analysis_results: Dict) -> None
         help="Choose a studio to analyze"
     )
     
-    # Extract studio name from selection
-    selected_studio = selected_option.split(' (')[0] if selected_option else None
+    # Extract studio name from selection and handle 'Other:' prefix
+    if selected_option:
+        selected_studio = selected_option.split(' (')[0].strip()
+        # If it's an 'Other:' studio, keep just the studio name
+        if selected_studio.startswith('Other: '):
+            selected_studio = selected_studio[7:].strip()
+    else:
+        selected_studio = None
     
     if selected_studio:
         # Get insights for selected studio
@@ -181,10 +187,6 @@ def render_studio_filter(shows_df: pd.DataFrame, analysis_results: Dict) -> None
             st.session_state.studio_insights = {}
         st.session_state.studio_insights[selected_studio] = insights
         
-        # Debug insights
-        print("\nInsights received:")
-        for key, value in insights.items():
-            print(f"{key}: {value}")
         
         # Show total valid shows
         st.write(f"### {insights.get('show_count', 0)} Shows")

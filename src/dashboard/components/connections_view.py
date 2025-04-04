@@ -11,6 +11,7 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 from typing import Dict, List, Optional
 
 from src.dashboard.utils.style_config import COLORS, CHART_DEFAULTS, DIMENSIONS
@@ -72,8 +73,8 @@ def render_heatmap(connections_analyzer, filters: Dict[str, Optional[str]]) -> N
         filters: Dictionary of filter values
     """
     try:
-        # Get filtered matrix data
-        matrix, networks = connections_analyzer.get_shared_creators_matrix(
+        # Get matrix of shared creators with selection info
+        matrix, networks, selected = connections_analyzer.get_shared_creators_matrix(
             network1=filters['network1'],
             network2=filters['network2'],
             genre=filters['genre'],
@@ -81,7 +82,7 @@ def render_heatmap(connections_analyzer, filters: Dict[str, Optional[str]]) -> N
         )
         
         if len(networks) == 0:
-            st.info("No network connections found matching the current filters.")
+            st.info("No network connections found.")
             return
             
         # Calculate dimensions based on content
@@ -90,19 +91,56 @@ def render_heatmap(connections_analyzer, filters: Dict[str, Optional[str]]) -> N
         plot_width = min(1000, n_networks * cell_size + 200)  # Smaller cap width
         plot_height = min(600, n_networks * cell_size + 100)  # Much smaller cap height
             
-        # Create heatmap using plotly express
+        # Create two separate dataframes for selected and unselected cells
         df = pd.DataFrame(matrix, columns=networks, index=networks)
-        fig = px.imshow(
-            df,
-            color_continuous_scale=CHART_DEFAULTS['colorscales']['primary'],
-            labels=dict(color='Shared Creators'),
-            aspect='auto'
-        )
         
-        # Update hover template
-        fig.update_traces(
-            hovertemplate='%{x} ↔ %{y}<br>Shared Creators: %{z}<extra></extra>'
-        )
+        if selected:
+            # Create masks for selected and unselected cells
+            mask = np.zeros_like(matrix, dtype=bool)
+            for i in selected:
+                for j in selected:
+                    mask[i,j] = True
+            
+            # Split data into selected and unselected
+            selected_df = df.copy()
+            unselected_df = df.copy()
+            selected_df[~mask] = None
+            unselected_df[mask] = None
+            
+            # Create figure with two heatmap traces
+            fig = go.Figure()
+            
+            # Add unselected cells (faded)
+            fig.add_trace(go.Heatmap(
+                z=unselected_df,
+                x=networks,
+                y=networks,
+                colorscale=CHART_DEFAULTS['colorscales']['primary'],
+                opacity=0.3,
+                hovertemplate='%{x} ↔ %{y}<br>Shared Creators: %{z}<extra></extra>',
+                showscale=False
+            ))
+            
+            # Add selected cells (full opacity)
+            fig.add_trace(go.Heatmap(
+                z=selected_df,
+                x=networks,
+                y=networks,
+                colorscale=CHART_DEFAULTS['colorscales']['primary'],
+                hovertemplate='%{x} ↔ %{y}<br>Shared Creators: %{z}<br><b>Selected Network</b><extra></extra>',
+                colorbar=dict(title='Shared Creators')
+            ))
+        else:
+            # If no selection, just show one heatmap
+            fig = px.imshow(
+                df,
+                color_continuous_scale=CHART_DEFAULTS['colorscales']['primary'],
+                labels=dict(color='Shared Creators'),
+                aspect='auto'
+            )
+            fig.update_traces(
+                hovertemplate='%{x} ↔ %{y}<br>Shared Creators: %{z}<extra></extra>'
+            )
         
         # Update layout using style config
         fig.update_layout(
@@ -139,8 +177,12 @@ def render_heatmap(connections_analyzer, filters: Dict[str, Optional[str]]) -> N
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # Add explanation with current filter context
+        # Add explanation text based on filters
         filter_text = []
+        if filters['network1']:
+            filter_text.append(f"network '{filters['network1']}'")
+        if filters['network2']:
+            filter_text.append(f"network '{filters['network2']}'")
         if filters['genre']:
             filter_text.append(f"genre '{filters['genre']}'")
         if filters['source']:
@@ -151,17 +193,12 @@ def render_heatmap(connections_analyzer, filters: Dict[str, Optional[str]]) -> N
         st.info(
             "💡 The heatmap shows the strength of connections between networks "
             f"based on shared creative talent{context}. Darker colors indicate more shared creators."
+            + (" Selected networks are highlighted." if selected else "")
         )
         
     except Exception as e:
         st.error(f"Error rendering heatmap: {str(e)}")
         st.exception(e)
-    
-    # Add explanation
-    st.info(
-        "💡 The heatmap shows the strength of connections between networks "
-        "based on shared creative talent. Darker colors indicate more shared creators."
-    )
 
 def render_success_stories(connections_analyzer, filters: Dict[str, Optional[str]]) -> None:
     """Render success stories section.
@@ -182,52 +219,41 @@ def render_success_stories(connections_analyzer, filters: Dict[str, Optional[str
         stories = connections_analyzer.get_success_stories(
             network=network,
             genre=filters['genre'],
-            source=filters['source']
+            source=filters['source'],
+            top_k=7  # Show more success stories
         )
         
         if not stories:
             st.info("No success stories found matching the current filters.")
             return
             
-        # Group stories by role
-        role_stories = {}
+        # Validate and sort all stories
+        valid_stories = []
         for story in stories:
             try:
                 # Validate story has required fields
-                required_fields = {'creator_team', 'networks', 'show_count', 'roles'}
+                required_fields = {'creator_team', 'networks', 'network_count', 'total_shows', 'roles'}
                 if not all(field in story for field in required_fields):
                     st.error(f"Invalid story format: {story}")
                     continue
-                    
-                # Group by primary role
-                primary_role = sorted(story['roles'])[0] if story['roles'] else 'Other'
-                if primary_role not in role_stories:
-                    role_stories[primary_role] = []
-                role_stories[primary_role].append(story)
-                
+                valid_stories.append(story)
             except Exception as e:
                 st.error(f"Error processing story: {str(e)}")
                 continue
-                
-        # Display stories by role
-        for role, role_group in sorted(role_stories.items()):
+        
+        # Sort stories by network count and total shows
+        sorted_stories = sorted(
+            valid_stories,
+            key=lambda x: (x['network_count'], x['total_shows']),
+            reverse=True
+        )
+        
+        # Display stories in a simple list
+        for story in sorted_stories:
+            networks = ', '.join(sorted(story['networks']))
             st.markdown(
-                f"<h4 style='color: #1f77b4; margin: 0.8em 0 0.3em;'>{role}</h4>",
-                unsafe_allow_html=True
-            )
-            
-            # Sort stories by network count
-            sorted_stories = sorted(
-                role_group,
-                key=lambda x: (len(x['networks']), x['show_count']),
-                reverse=True
-            )
-            
-            for story in sorted_stories:
-                networks = ', '.join(sorted(story['networks']))
-                st.markdown(
-                    f"• **{story['creator_team']}**: {story['show_count']} shows across "
-                    f"{len(story['networks'])} networks ({networks})"
+                f"• **{story['creator_team']}**: {story['total_shows']} shows across "
+                f"{story['network_count']} networks ({networks})"
                 )
                 
     except Exception as e:
@@ -255,51 +281,63 @@ def render_network_connections_dashboard(connections_analyzer) -> None:
                 return
             st.session_state.filter_options = filter_options
             
-        # Create side-by-side layout
-        # Use dashboard dimensions for overall height
-        col1, col2 = st.columns([0.6, 0.4])
+        # Initialize session state for filters if not present
+        if 'network1' not in st.session_state:
+            st.session_state.network1 = "All Networks"
+        if 'network2' not in st.session_state:
+            st.session_state.network2 = "All Networks"
+        if 'genre' not in st.session_state:
+            st.session_state.genre = "All Genres"
+        if 'source' not in st.session_state:
+            st.session_state.source = "All Sources"
         
-        # Right side: Tabs and Filters
-        with col2:
-            tab1, tab2 = st.tabs(["Search", "Success Stories"])
+        # Main heatmap visualization (full width)
+        st.markdown("### Network Connections Heatmap")
+        initial_filters = {
+            'network1': None,  # All Networks
+            'network2': None,  # All Networks
+            'genre': None,     # All Genres
+            'source': None     # All Sources
+        }
+        render_heatmap(connections_analyzer, initial_filters)
+        
+        # Show filters after heatmap
+        st.markdown("### Filters")
+        filters = render_filter_section()
+        
+        # Tabs for results
+        st.markdown("### Results")
+        tab1, tab2 = st.tabs(["Creator Search", "Success Stories"])
+        
+        with tab1:
+            # Show filtered results in scrollable container
+            networks = []
+            if filters['network1']:
+                networks.append(filters['network1'])
+            if filters['network2']:
+                networks.append(filters['network2'])
             
-            with tab1:
-                # Network dropdowns and filters
-                filters = render_filter_section()
-                
-                # Show filtered results in scrollable container
-                st.markdown("### Results")
-                with st.container(height=DIMENSIONS['dashboard']['height']):
-                    # Get filtered creators
-                    networks = []
-                    if filters['network1']:
-                        networks.append(filters['network1'])
-                    if filters['network2']:
-                        networks.append(filters['network2'])
-                    
-                    # Get filtered creators
-                    creators = connections_analyzer.filter_creators(
-                        networks=networks if networks else None,
-                        genre=filters['genre'],
-                        source_type=filters['source']
-                    )
-                    
-                    if not creators:
-                        st.info("No creators found matching the current filters.")
-                    else:
-                        # Show creator info
-                        for creator in creators:
-                            with st.expander(f"{creator.name} ({creator.total_shows} shows)"):
-                                st.write("Networks:", ", ".join(sorted(creator.networks)))
-                                st.write("Genres:", ", ".join(sorted(creator.genres)))
-                                st.write("Source Types:", ", ".join(sorted(creator.source_types)))
+            # Get filtered creators
+            creators = connections_analyzer.filter_creators(
+                networks=networks if networks else None,
+                genre=filters['genre'],
+                source_type=filters['source']
+            )
             
-            with tab2:
-                render_success_stories(connections_analyzer, filters)
-                
-        # Left side: Heatmap (using filters from right side)
-        with col1:
-            render_heatmap(connections_analyzer, filters)
+            if not creators:
+                st.info("No creators found matching the current filters.")
+            else:
+                # Show creator info in a grid layout
+                cols = st.columns(2)
+                for i, creator in enumerate(creators):
+                    with cols[i % 2]:
+                        with st.expander(f"{creator.name} ({creator.total_shows} shows)"):
+                            st.write("Networks:", ", ".join(sorted(creator.networks)))
+                            st.write("Genres:", ", ".join(sorted(creator.genres)))
+                            st.write("Source Types:", ", ".join(sorted(creator.source_types)))
+        
+        with tab2:
+            render_success_stories(connections_analyzer, filters)
             
     except Exception as e:
         st.error(f"Error rendering dashboard: {str(e)}")

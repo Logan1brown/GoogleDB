@@ -9,10 +9,13 @@ Analyzes studio performance metrics including:
 from typing import Dict, List
 import pandas as pd
 import networkx as nx
+from src.dashboard.utils.sheets_client import sheets_client
+from src.data_processing.analyze_shows import shows_analyzer
 
 def get_all_studios(shows_df: pd.DataFrame) -> pd.Series:
     """Extract all unique studios from the shows dataframe.
     Handles multiple studios per show by splitting on commas.
+    Excludes studios prefixed with 'Other:' as they are not real studios.
     
     Args:
         shows_df: DataFrame with show information
@@ -22,10 +25,16 @@ def get_all_studios(shows_df: pd.DataFrame) -> pd.Series:
     """
     # Split multiple studios and create a new series with one studio per row
     all_studios = shows_df['studio'].str.split(',').explode()
+    
     # Clean up whitespace and remove empty studios
-    all_studios = all_studios.str.strip().dropna()
+    all_studios = all_studios.str.strip()
+    all_studios = all_studios[all_studios.notna() & (all_studios != '')]
+    
+    # Filter out studios that start with 'Other:'
+    real_studios = all_studios[~all_studios.str.startswith('Other:')]
+    
     # Count occurrences of each studio
-    return all_studios.value_counts()
+    return real_studios.value_counts()
 
 def get_shows_for_studio(shows_df: pd.DataFrame, studio: str) -> pd.DataFrame:
     """Get all shows for a specific studio, handling multiple studios per show.
@@ -40,8 +49,15 @@ def get_shows_for_studio(shows_df: pd.DataFrame, studio: str) -> pd.DataFrame:
     # Create a series where each row is a studio-show pair
     studio_show_pairs = shows_df['studio'].str.split(',').explode().str.strip()
     
-    # Get indices of shows that contain this exact studio
-    matching_indices = studio_show_pairs[studio_show_pairs == studio].index
+    # Don't match empty studio names
+    if not studio or not studio.strip():
+        return pd.DataFrame()
+        
+    # Look for both exact match and 'Other: <studio>' format
+    matching_indices = studio_show_pairs[
+        (studio_show_pairs == studio) |
+        (studio_show_pairs == f'Other: {studio}')
+    ].index
     
     # Get matching shows
     matching_shows = shows_df.loc[matching_indices]
@@ -65,6 +81,7 @@ def analyze_studio_relationships(shows_df: pd.DataFrame) -> Dict:
     # Get studio sizes by show count (handling multiple studios per show)
     studio_sizes = get_all_studios(shows_df)
     
+    
     # Get genre distribution by studio (if genre column exists)
     studio_genres = {}
     if 'genre' in shows_df.columns:
@@ -81,25 +98,38 @@ def analyze_studio_relationships(shows_df: pd.DataFrame) -> Dict:
             if not studio_shows.empty:
                 network_relationships[studio] = studio_shows['network'].value_counts().to_dict()
     
-    # Load studio categories
+    # Load studio categories from live sheet
     try:
-        studio_categories = pd.read_csv('docs/sheets/STS Sales Database - studio_list_2.csv')
+        # Get studio list data from the lookup table
+        studio_list_data = sheets_client.get_all_values(shows_analyzer.LOOKUP_TABLES['studio'])
+        if not studio_list_data:
+            raise ValueError('No data found in studio_list sheet')
+            
+        # Convert to DataFrame
+        headers = [col.lower().replace(' ', '_') for col in studio_list_data[0]]
+        studio_categories = pd.DataFrame(studio_list_data[1:], columns=headers)
         
         # Get indies (large and mid-size)
-        indies_mask = studio_categories['category'].fillna('').str.contains('Independent', case=False)
+        # The category is stored as "Independent,Large" or "Independent,Mid-Size"
+        indies_mask = studio_categories['category'].fillna('').str.startswith('Independent', na=False)
         indie_df = studio_categories[indies_mask].copy()
         
         # Build list of indie studios including aliases
         indie_studios = set()
         for _, row in indie_df.iterrows():
-            indie_studios.add(row['studio'])
-            if pd.notna(row['aliases']):
-                indie_studios.update(row['aliases'].split(','))
+            studio_name = row['studio']
+            if pd.notna(studio_name):
+                indie_studios.add(studio_name.strip())
+                # Handle aliases if they exist
+                if 'aliases' in row and pd.notna(row['aliases']):
+                    aliases = [alias.strip() for alias in row['aliases'].split(',')]
+                    indie_studios.update(aliases)
         
-        # Filter to only studios that exist in our data
-        indie_studios = [s for s in indie_studios if s in studio_sizes.index]
+        # Filter to only valid studios that exist in our data
+        indie_studios = [s for s in indie_studios if s and s.strip() and s in studio_sizes.index]
         
     except Exception as e:
+        logger.error(f'Error loading studio categories: {e}')
         indie_studios = []
     indie_insights = {}
     
@@ -115,7 +145,8 @@ def analyze_studio_relationships(shows_df: pd.DataFrame) -> Dict:
     
     # Sort indie studios by show count
     sorted_indies = sorted(indie_insights.items(), key=lambda x: x[1]['show_count'], reverse=True)
-    top_indies = dict(sorted_indies[:10])
+    # Include all indies, not just top 10
+    top_indies = dict(sorted_indies)
     
     return {
         'studio_sizes': studio_sizes.to_dict(),
@@ -150,7 +181,7 @@ def get_studio_insights(shows_df: pd.DataFrame, studio: str) -> Dict:
     show_details = []
     for _, row in studio_shows.iterrows():
         # Get title, network, and genre
-        title = row.get('show_name', '')
+        title = row.get('shows', '')
         network = row.get('network', 'Unknown Network')
         genre = row.get('genre', 'Unknown Genre')
         

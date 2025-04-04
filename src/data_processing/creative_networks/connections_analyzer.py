@@ -26,11 +26,13 @@ class DataFields(Enum):
 @dataclass
 class CreatorProfile:
     """Profile of a creator's work across networks."""
-    name: str
-    networks: Set[str]
-    genres: Set[str]
-    source_types: Set[str]
-    total_shows: int
+    def __init__(self, name: str):
+        self.name = name
+        self.networks = set()
+        self.genres = set()
+        self.source_types = set()
+        self.total_shows = 0
+        self.shows = set()  # Track specific shows for overlap calculation
 
 class ConnectionsAnalyzer:
     """Analyzer for network relationships and creator filtering."""
@@ -110,13 +112,14 @@ class ConnectionsAnalyzer:
         profiles = {}
         
         for name, group in self.combined_df.groupby(DataFields.NAME.value):
-            profiles[name] = CreatorProfile(
-                name=name,
-                networks=set(group[DataFields.NETWORK.value]),
-                genres=set(group[DataFields.GENRE.value]),
-                source_types=set(group[DataFields.SOURCE_TYPE.value]),
-                total_shows=len(set(group[DataFields.SHOW_NAME.value]))
-            )
+            profile = CreatorProfile(name)
+            for _, row in group.iterrows():
+                profile.networks.add(row[DataFields.NETWORK.value])
+                profile.genres.add(row[DataFields.GENRE.value])
+                profile.source_types.add(row[DataFields.SOURCE_TYPE.value])
+                profile.shows.add(row[DataFields.SHOW_NAME.value])
+                profile.total_shows += 1
+            profiles[name] = profile
             
         return profiles
     
@@ -190,7 +193,7 @@ class ConnectionsAnalyzer:
         network2: Optional[str] = None,
         genre: Optional[str] = None,
         source: Optional[str] = None
-    ) -> Tuple[np.ndarray, List[str]]:
+    ) -> Tuple[np.ndarray, List[str], List[int]]:
         """Generate matrix of shared creators between networks.
         
         Args:
@@ -200,29 +203,50 @@ class ConnectionsAnalyzer:
             source: Filter by source type (optional)
             
         Returns:
-            Tuple of (matrix, network_labels) where matrix[i,j] is the number
-            of creators shared between networks[i] and networks[j]
+            Tuple of:
+            - matrix: where matrix[i,j] is the number of creators shared between networks[i] and networks[j]
+            - network_labels: list of network names
+            - selected_indices: indices of selected networks (if any filters applied)
         """
-        # Filter the combined data
+        # Get filtered data first
         filtered_df = self.combined_df.copy()
-        
         if genre:
             filtered_df = filtered_df[filtered_df[DataFields.GENRE.value] == genre]
         if source:
             filtered_df = filtered_df[filtered_df[DataFields.SOURCE_TYPE.value] == source]
             
-        # Get networks to compare
-        if network1 and network2:
-            networks = sorted([network1, network2])
-            filtered_df = filtered_df[filtered_df[DataFields.NETWORK.value].isin(networks)]
-        elif network1:
-            networks = sorted([network1] + list(filtered_df[filtered_df[DataFields.NETWORK.value] != network1][DataFields.NETWORK.value].unique()))
-            filtered_df = filtered_df[filtered_df[DataFields.NETWORK.value].isin(networks)]
-        elif network2:
-            networks = sorted([network2] + list(filtered_df[filtered_df[DataFields.NETWORK.value] != network2][DataFields.NETWORK.value].unique()))
-            filtered_df = filtered_df[filtered_df[DataFields.NETWORK.value].isin(networks)]
-        else:
-            networks = sorted(filtered_df[DataFields.NETWORK.value].unique())
+        # Get all networks and initialize matrix
+        all_networks = sorted(self.combined_df[DataFields.NETWORK.value].unique())
+        n = len(all_networks)
+        full_matrix = np.zeros((n, n), dtype=int)
+        
+        # Build matrix using filtered data
+        for i, net1 in enumerate(all_networks):
+            net1_creators = set(filtered_df[filtered_df[DataFields.NETWORK.value] == net1][DataFields.NAME.value])
+            for j, net2 in enumerate(all_networks[i:], i):
+                if i == j:
+                    full_matrix[i, j] = len(net1_creators)
+                else:
+                    net2_creators = set(filtered_df[filtered_df[DataFields.NETWORK.value] == net2][DataFields.NAME.value])
+                    shared = len(net1_creators & net2_creators)
+                    full_matrix[i, j] = full_matrix[j, i] = shared
+            
+        # Get selected networks
+        selected_networks = set()
+        if network1:
+            selected_networks.add(network1)
+        if network2:
+            selected_networks.add(network2)
+        if not selected_networks and (genre or source):
+            # When filtering by genre/source but no networks selected,
+            # highlight networks that have any creators in that genre/source
+            active_networks = set(filtered_df[DataFields.NETWORK.value].unique())
+            selected_networks.update(active_networks)
+            
+        # Get indices of selected networks
+        selected_indices = [i for i, net in enumerate(all_networks) if net in selected_networks] if selected_networks else []
+            
+        return full_matrix, all_networks, selected_indices
         
         # Initialize matrix
         n = len(networks)
@@ -247,35 +271,87 @@ class ConnectionsAnalyzer:
         genre: Optional[str] = None,
         source: Optional[str] = None,
         min_networks: int = 2,
-        top_k: int = 5
+        top_k: int = 5,
+        overlap_threshold: float = 0.8
     ) -> List[Dict[str, Any]]:
         """Get creators who have worked across multiple networks.
         
         Args:
             min_networks: Minimum number of networks
             top_k: Number of creators to return
+            overlap_threshold: Minimum show overlap to group creators (0.0-1.0)
             
         Returns:
             List of creator profiles with network counts, sorted by network count
             and total shows
         """
-        stories = []
+        # First, identify creator teams based on show overlap
+        teams = []
+        used_creators = set()
         
-        for profile in self.creator_profiles.values():
-            # Apply filters
-            if network and network not in profile.networks:
-                continue
-            if genre and genre not in profile.genres:
-                continue
-            if source and source not in profile.source_types:
+        profiles = list(self.creator_profiles.values())
+        for i, profile1 in enumerate(profiles):
+            if profile1.name in used_creators:
                 continue
                 
-            if len(profile.networks) >= min_networks:
+            # Start a new team
+            team = [profile1]
+            used_creators.add(profile1.name)
+            
+            # Look for team members with high show overlap
+            for profile2 in profiles[i+1:]:
+                if profile2.name in used_creators:
+                    continue
+                    
+                # Calculate show overlap in both directions
+                if len(profile1.shows) == 0 or len(profile2.shows) == 0:
+                    continue
+                    
+                intersection = profile1.shows & profile2.shows
+                overlap1 = len(intersection) / len(profile1.shows)  # % of profile1's shows
+                overlap2 = len(intersection) / len(profile2.shows)  # % of profile2's shows
+                
+                # Only team up if they appear in enough of each other's shows
+                if overlap1 >= overlap_threshold and overlap2 >= overlap_threshold:
+                    team.append(profile2)
+                    used_creators.add(profile2.name)
+            
+            teams.append(team)
+        
+        # Convert teams to stories
+        stories = []
+        for team in teams:
+            # Combine team stats
+            networks = set()
+            genres = set()
+            source_types = set()
+            total_shows = 0
+            shows = set()
+            
+            for member in team:
+                networks.update(member.networks)
+                genres.update(member.genres)
+                source_types.update(member.source_types)
+                shows.update(member.shows)
+            
+            total_shows = len(shows)  # Use unique show count
+            network_count = len(networks)
+            
+            # Apply filters
+            if network and network not in networks:
+                continue
+            if genre and genre not in genres:
+                continue
+            if source and source not in source_types:
+                continue
+                
+            if network_count >= min_networks:
                 stories.append({
-                    'creator_team': profile.name,
-                    'networks': sorted(list(profile.networks)),
-                    'show_count': profile.total_shows,
-                    'roles': sorted(list(profile.source_types))
+                    'creator_team': ' & '.join(p.name for p in team),
+                    'networks': sorted(list(networks)),
+                    'network_count': network_count,
+                    'total_shows': total_shows,
+                    'roles': sorted(list(source_types))
                 })
         
         return sorted(stories,
