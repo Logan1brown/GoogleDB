@@ -47,8 +47,21 @@ Code organization follows the three-layer architecture:
 
 1. **Data Storage & Integration**
    - **Python Layer** (`src/data_processing/`)
+     - `analyze_shows.py`: Central data loading and preprocessing
+       - `fetch_data()`: Single source of truth for data loading
+       - Maintains critical column differences ('shows' vs 'show_name')
+       - Handles caching, cleaning, and validation
+       - Used by all analyzers via `shows_analyzer.fetch_data()`
      - `sheets/`: Google Sheets integration with read/write capabilities
      - `external/tmdb/`: TMDB API client and data synchronization
+
+2. **Analysis Layer**
+   - Analyzers receive preprocessed data from `analyze_shows.py`
+   - Focus purely on analysis logic, not data loading
+   - Examples:
+     - `creative_networks/connections_analyzer.py`
+     - `content_strategy/genre_analyzer.py`
+     - `market_analysis/market_analyzer.py`
      - `validation/`: Data validation rules and lookup tables
      - `cache/`: Local data caching with TTL support
    
@@ -227,6 +240,34 @@ Code organization follows the three-layer architecture:
 
 ## Development Guide
 
+### Environment Setup
+1. **Source Environment**
+   ```bash
+   source setup_env.sh
+   ```
+   This script:
+   - Sources environment variables from `.env`
+   - Sets up Python aliases
+   - Activates virtual environment
+   - Adds `src` to PYTHONPATH for proper package imports
+
+2. **Package Structure**
+   - Project is set up as a Python package (`setup.py`)
+   - All imports should use the package structure
+   - Example: `from data_processing.creative_networks import ConnectionsAnalyzer`
+
+3. **Data Access**
+   - Raw data: `docs/sheets/STS Sales Database - *.csv`
+   - Sheet names configured in `.env`
+   - Column names must be preserved (e.g., 'shows' vs 'show_name')
+
+### Best Practices
+1. **Data Loading**
+   - Always use `analyze_shows.py` for data loading
+   - Never normalize column names between sheets
+   - Keep data loading separate from analysis logic
+   - Document column name expectations
+
 ### Development Tools
 1. **Code Quality**
    - Type hints and docstrings
@@ -252,10 +293,9 @@ Code organization follows the three-layer architecture:
 - Streamlit account (optional)
 
 ### Local Setup
-1. **Environment**
+1. **Create Environment**
    ```bash
    python -m venv venv
-   source venv/bin/activate
    pip install -r requirements.txt
    ```
 
@@ -264,8 +304,18 @@ Code organization follows the three-layer architecture:
    cp .env.example .env     # Copy template
    vim .env                 # Add credentials
    ```
-   Required credentials:
-   - `GOOGLE_SHEETS_ID`: Database sheet
+   Required variables:
+   - `GOOGLE_SHEETS_ID`: Database sheet ID
+   - `SHOWS_SHEET_NAME`: Shows sheet name
+   - `TEAM_SHEET_NAME`: Team sheet name
+   - `VENV_PATH`: Path to virtual environment
+   - `PYTHON`: Python interpreter
+   - `PIP`: Pip executable
+
+3. **Source Environment**
+   ```bash
+   source setup_env.sh
+   ```
    - `GOOGLE_CREDS_PATH`: Service account key
    - `STREAMLIT_*`: Dashboard config
 

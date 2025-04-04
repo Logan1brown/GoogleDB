@@ -1,199 +1,300 @@
-"""Network Connections Analyzer.
+"""Network Connection Analysis.
 
-Analyzes network relationships and success stories for the overview dashboard.
-Focuses on high-level metrics and network-to-network relationships.
+This module analyzes relationships between networks through shared creators,
+with filtering capabilities for networks, genres, and source types.
 """
 
-from typing import Dict, List, Set, Tuple
-import pandas as pd
 import logging
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Set, Tuple, Any
+from enum import Enum
+
+import pandas as pd
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
-def analyze_network_metrics(shows_df: pd.DataFrame, team_df: pd.DataFrame) -> Dict:
-    """Analyze high-level network metrics.
-    
-    Args:
-        shows_df: DataFrame with show information
-        team_df: DataFrame with team member information
-        
-    Returns:
-        Dictionary containing:
-        - network_sizes: Number of shows per network
-        - talent_counts: Number of creators per network
-        - cross_network_activity: % of creators working across networks
-    """
-    # Merge show and team data and drop duplicates
-    combined_df = pd.merge(
-        shows_df[['show_name', 'network']],
-        team_df,
-        on='show_name'
-    ).drop_duplicates(['show_name', 'network', 'name', 'roles'])
-    
-    # Calculate network sizes
-    network_sizes = shows_df['network'].value_counts().to_dict()
-    
-    # Calculate talent counts
-    talent_counts = combined_df.groupby('network')['name'].nunique().to_dict()
-    
-    # Calculate cross-network activity
-    creator_networks = combined_df.groupby('name')['network'].nunique()
-    multi_network = (creator_networks > 1).sum()
-    total_creators = len(creator_networks)
-    cross_network_pct = (multi_network / total_creators) * 100 if total_creators > 0 else 0
-    
-    return {
-        'network_sizes': network_sizes,
-        'talent_counts': talent_counts,
-        'cross_network_activity': cross_network_pct
-    }
+class DataFields(Enum):
+    """Constants for data field names."""
+    SHOW_NAME = 'show_name'
+    SHOWS = 'shows'
+    NETWORK = 'network'
+    GENRE = 'genre'
+    SOURCE_TYPE = 'source_type'
+    NAME = 'name'
 
-def find_partnerships(combined_df: pd.DataFrame, min_shows: int = 3, overlap_threshold: float = 0.8) -> Dict[str, Tuple[str, str]]:
-    """Find partnerships based on shared shows.
+@dataclass
+class CreatorProfile:
+    """Profile of a creator's work across networks."""
+    name: str
+    networks: Set[str]
+    genres: Set[str]
+    source_types: Set[str]
+    total_shows: int
+
+class ConnectionsAnalyzer:
+    """Analyzer for network relationships and creator filtering."""
     
-    Args:
-        combined_df: DataFrame with merged show and team data
-        min_shows: Minimum number of shows for a creator to be considered
-        overlap_threshold: Minimum percentage of shared shows to be considered partners
+    UNKNOWN_VALUE = 'Unknown'
+    REQUIRED_SHOW_COLUMNS = {DataFields.NETWORK.value, DataFields.GENRE.value, 
+                           DataFields.SOURCE_TYPE.value}
+    REQUIRED_TEAM_COLUMNS = {DataFields.NAME.value, DataFields.SHOW_NAME.value}
+    
+    def __init__(self, shows_df: pd.DataFrame, team_df: pd.DataFrame) -> None:
+        """Initialize the analyzer.
         
-    Returns:
-        Dictionary mapping creator names to their partner and team name
-    """
-    # Get shows per creator
-    creator_shows = {}
-    for name in combined_df['name'].unique():
-        shows = set(combined_df[combined_df['name'] == name]['show_name'])
-        if len(shows) >= min_shows:
-            creator_shows[name] = shows
-    
-    # Find partnerships
-    partnerships = {}
-    processed = set()
-    
-    for creator1 in creator_shows:
-        if creator1 in processed:
-            continue
+        Args:
+            shows_df: DataFrame with show information (network, genre, source_type)
+            team_df: DataFrame with creator information
             
-        shows1 = creator_shows[creator1]
-        for creator2 in creator_shows:
-            if creator2 <= creator1 or creator2 in processed:  # Use <= for consistent ordering
+        Raises:
+            ValueError: If required columns are missing
+        """
+        self._validate_dataframes(shows_df, team_df)
+        self.shows_df = self._prepare_shows_data(shows_df)
+        self.team_df = team_df
+        self.combined_df = self._merge_data()
+        self.creator_profiles = self._build_creator_profiles()
+        self._log_stats()
+    
+    def _validate_dataframes(self, shows_df: pd.DataFrame, team_df: pd.DataFrame) -> None:
+        """Validate required columns exist in dataframes."""
+        missing_show_cols = self.REQUIRED_SHOW_COLUMNS - set(shows_df.columns)
+        missing_team_cols = self.REQUIRED_TEAM_COLUMNS - set(team_df.columns)
+        
+        if missing_show_cols:
+            raise ValueError(f"Missing required show columns: {missing_show_cols}")
+        if missing_team_cols:
+            raise ValueError(f"Missing required team columns: {missing_team_cols}")
+    
+    def _prepare_shows_data(self, shows_df: pd.DataFrame) -> pd.DataFrame:
+        """Prepare shows data by handling column names and missing values."""
+        df = shows_df.copy()
+        
+        # Handle column name differences
+        if DataFields.SHOWS.value in df.columns:
+            df = df.rename(columns={DataFields.SHOWS.value: DataFields.SHOW_NAME.value})
+        
+        # Handle missing values
+        for col in [DataFields.GENRE.value, DataFields.SOURCE_TYPE.value]:
+            df[col] = df[col].fillna(self.UNKNOWN_VALUE)
+            
+        return df
+    
+    def _merge_data(self) -> pd.DataFrame:
+        """Merge show and creator data safely."""
+        try:
+            return pd.merge(
+                self.team_df,
+                self.shows_df[[DataFields.SHOW_NAME.value, DataFields.NETWORK.value,
+                              DataFields.GENRE.value, DataFields.SOURCE_TYPE.value]],
+                on=DataFields.SHOW_NAME.value
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to merge show and creator data: {e}")
+    
+    def _log_stats(self) -> None:
+        """Log basic statistics about the data."""
+        logger.info("Network connection stats:")
+        logger.info(f"  Networks: {self.combined_df[DataFields.NETWORK.value].nunique()}")
+        logger.info(f"  Genres: {self.combined_df[DataFields.GENRE.value].nunique()}")
+        logger.info(f"  Source types: {self.combined_df[DataFields.SOURCE_TYPE.value].nunique()}")
+        logger.info(f"  Unique creators: {self.combined_df[DataFields.NAME.value].nunique()}")
+    
+    def _build_creator_profiles(self) -> Dict[str, CreatorProfile]:
+        """Build cached profiles of creators and their work.
+        
+        Returns:
+            Dict mapping creator names to their profiles
+        """
+        profiles = {}
+        
+        for name, group in self.combined_df.groupby(DataFields.NAME.value):
+            profiles[name] = CreatorProfile(
+                name=name,
+                networks=set(group[DataFields.NETWORK.value]),
+                genres=set(group[DataFields.GENRE.value]),
+                source_types=set(group[DataFields.SOURCE_TYPE.value]),
+                total_shows=len(set(group[DataFields.SHOW_NAME.value]))
+            )
+            
+        return profiles
+    
+    def get_shared_creators_matrix(self) -> np.ndarray:
+        """Get matrix of shared creator counts between networks.
+        Returns:
+            Dict mapping creator names to their profiles
+        """
+        profiles = {}
+        
+        for name, group in self.combined_df.groupby(DataFields.NAME.value):
+            profiles[name] = CreatorProfile(
+                name=name,
+                networks=set(group[DataFields.NETWORK.value].unique()),
+                genres=set(group[DataFields.GENRE.value].unique()),
+                source_types=set(group[DataFields.SOURCE_TYPE.value].unique()),
+                total_shows=len(group[DataFields.SHOW_NAME.value].unique())
+            )
+        
+        return profiles
+    
+    def get_filter_options(self) -> Dict[str, List[str]]:
+        """Get available filter options.
+        
+        Returns:
+            Dict with lists of available networks, genres, and source types
+        """
+        return {
+            'networks': sorted(self.combined_df[DataFields.NETWORK.value].unique()),
+            'genres': sorted(self.combined_df[DataFields.GENRE.value].unique()),
+            'sources': sorted(self.combined_df[DataFields.SOURCE_TYPE.value].unique())
+        }
+    
+    def filter_creators(
+        self,
+        networks: Optional[List[str]] = None,
+        genre: Optional[str] = None,
+        source_type: Optional[str] = None
+    ) -> List[CreatorProfile]:
+        """Filter creators based on specified criteria.
+        
+        Args:
+            networks: List of networks to filter by
+            genre: Genre to filter by
+            source_type: Source type to filter by
+            
+        Returns:
+            List of filtered creator profiles sorted by total shows
+        """
+        filtered_profiles = []
+        
+        for profile in self.creator_profiles.values():
+            # Check all specified criteria must match (AND logic)
+            if networks and not all(net in profile.networks for net in networks):
+                continue
+            
+            if genre and genre not in profile.genres:
                 continue
                 
-            shows2 = creator_shows[creator2]
-            shared = len(shows1 & shows2)
-            total = min(len(shows1), len(shows2))  # Use smaller total for threshold
+            if source_type and source_type not in profile.source_types:
+                continue
             
-            if shared / total >= overlap_threshold:
-                team_name = f"{creator1} & {creator2}"
-                partnerships[creator1] = (creator2, team_name)
-                partnerships[creator2] = (creator1, team_name)
-                processed.add(creator1)
-                processed.add(creator2)
-                break
-    
-    return partnerships
-
-def identify_success_stories(shows_df: pd.DataFrame, team_df: pd.DataFrame) -> Dict[str, List[Dict]]:
-    """Identify multi-network success stories and emerging collaborations.
-    
-    Args:
-        shows_df: DataFrame with show information
-        team_df: DataFrame with team member information
+            filtered_profiles.append(profile)
         
-    Returns:
-        Dictionary containing:
-        - success_stories: List of creators/teams with 3+ shows
-        - emerging_collaborations: List of creators/teams with 2 shows
-        Each story contains:
-        - creator_team: Name of individual or partnership
-        - networks: List of networks worked with
-        - show_count: Number of shows
-        - roles: List of roles across shows
-    """
+        # Sort by total shows descending
+        return sorted(filtered_profiles, key=lambda x: x.total_shows, reverse=True)
     
-    # Merge show and team data and drop duplicates
-    combined_df = pd.merge(
-        shows_df[['show_name', 'network']],
-        team_df,
-        on='show_name'
-    ).drop_duplicates(['show_name', 'network', 'name', 'roles'])
-    
-    # Find partnerships based on shared shows
-    partnerships = find_partnerships(combined_df, min_shows=3, overlap_threshold=0.8)
-    
-    # Group by creator to avoid duplicates
-    success_stories = []
-    processed = set()
-    
-    # Process each creator only once
-    for creator in combined_df['name'].unique():
-        if creator in processed:
-            continue
+    def get_shared_creators_matrix(
+        self,
+        network1: Optional[str] = None,
+        network2: Optional[str] = None,
+        genre: Optional[str] = None,
+        source: Optional[str] = None
+    ) -> Tuple[np.ndarray, List[str]]:
+        """Generate matrix of shared creators between networks.
+        
+        Args:
+            network1: First network to compare (optional)
+            network2: Second network to compare (optional)
+            genre: Filter by genre (optional)
+            source: Filter by source type (optional)
             
-        # Check if part of partnership
-        if creator in partnerships:
-            partner, team_name = partnerships[creator]
-            processed.add(creator)
-            processed.add(partner)
+        Returns:
+            Tuple of (matrix, network_labels) where matrix[i,j] is the number
+            of creators shared between networks[i] and networks[j]
+        """
+        # Filter the combined data
+        filtered_df = self.combined_df.copy()
+        
+        if genre:
+            filtered_df = filtered_df[filtered_df[DataFields.GENRE.value] == genre]
+        if source:
+            filtered_df = filtered_df[filtered_df[DataFields.SOURCE_TYPE.value] == source]
             
-            # Get combined shows for partnership
-            team_shows = combined_df[
-                combined_df['name'].isin([creator, partner])
-            ]
+        # Get networks to compare
+        if network1 and network2:
+            networks = sorted([network1, network2])
+            filtered_df = filtered_df[filtered_df[DataFields.NETWORK.value].isin(networks)]
+        elif network1:
+            networks = sorted([network1] + list(filtered_df[filtered_df[DataFields.NETWORK.value] != network1][DataFields.NETWORK.value].unique()))
+            filtered_df = filtered_df[filtered_df[DataFields.NETWORK.value].isin(networks)]
+        elif network2:
+            networks = sorted([network2] + list(filtered_df[filtered_df[DataFields.NETWORK.value] != network2][DataFields.NETWORK.value].unique()))
+            filtered_df = filtered_df[filtered_df[DataFields.NETWORK.value].isin(networks)]
         else:
-            team_name = creator
-            team_shows = combined_df[combined_df['name'] == creator]
+            networks = sorted(filtered_df[DataFields.NETWORK.value].unique())
         
-        networks = team_shows['network'].unique()
-        show_count = team_shows['show_name'].nunique()
+        # Initialize matrix
+        n = len(networks)
+        matrix = np.zeros((n, n))
+        net_to_idx = {net: i for i, net in enumerate(networks)}
         
-        # Only include creators who work across networks
-        if len(networks) > 1:
-            story = {
-                'creator_team': team_name,
-                'networks': sorted(networks),
-                'show_count': show_count,
-                'roles': sorted(team_shows['roles'].unique())
-            }
-            success_stories.append(story)
+        # Count shared creators
+        for name, group in filtered_df.groupby(DataFields.NAME.value):
+            creator_networks = list(group[DataFields.NETWORK.value].unique())
+            for i, net1 in enumerate(creator_networks):
+                for net2 in creator_networks[i+1:]:
+                    idx1 = net_to_idx[net1]
+                    idx2 = net_to_idx[net2]
+                    matrix[idx1][idx2] += 1
+                    matrix[idx2][idx1] += 1  # Symmetric
+        
+        return matrix, networks
     
-    # Separate stories into categories
-    all_stories = success_stories.copy()
-    success_stories = [s for s in all_stories if s['show_count'] >= 3 and len(s['networks']) >= 3]
-    emerging_collabs = [s for s in all_stories if (
-        (s['show_count'] == 2 and len(s['networks']) >= 2) or  # 2 shows across 2+ networks
-        (s['show_count'] >= 3 and len(s['networks']) == 2)    # 3+ shows but only 2 networks
-    )]
-    
-    # Sort both lists by number of networks first, then show count
-    for stories in [success_stories, emerging_collabs]:
-        stories.sort(key=lambda x: (len(x['networks']), x['show_count']), reverse=True)
-    
-    return {
-        'success_stories': success_stories,
-        'emerging_collaborations': emerging_collabs
-    }
+    def get_success_stories(
+        self,
+        network: Optional[str] = None,
+        genre: Optional[str] = None,
+        source: Optional[str] = None,
+        min_networks: int = 2,
+        top_k: int = 5
+    ) -> List[Dict[str, Any]]:
+        """Get creators who have worked across multiple networks.
+        
+        Args:
+            min_networks: Minimum number of networks
+            top_k: Number of creators to return
+            
+        Returns:
+            List of creator profiles with network counts, sorted by network count
+            and total shows
+        """
+        stories = []
+        
+        for profile in self.creator_profiles.values():
+            # Apply filters
+            if network and network not in profile.networks:
+                continue
+            if genre and genre not in profile.genres:
+                continue
+            if source and source not in profile.source_types:
+                continue
+                
+            if len(profile.networks) >= min_networks:
+                stories.append({
+                    'creator_team': profile.name,
+                    'networks': sorted(list(profile.networks)),
+                    'show_count': profile.total_shows,
+                    'roles': sorted(list(profile.source_types))
+                })
+        
+        return sorted(stories,
+                     key=lambda x: (x['network_count'], x['total_shows']),
+                     reverse=True)[:top_k]
+        return {
+            'networks': sorted(self.combined_df[DataFields.NETWORK.value].unique()),
+            'genres': sorted(self.combined_df[DataFields.GENRE.value].unique()),
+            'sources': sorted(self.combined_df[DataFields.SOURCE_TYPE.value].unique())
+        }
 
-def analyze_network_connections(shows_df: pd.DataFrame, team_df: pd.DataFrame) -> Dict:
-    logger.info(f"Shows DataFrame columns: {list(shows_df.columns)}")
-    logger.info(f"Team DataFrame columns: {list(team_df.columns)}")
-    logger.info(f"Shows DataFrame first row: {shows_df.iloc[0] if len(shows_df) > 0 else 'empty'}")
-    logger.info(f"Team DataFrame first row: {team_df.iloc[0] if len(team_df) > 0 else 'empty'}")
-    """Main analysis function for network connections dashboard.
+def analyze_network_connections(shows_df: pd.DataFrame, team_df: pd.DataFrame) -> ConnectionsAnalyzer:
+    """Initialize and return a ConnectionsAnalyzer instance.
     
     Args:
         shows_df: DataFrame with show information
-        team_df: DataFrame with team member information
+        team_df: DataFrame with creator information
         
     Returns:
-        Dictionary containing all metrics and data for the dashboard:
-        - metrics: High-level network metrics
-        - success_stories: Multi-network success stories
+        ConnectionsAnalyzer instance ready for analysis
     """
-    metrics = analyze_network_metrics(shows_df, team_df)
-    success_stories = identify_success_stories(shows_df, team_df)
-    
-    return {
-        'metrics': metrics,
-        'success_stories': success_stories
-    }
+    return ConnectionsAnalyzer(shows_df, team_df)

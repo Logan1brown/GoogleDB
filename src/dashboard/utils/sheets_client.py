@@ -114,10 +114,6 @@ class SheetsClient:
             logger.debug(f"Trimmed columns from {len(raw_data[0])} to {last_col + 1}")
             return data
             
-            logger.debug(f"Retrieved {len(cleaned_data)} rows from {worksheet_name}")
-            logger.debug(f"Cleaned headers: {cleaned_data[0]}")
-            return cleaned_data
-            
         except Exception as e:
             logger.error(f"Failed to get values from {worksheet_name}: {e}")
             raise

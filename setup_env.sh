@@ -15,9 +15,10 @@ if [ -f "$VENV_PATH/bin/activate" ]; then
 fi
 
 # Add src to PYTHONPATH
-export PYTHONPATH=$PYTHONPATH
+export PYTHONPATH="$(pwd):$PYTHONPATH"
 
 echo "Environment setup complete!"
+echo "PYTHONPATH: $PYTHONPATH"
 echo "Python version: $(python3 --version)"
 echo "Pip version: $(pip3 --version)"
 echo "Virtual environment: $VIRTUAL_ENV"

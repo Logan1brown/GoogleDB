@@ -106,9 +106,9 @@ def main():
         st.markdown('<p class="section-header">Network Connections Analysis</p>', unsafe_allow_html=True)
         
         try:
-            # Run network analysis
-            analysis_results = analyze_network_connections(shows_df, team_df)
-            render_network_connections_dashboard(shows_df, team_df, analysis_results)
+            # Initialize connections analyzer using factory function
+            connections_analyzer = analyze_network_connections(shows_df, team_df)
+            render_network_connections_dashboard(connections_analyzer)
         except Exception as e:
             st.error(f"Error analyzing network connections: {str(e)}")
             

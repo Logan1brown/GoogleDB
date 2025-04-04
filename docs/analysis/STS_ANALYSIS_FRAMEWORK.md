@@ -67,6 +67,29 @@ Visualizes market share through interactive bar chart showing:
 ## Network Analysis
 Maps talent relationships using network data.
 
++------------------------+------------------------+
+|                       |  [Tabs]                |
+|     Heatmap           |  [Search] [Success]    |
+|     (500x500)         |                       |
+|                       |  Search Tab:           |
+|                       |  +-----------------+   |
+|                       |  | Networks ▾      |   |
+|                       |  +-----------------+   |
+|                       |  | Networks ▾      |   |
+|                       |  +-----------------+   |
+|                       |  | Genre ▾         |   |
+|                       |  +-----------------+   |
+|                       |  | Source ▾        |   |
+|                       |  +-----------------+   |
+|                       |  Results:             |
+|                       |  [Scrollable list]    |
++------------------------+------------------------+
+Two network dropdowns (to compare any two)
+Single genre dropdown
+Single source dropdown
+Each dropdown is optional but must match if selected
+Just like our market view's clean dropdown interface
+
 ### Network Overview
 - **Core Metrics**:
   - Total networks count

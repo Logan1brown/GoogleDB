@@ -1,362 +1,306 @@
 """Network Connections View.
 
-Renders the network connections overview dashboard including:
-- Force-directed network graph
-- Success stories
-- High-level metrics
+Renders the network connections dashboard with:
+- Interactive heatmap visualization
+- Network comparison dropdowns
+- Genre and source filters
+- Success stories tab
 """
 
-from typing import Dict, List
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
-import networkx as nx
+from typing import Dict, List, Optional
 
-def render_metrics(metrics: Dict) -> None:
-    """Render high-level network metrics.
-    
-    Args:
-        metrics: Dictionary containing network metrics
-    """
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(
-            "Networks",
-            len(metrics['network_sizes']),
-            help="Total number of networks in analysis"
-        )
-    
-    with col2:
-        total_talent = sum(metrics['talent_counts'].values())
-        st.metric(
-            "Total Creators",
-            total_talent,
-            help="Total number of unique creators"
-        )
-    
-    with col3:
-        st.metric(
-            "Cross-Network %",
-            f"{metrics['cross_network_activity']:.1f}%",
-            help="Percentage of creators working with multiple networks"
-        )
+from src.dashboard.utils.style_config import COLORS, CHART_DEFAULTS, DIMENSIONS
+from src.dashboard.templates.defaults import create_heatmap_defaults
 
-def create_network_graph(shows_df: pd.DataFrame, team_df: pd.DataFrame) -> go.Figure:
-    """Create force-directed network graph.
-    
-    Args:
-        shows_df: DataFrame with show information
-        team_df: DataFrame with team member information
+def render_filter_section() -> Dict[str, Optional[str]]:
+    """Render filter dropdowns for networks, genre, and source.
     
     Returns:
-        Plotly figure with network graph
+        Dict containing selected values for each filter
     """
-    # Create network graph
-    G = nx.Graph()
+    # Get filter options from analyzer
+    filter_options = st.session_state.get('filter_options', {
+        'networks': [],
+        'genres': [],
+        'sources': []
+    })
     
-    # Get network sizes by unique individuals
-    network_people = pd.merge(team_df, shows_df[['show_name', 'network']], on='show_name')
-    network_sizes = network_people.groupby('network')['name'].nunique()
-    major_networks = network_sizes[network_sizes > 5].index
+    # Network dropdowns
+    st.markdown("### Network Comparison")
+    network1 = st.selectbox(
+        "First Network",
+        ["All Networks"] + filter_options['networks'],
+        key="network1"
+    )
     
-    # Add nodes for major networks
-    max_people = network_sizes[major_networks].max()
-    for network in major_networks:
-        people_count = network_sizes[network]
-        # Scale size relative to maximum, targeting max radius of 60
-        scaled_size = (people_count / max_people) * 60
-        G.add_node(network, size=scaled_size, people_count=people_count)
+    network2 = st.selectbox(
+        "Second Network",
+        ["All Networks"] + filter_options['networks'],
+        key="network2"
+    )
     
-    # Add edges for shared talent (only for major networks)
-    merged = pd.merge(team_df, shows_df[['show_name', 'network']], on='show_name')
-    merged = merged[merged['network'].isin(major_networks)]
-    for name, group in merged.groupby('name'):
-        networks = group['network'].unique()
-        if len(networks) > 1:
-            for i in range(len(networks)):
-                for j in range(i+1, len(networks)):
-                    if G.has_edge(networks[i], networks[j]):
-                        G[networks[i]][networks[j]]['weight'] += 1
-                    else:
-                        G.add_edge(networks[i], networks[j], weight=1)
+    # Additional filters
+    st.markdown("### Filters")
+    genre = st.selectbox(
+        "Genre",
+        ["All Genres"] + filter_options['genres'],
+        key="genre"
+    )
     
-    # Get node positions using force-directed layout
-    # k controls the distance between nodes (higher = more spread out)
-    # iterations controls how long to run the layout algorithm
-    # Weight the repulsion force by node size
-    # This makes bigger nodes push away more strongly
-    # Use edge weights based on node sizes to control spacing
-    for edge in G.edges():
-        n1, n2 = edge
-        # Make edges between bigger nodes have less weight (more spacing)
-        size_factor = (G.nodes[n1]['size'] + G.nodes[n2]['size']) / 2
-        G[n1][n2]['weight'] = 1 / (size_factor + 1)
+    source = st.selectbox(
+        "Source Type",
+        ["All Sources"] + filter_options['sources'],
+        key="source"
+    )
     
-    # Try kamada_kawai_layout for less circular arrangement
+    return {
+        'network1': None if network1 == "All Networks" else network1,
+        'network2': None if network2 == "All Networks" else network2,
+        'genre': None if genre == "All Genres" else genre,
+        'source': None if source == "All Sources" else source
+    }
+
+def render_heatmap(connections_analyzer, filters: Dict[str, Optional[str]]) -> None:
+    """Render network connections heatmap.
+    
+    Args:
+        connections_analyzer: ConnectionsAnalyzer instance
+        filters: Dictionary of filter values
+    """
     try:
-        pos = nx.kamada_kawai_layout(G, weight='weight')
-    except:
-        # Fall back to spring layout if kamada_kawai fails
-        pos = nx.spring_layout(G, k=8, iterations=150, weight='weight')
-    
-    # Create edges trace
-    edge_x = []
-    edge_y = []
-    edge_weights = []
-    
-    for edge in G.edges(data=True):
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
-        edge_weights.append(edge[2]['weight'])
-    
-    edges_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=0.5, color='rgba(136, 136, 136, 0.2)'),  # Thinner and transparent
-        hoverinfo='none',
-        mode='lines'
-    )
-    
-    # Create nodes trace
-    node_x = []
-    node_y = []
-    node_text = []
-    hover_text = []
-    node_size = []
-    
-    for node in G.nodes():
-        x, y = pos[node]
-        node_x.append(x)
-        node_y.append(y)
-        # Just network name for label
-        node_text.append(node)
-        # Get connected networks
-        connected = [n for n in G.neighbors(node)]
-        connected_text = "<br>Connected to: " + ", ".join(connected) if connected else ""
-        # Creator count and connections for hover
-        hover_text.append(f"{node}<br>{G.nodes[node]['people_count']} creators{connected_text}")
-        node_size.append(G.nodes[node]['size'])  # Size is already scaled
-    
-    nodes_trace = go.Scatter(
-        x=node_x, y=node_y,
-        mode='markers+text',
-        hoverinfo='text',
-        hovertext=hover_text,
-        text=node_text,
-        textposition="top center",
-        marker=dict(
-            showscale=True,
-            size=node_size,
-            # Color nodes by number of creators
-            color=[G.nodes[node]['people_count'] for node in G.nodes()],
-            colorscale='Viridis',
-            colorbar=dict(title='Creators'),
-            line=dict(width=2, color='white')
-        )
-    )
-    
-    # Create figure
-    fig = go.Figure(
-        data=[edges_trace, nodes_trace],
-        layout=go.Layout(
-            title='Network Relationships',
-            showlegend=False,
-            hovermode='closest',
-            margin=dict(b=20,l=5,r=5,t=40),
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-        )
-    )
-    
-    return fig
-
-def render_success_stories(stories_data: Dict[str, List[Dict]]) -> None:
-    """Render multi-network success stories and emerging collaborations.
-    
-    Args:
-        stories_data: Dictionary containing success_stories and emerging_collaborations
-    """
-    # Create a single scrollable container for both sections
-    stories_container = st.container(height=600)  # Taller to fit both sections
-    with stories_container:
-        # Success Stories
-        st.subheader("Multi-Network Success Stories")
-        for story in stories_data['success_stories']:
-            with st.expander(f"{story['creator_team']} ({len(story['networks'])} networks)", expanded=False):
-                st.write(f"**Networks:** {', '.join(sorted(story['networks']))}")
-                st.write(f"**Shows:** {story['show_count']}")
-        
-        # Emerging Collaborations
-        st.subheader("Emerging Multi-Network Collaborations")
-        for story in stories_data['emerging_collaborations']:
-            with st.expander(f"{story['creator_team']} ({len(story['networks'])} networks)", expanded=False):
-                st.write(f"**Networks:** {', '.join(sorted(story['networks']))}")
-                st.write(f"**Shows:** {story['show_count']}")
-
-def render_network_filter(shows_df: pd.DataFrame, team_df: pd.DataFrame) -> None:
-    """Render network and genre filtering interface to find creators.
-    
-    Args:
-        shows_df: DataFrame with show information
-        team_df: DataFrame with team member information
-    """
-    st.markdown("### Network & Genre Filter")
-    st.markdown("Find creators by network and optionally filter by genre:")
-    
-    # Create two columns for filters
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**1. Select Networks**")
-        # Get unique networks and sort them
-        networks = sorted(shows_df['network'].unique())
-        
-        # Allow selecting multiple networks
-        selected_networks = st.multiselect(
-            "Networks (must work with all)",
-            options=networks,
-            default=None,
-            help="Select 2 or more networks to find creators who have worked with all of them"
-        )
-    
-    with col2:
-        st.markdown("**2. Filter by Genre (Optional)**")
-        # Get unique genres and sort them
-        genres = sorted(shows_df['genre'].unique())
-        
-        # Allow selecting multiple genres
-        selected_genres = st.multiselect(
-            "Genres (must work in any)",
-            options=genres,
-            default=None,
-            help="Further filter to creators who have worked in ANY selected genre"
-        )
-    
-    # Show results if at least 2 networks are selected
-    if len(selected_networks) >= 2:
-        # Merge team and show data with both network and genre
-        merged_df = pd.merge(
-            team_df,
-            shows_df[['show_name', 'network', 'genre']],
-            on='show_name'
+        # Get filtered matrix data
+        matrix, networks = connections_analyzer.get_shared_creators_matrix(
+            network1=filters['network1'],
+            network2=filters['network2'],
+            genre=filters['genre'],
+            source=filters['source']
         )
         
-        # Find creators who have worked with all selected networks
-        matching_creators = []
-        
-        # Group by creator
-        for creator in merged_df['name'].unique():
-            creator_df = merged_df[merged_df['name'] == creator]
-            creator_networks = creator_df['network'].unique()
+        if len(networks) == 0:
+            st.info("No network connections found matching the current filters.")
+            return
             
-            # Check if creator has worked with all selected networks
-            if all(network in creator_networks for network in selected_networks):
-                # If genres are selected, check if creator has worked in any of them
-                if selected_genres and not any(g in creator_df['genre'].unique() for g in selected_genres):
-                    continue
-                
-                # Get detailed information for this creator
-                creator_info = {
-                    'network_shows': {},
-                    'genre_shows': {},
-                    'shows': set()
-                }
-                
-                # Collect shows by network
-                for network in selected_networks:
-                    network_shows = creator_df[
-                        creator_df['network'] == network
-                    ]['show_name'].unique()
-                    creator_info['network_shows'][network] = list(network_shows)
-                    creator_info['shows'].update(network_shows)
-                
-                # If genres selected, collect shows by genre
-                if selected_genres:
-                    for genre in selected_genres:
-                        genre_shows = creator_df[
-                            creator_df['genre'] == genre
-                        ]['show_name'].unique()
-                        if len(genre_shows) > 0:
-                            creator_info['genre_shows'][genre] = list(genre_shows)
-                
-                matching_creators.append((creator, creator_info))
+        # Calculate dimensions based on content
+        n_networks = len(networks)
+        cell_size = 30  # Smaller base size for each cell
+        plot_width = min(1000, n_networks * cell_size + 200)  # Smaller cap width
+        plot_height = min(600, n_networks * cell_size + 100)  # Much smaller cap height
+            
+        # Create heatmap using plotly express
+        df = pd.DataFrame(matrix, columns=networks, index=networks)
+        fig = px.imshow(
+            df,
+            color_continuous_scale=CHART_DEFAULTS['colorscales']['primary'],
+            labels=dict(color='Shared Creators'),
+            aspect='auto'
+        )
         
-        # Display results in a scrollable container
-        if matching_creators:
-            st.markdown(f"**Found {len(matching_creators)} creators:**")
-            results_container = st.container(height=400)
-            with results_container:
-                for creator, details in sorted(
-                    matching_creators,
-                    key=lambda x: len(x[1]['shows']),
-                    reverse=True
-                ):
-                    with st.expander(f"**{creator}** ({len(details['shows'])} shows)"):
-                        # Networks section
-                        st.markdown("**Networks:**")
-                        for network in selected_networks:
-                            shows = details['network_shows'][network]
-                            st.markdown(f"• {network}: {len(shows)} shows")
-                            if len(shows) <= 3:  # Show all if 3 or fewer
-                                for show in shows:
-                                    st.markdown(f"  - {show}")
-                        
-                        # Genres section (if filtered)
-                        if selected_genres and details['genre_shows']:
-                            st.markdown("\n**Matching Genres:**")
-                            for genre in selected_genres:
-                                if genre in details['genre_shows']:
-                                    shows = details['genre_shows'][genre]
-                                    st.markdown(f"• {genre}: {len(shows)} shows")
-                                    if len(shows) <= 3:  # Show all if 3 or fewer
-                                        for show in shows:
-                                            st.markdown(f"  - {show}")
-        else:
-            if selected_genres:
-                st.warning("No creators found who have worked with all selected networks in any of the selected genres.")
-            else:
-                st.warning("No creators found who have worked with all selected networks.")
+        # Update hover template
+        fig.update_traces(
+            hovertemplate='%{x} ↔ %{y}<br>Shared Creators: %{z}<extra></extra>'
+        )
+        
+        # Update layout using style config
+        fig.update_layout(
+            width=plot_width,
+            height=plot_height,
+            margin=CHART_DEFAULTS['margin']['plot'],
+            font=dict(size=12),  # Base font size
+            xaxis=dict(
+                title=None,
+                tickangle=45,  # Angle network names
+                fixedrange=True,  # Prevent zoom
+                side='top'  # Move labels to top
+            ),
+            yaxis=dict(
+                title=None,
+                fixedrange=True,  # Prevent zoom
+                autorange='reversed'  # Show networks top to bottom
+            ),
+            coloraxis_colorbar=dict(
+                title=dict(
+                    text='Shared Creators',
+                    side='right'
+                ),
+                thicknessmode='pixels',
+                thickness=20,
+                lenmode='fraction',
+                len=0.75,
+                yanchor='middle',
+                y=0.5,
+                xanchor='left',
+                x=1.02
+            )
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Add explanation with current filter context
+        filter_text = []
+        if filters['genre']:
+            filter_text.append(f"genre '{filters['genre']}'")
+        if filters['source']:
+            filter_text.append(f"source '{filters['source']}'")
+            
+        context = f" for {' and '.join(filter_text)}" if filter_text else ""
+        
+        st.info(
+            "💡 The heatmap shows the strength of connections between networks "
+            f"based on shared creative talent{context}. Darker colors indicate more shared creators."
+        )
+        
+    except Exception as e:
+        st.error(f"Error rendering heatmap: {str(e)}")
+        st.exception(e)
+    
+    # Add explanation
+    st.info(
+        "💡 The heatmap shows the strength of connections between networks "
+        "based on shared creative talent. Darker colors indicate more shared creators."
+    )
 
-def render_network_connections_dashboard(
-    shows_df: pd.DataFrame,
-    team_df: pd.DataFrame,
-    analysis_results: Dict
-) -> None:
+def render_success_stories(connections_analyzer, filters: Dict[str, Optional[str]]) -> None:
+    """Render success stories section.
+    
+    Args:
+        connections_analyzer: ConnectionsAnalyzer instance
+        filters: Dictionary of filter values
+    """
+    try:
+        # Handle network filter - if both selected, show stories for either
+        network = None
+        if filters['network1'] and filters['network2']:
+            network = filters['network1']  # Stories will show both networks if present
+        else:
+            network = filters['network1'] or filters['network2']
+        
+        # Get filtered success stories
+        stories = connections_analyzer.get_success_stories(
+            network=network,
+            genre=filters['genre'],
+            source=filters['source']
+        )
+        
+        if not stories:
+            st.info("No success stories found matching the current filters.")
+            return
+            
+        # Group stories by role
+        role_stories = {}
+        for story in stories:
+            try:
+                # Validate story has required fields
+                required_fields = {'creator_team', 'networks', 'show_count', 'roles'}
+                if not all(field in story for field in required_fields):
+                    st.error(f"Invalid story format: {story}")
+                    continue
+                    
+                # Group by primary role
+                primary_role = sorted(story['roles'])[0] if story['roles'] else 'Other'
+                if primary_role not in role_stories:
+                    role_stories[primary_role] = []
+                role_stories[primary_role].append(story)
+                
+            except Exception as e:
+                st.error(f"Error processing story: {str(e)}")
+                continue
+                
+        # Display stories by role
+        for role, role_group in sorted(role_stories.items()):
+            st.markdown(
+                f"<h4 style='color: #1f77b4; margin: 0.8em 0 0.3em;'>{role}</h4>",
+                unsafe_allow_html=True
+            )
+            
+            # Sort stories by network count
+            sorted_stories = sorted(
+                role_group,
+                key=lambda x: (len(x['networks']), x['show_count']),
+                reverse=True
+            )
+            
+            for story in sorted_stories:
+                networks = ', '.join(sorted(story['networks']))
+                st.markdown(
+                    f"• **{story['creator_team']}**: {story['show_count']} shows across "
+                    f"{len(story['networks'])} networks ({networks})"
+                )
+                
+    except Exception as e:
+        st.error(f"Error getting success stories: {str(e)}")
+        st.exception(e)
+
+def render_network_connections_dashboard(connections_analyzer) -> None:
     """Render the complete network connections dashboard.
     
     Args:
-        shows_df: DataFrame with show information
-        team_df: DataFrame with team member information
-        analysis_results: Results from network_connections analyzer
+        connections_analyzer: ConnectionsAnalyzer instance with processed data
     """
-    st.title("Network Connections Overview")
-    
-    # Render metrics
-    render_metrics(analysis_results['metrics'])
-    
-    # Use columns for side-by-side layout
-    col1, col2 = st.columns([3, 2])
-    
-    with col1:
-        fig = create_network_graph(shows_df, team_df)
-        st.plotly_chart(fig, use_container_width=True)
+    if not connections_analyzer:
+        st.error("Network analyzer not initialized. Please check data loading.")
+        return
         
-        st.info(
-            "💡 The size of each node represents the number of shows. "
-            "Connections indicate shared talent between networks."
-        )
+    st.title("Network Connections Analysis")
     
-    with col2:
-        # Create tabs for Network Filter and Success Stories
-        filter_tab, stories_tab = st.tabs(["Network Filter", "Success Stories"])
+    try:
+        # Store filter options in session state if not present
+        if 'filter_options' not in st.session_state:
+            filter_options = connections_analyzer.get_filter_options()
+            if not filter_options:
+                st.error("Failed to get filter options. Please check the data.")
+                return
+            st.session_state.filter_options = filter_options
+            
+        # Create side-by-side layout
+        # Use dashboard dimensions for overall height
+        col1, col2 = st.columns([0.6, 0.4])
         
-        # Network Filter tab
-        with filter_tab:
-            render_network_filter(shows_df, team_df)
-        
-        # Success Stories tab
-        with stories_tab:
-            render_success_stories(analysis_results['success_stories'])
+        # Right side: Tabs and Filters
+        with col2:
+            tab1, tab2 = st.tabs(["Search", "Success Stories"])
+            
+            with tab1:
+                # Network dropdowns and filters
+                filters = render_filter_section()
+                
+                # Show filtered results in scrollable container
+                st.markdown("### Results")
+                with st.container(height=DIMENSIONS['dashboard']['height']):
+                    # Get filtered creators
+                    networks = []
+                    if filters['network1']:
+                        networks.append(filters['network1'])
+                    if filters['network2']:
+                        networks.append(filters['network2'])
+                    
+                    # Get filtered creators
+                    creators = connections_analyzer.filter_creators(
+                        networks=networks if networks else None,
+                        genre=filters['genre'],
+                        source_type=filters['source']
+                    )
+                    
+                    if not creators:
+                        st.info("No creators found matching the current filters.")
+                    else:
+                        # Show creator info
+                        for creator in creators:
+                            with st.expander(f"{creator.name} ({creator.total_shows} shows)"):
+                                st.write("Networks:", ", ".join(sorted(creator.networks)))
+                                st.write("Genres:", ", ".join(sorted(creator.genres)))
+                                st.write("Source Types:", ", ".join(sorted(creator.source_types)))
+            
+            with tab2:
+                render_success_stories(connections_analyzer, filters)
+                
+        # Left side: Heatmap (using filters from right side)
+        with col1:
+            render_heatmap(connections_analyzer, filters)
+            
+    except Exception as e:
+        st.error(f"Error rendering dashboard: {str(e)}")
+        st.exception(e)
