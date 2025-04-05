@@ -37,6 +37,7 @@ from dashboard.components.source_view import render_source_analysis
 from dashboard.components.connections_view import render_network_connections_dashboard
 from dashboard.components.studio_view import render_studio_performance_dashboard
 from dashboard.components.prototype_market_intel_view import render_market_intel
+from dashboard.components.unified_view import render_unified_dashboard
 from data_processing.creative_networks.connections_analyzer import analyze_network_connections
 import plotly.graph_objects as go
 
@@ -61,7 +62,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Choose a View",
-        ["Market Snapshot", "Genre Analysis", "Source Analysis", "Network Connections", "Studio Performance", "Market Intel (Prototype)"]
+        ["Market Snapshot", "Network Connections", "Studio Performance", "(Prototype) Market Intel", "Unified Dashboard"]
     )
     
     try:
@@ -78,6 +79,14 @@ def main():
             render_market_intel()
         except Exception as e:
             st.error(f"Error displaying market intel: {str(e)}")
+            
+    elif page == "Unified Dashboard":
+        st.markdown('<p class="section-header">Unified TV Series Dashboard</p>', unsafe_allow_html=True)
+        
+        try:
+            render_unified_dashboard(shows_df, team_df)
+        except Exception as e:
+            st.error(f"Error displaying unified dashboard: {str(e)}")
             
     elif page == "Market Snapshot":
         try:
