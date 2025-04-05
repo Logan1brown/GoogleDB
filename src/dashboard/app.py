@@ -36,6 +36,7 @@ from dashboard.components.genre_view import render_genre_analysis
 from dashboard.components.source_view import render_source_analysis
 from dashboard.components.connections_view import render_network_connections_dashboard
 from dashboard.components.studio_view import render_studio_performance_dashboard
+from dashboard.components.prototype_market_intel_view import render_market_intel
 from data_processing.creative_networks.connections_analyzer import analyze_network_connections
 import plotly.graph_objects as go
 
@@ -60,7 +61,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox(
         "Choose a View",
-        ["Market Snapshot", "Genre Analysis", "Source Analysis", "Network Connections", "Studio Performance"]
+        ["Market Snapshot", "Genre Analysis", "Source Analysis", "Network Connections", "Studio Performance", "Market Intel (Prototype)"]
     )
     
     try:
@@ -72,7 +73,13 @@ def main():
         st.info("Please ensure Google Sheets credentials are properly configured.")
         return
     
-    if page == "Market Snapshot":
+    if page == "Market Intel (Prototype)":
+        try:
+            render_market_intel()
+        except Exception as e:
+            st.error(f"Error displaying market intel: {str(e)}")
+            
+    elif page == "Market Snapshot":
         try:
             from dashboard.components.market_view import render_market_snapshot
             render_market_snapshot(market_analyzer)

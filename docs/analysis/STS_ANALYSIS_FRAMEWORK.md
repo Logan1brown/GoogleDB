@@ -70,7 +70,7 @@ Maps talent relationships using network data.
 +------------------------+------------------------+
 |                       |  [Tabs]                |
 |     Heatmap           |  [Search] [Success]    |
-|     (500x500)         |                       |
+|     (500x500)         |                        |
 |                       |  Search Tab:           |
 |                       |  +-----------------+   |
 |                       |  | Networks ▾      |   |
@@ -81,8 +81,8 @@ Maps talent relationships using network data.
 |                       |  +-----------------+   |
 |                       |  | Source ▾        |   |
 |                       |  +-----------------+   |
-|                       |  Results:             |
-|                       |  [Scrollable list]    |
+|                       |  Results:              |
+|                       |  [Scrollable list]     |
 +------------------------+------------------------+
 Two network dropdowns (to compare any two)
 Single genre dropdown
@@ -259,3 +259,180 @@ output/
 - **Network Analysis**: networkx
 - **Logging**: Python logging module
 - **Configuration**: .streamlit/config.toml
+
+USE CASE COMPONENT LAYOUTS
+
+# Use Case 1: Investment/Deal Analysis
+def investment_view():
+    # Input: IP/Talent to evaluate
+    search = st.text_input("Search IP/Talent")
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        # Track Record
+        st.header("Performance History")
+        st.dataframe(show_history)  # Success rates
+        st.dataframe(network_deals)  # Who buys from them
+        
+    with col2:
+        # Quick Stats
+        st.metric("Success Rate", "72%")
+        st.metric("Avg Deal Size", "13 eps")
+        st.metric("Network Reach", "4 nets")
+
+# Use Case 2: Show Sales Targeting
+def sales_targeting_view():
+    # Input: Show characteristics
+    genre = st.multiselect("Genres")
+    source = st.selectbox("Source Type")
+    
+    # Who Buys Similar Shows
+    st.header("Best Network Matches")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("By Genre Match")
+        st.dataframe(network_genre_prefs)
+    with col2:
+        st.subheader("By Source Match")
+        st.dataframe(network_source_prefs)
+
+# Use Case 3: Package Planning
+def package_planning_view():
+    # Input: Show concept
+    show_type = st.selectbox("Show Type")
+    target_net = st.multiselect("Target Networks")
+
+
+    UNIFIED VIEW
+    
+def market_intel_view():
+    # Left Panel: Search & Filters
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col1:
+        # Show Search
+        st.subheader("Search Shows")
+        show_query = st.text_input("", key="show_search")
+        
+        # Creator Search
+        st.subheader("Search Creators")
+        creator_query = st.text_input("", key="creator_search")
+        
+        # Filters
+        st.divider()
+        genre = st.multiselect("Genre")
+        source = st.selectbox("Source Type")
+       
+    with col2:  # Main Results Area
+        if show_query or creator_query:
+            tabs = st.tabs([
+                "Network Matches",  # Who's buying what
+                "Package Elements", # What works where
+                "Market Position"   # Where's the opportunity
+            ])
+       
+    with col3:  # Persistent Success Panel
+        st.subheader("Success Metrics")
+           
+        # Always show if there's a query
+        if show_query or creator_query:
+            # Key Metrics
+            st.metric("Success Score", "8.2")
+            st.metric("Market Demand", "High")
+               
+            # Quick Stats
+            st.info("📈 Trending Genre")
+            st.warning("🎯 Niche Market")
+               
+            # Success Factors
+            st.subheader("Success Factors")
+            factors = {
+                "Genre Fit": "85%",
+                "Team Strength": "High",
+                "Market Timing": "Good"
+            }
+            for k, v in factors.items():
+            st.text(f"{k}: {v}")
+   
+        # Comparative Success
+        if show_query and creator_query:
+            st.divider()
+            st.subheader("Package Strength")
+            st.progress(0.75)  # Show/Creator combo strength
+
+
+def market_intel_view():
+    # Top: Analysis Type
+    analysis_type = st.radio(
+        "",
+        ["IP Acquisition", "IP Packaging", "IP Development"],
+        horizontal=True
+    )
+    
+    if analysis_type == "IP Acquisition":
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:  # Input Panel
+            genre = st.multiselect("Genre", ["Drama", "Comedy", "Thriller"])
+            
+        with col2:  # Results Panel
+            tab1, tab2, tab3, tab4 = st.tabs(["Networks", "Creators", "Pairings", "Insights"])
+            
+            with tab1:  # Network Analysis
+                st.markdown("##### Network Performance in Genre")
+                # Table: Network | Shows | Success Rate | Renewal Rate | Current Status
+                
+            with tab2:  # Creator Analysis
+                st.markdown("##### Top Creators in Genre")
+                # Table: Creator | Role | Shows | Success Rate | Specialties
+            
+            with tab3:  # Creator / Network Pairings
+                st.markdown("##### Creator / Network Pairings")
+                # List of successful pairings/teams
+              
+            with tab4:  # Pattern Analysis
+                st.markdown("##### Success Patterns")
+                # What makes shows work in this genre
+                # - Episode counts
+                # - Budget ranges
+                # - Source material performance
+                # - Timing/scheduling insights
+    
+    elif analysis_type == "Package Builder":
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:  # Input Panel
+            source = st.selectbox("Source Type", ["Original", "Book", "IP"])
+            genre = st.multiselect("Genre")
+            target = st.multiselect("Target Networks")
+            
+        with col2:  # Package Recommendations
+            st.markdown("##### Recommended Packages")
+            # Cards showing:
+            # - Network
+            # - Successful shows
+            # - Successful teams
+            
+            st.markdown("##### Why These Work")
+            # Analysis of why these combinations succeed
+            
+    else:  # IP Development
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:  # Input Panel
+            ip_type = st.selectbox("IP Type", ["Book", "Game", "Film"])
+            genre = st.multiselect("Genre")
+            tone = st.select_slider("Tone", ["Dark", "Balanced", "Light"])
+            
+        with col2:  # Strategy Panel
+            st.markdown("##### Format Strategy")
+            # Analysis of what format works best:
+            # - Limited vs Ongoing
+            # - Episode count
+            
+            st.markdown("##### Network Alignment")
+            # Which networks succeed with this type
+            
+            st.markdown("##### Development Insights")
+            # Key factors in successful adaptations
+            # Common pitfalls to avoid
