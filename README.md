@@ -97,9 +97,11 @@ Code organization follows the three-layer architecture:
    - `market_analysis/`: Network and studio metrics
 
 3. **Visualization** (`src/dashboard/`)
+   - `pages/`: Individual dashboard pages
+   - `state/`: Page-scoped state management
    - `components/`: Reusable UI components
    - `templates/`: Plotly layouts and styles
-   - `app.py`: Streamlit entry point
+   - `app.py`: Streamlit entry point (minimal bootstrap)
 
 ## Data Layer
 
@@ -190,39 +192,37 @@ Code organization follows the three-layer architecture:
 
 ### Components
 
-1. **Market Snapshot**
-   - Dataset Overview
-     - Total shows, creatives, networks, roles
+1. **Pages** (`src/dashboard/pages/`)
+   - Market Snapshot (`1_market_snapshot.py`)
+     - Dataset overview and metrics
+     - Network distribution analysis
      - Interactive filters and selections
-     - Data scope and limitations
-   - Network Distribution
-     - Market share visualization
-     - Network performance metrics
-     - Trend analysis
-
-2. **Network Connections**
-   - Layered Creator Search
-     - Primary Network Filter (must match ALL)
-     - Secondary Genre Filter (optional, match ANY)
-     - Progressive results display
-   - Success Stories
+   - Studio Performance (`2_studio_performance.py`)
+     - Studio success metrics
+     - Performance comparisons
+     - Historical trends
+   - Unified Dashboard (`3_unified_dashboard.py`)
+     - Cross-dimensional analysis
+     - Combined metrics view
+     - Advanced filtering
+   - Market Intel (`4_market_intel.py`)
+     - Market trends and patterns
+     - Competitive analysis
+     - Opportunity identification
+   - Network Connections (`5_network_connections.py`)
+     - Creator network analysis
      - Multi-network successes
-     - Emerging collaborations
-     - Network visualization
+     - Collaboration patterns
 
-3. **Content Strategy**
-   - Genre Analysis
-     - Genre breakdown by network
-     - Temporal genre trends
-     - Cross-genre patterns
-   - Source Analysis
-     - Original vs adaptation ratios
-     - Network preferences
-     - Success metrics by source
-   - Combined Analysis
-     - Network + Genre + Source insights
-     - Market gap identification
-     - Cross-dimensional patterns
+2. **State Management** (`src/dashboard/state/`)
+   - Page-scoped state via `session.py`
+   - Filter persistence per page
+   - Shared filter types and utilities
+
+3. **View Components** (`src/dashboard/components/`)
+   - Reusable UI elements
+   - Chart templates
+   - Filter components
 
 ### Visualization System
 1. **Style Templates** (`templates/defaults/`)
@@ -285,6 +285,23 @@ Code organization follows the three-layer architecture:
    - API documentation
    - Usage examples
    - Data flow diagrams
+
+### Page Development
+1. **Structure**
+   - Each page is a standalone Streamlit app
+   - Pages use shared components and state management
+   - Follow naming convention: `{number}_{name}.py`
+
+2. **State Management**
+   - Use `get_page_state()` for scoped state
+   - Define page-specific state classes
+   - Maintain filter persistence within pages
+
+3. **Best Practices**
+   - Keep page logic separate from view components
+   - Use shared filter types where possible
+   - Follow error handling patterns
+   - Preserve column name differences ('shows' vs 'show_name')
 
 ### Prerequisites
 - Python 3.8+
