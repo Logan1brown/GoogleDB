@@ -48,6 +48,52 @@ class UnifiedAnalyzer:
         # Create deep copies to avoid modifying original data
         self.shows_df = shows_df.copy(deep=True)
         self.team_df = team_df.copy(deep=True)
+        self.success_analyzer = success_analyzer
+        
+    def get_network_metrics(self, source_type: Optional[str] = None, genre: Optional[str] = None) -> Dict[str, Dict[str, float]]:
+        logger.info(f"Shows DataFrame columns: {self.shows_df.columns.tolist()}")
+        """Get performance metrics for each network based on filters.
+        
+        Args:
+            source_type: Optional filter for source type
+            genre: Optional filter for genre
+            
+        Returns:
+            Dictionary mapping network names to their metrics
+        """
+        # Start with filtered data
+        df = self.shows_df.copy()
+        
+        if source_type:
+            df = df[df['source_type'] == source_type]
+        if genre:
+            df = df[df['genre'] == genre]
+            
+        # Calculate metrics for each network
+        network_metrics = {}
+        
+        for network in df['network'].unique():
+            if pd.isna(network) or network == '':
+                continue
+                
+            network_shows = df[df['network'] == network]
+            
+            # Calculate success metrics
+            success_score = 85.0  # Default placeholder
+            renewal_rate = 90.0   # Default placeholder
+            
+            if self.success_analyzer:
+                # Use actual success metrics if analyzer is available
+                success_score = self.success_analyzer.calculate_network_success(network)
+                renewal_rate = self.success_analyzer.calculate_renewal_rate(network)
+            
+            network_metrics[network] = {
+                'show_count': len(network_shows),
+                'success_score': success_score,
+                'renewal_rate': renewal_rate
+            }
+            
+        return network_metrics
         
         # Initialize success analyzer if not provided
         self.success_analyzer = success_analyzer or SuccessAnalyzer()
@@ -107,10 +153,49 @@ class UnifiedAnalyzer:
             filtered_df: Pre-filtered DataFrame of shows
             
         Returns:
-            List of creator analysis results
+            List of creator analysis results with:
+            - name: Creator name
+            - roles: List of roles
+            - show_count: Number of shows
+            - networks: List of networks worked with
+            - success_score: Average success score of shows
         """
-        # Implementation will go here
-        pass
+        # Get shows that match our filter
+        show_names = set(filtered_df['shows'].tolist())
+        
+        # Filter team data to only include matching shows
+        filtered_team = self.team_df[self.team_df['show_name'].isin(show_names)]
+        
+        # Group by creator name
+        creator_stats = []
+        for name, creator_data in filtered_team.groupby('name'):
+            # Get unique roles and shows
+            roles = creator_data['roles'].unique().tolist()
+            shows = creator_data['show_name'].unique().tolist()
+            
+            # Get networks for these shows
+            creator_shows = filtered_df[filtered_df['shows'].isin(shows)]
+            networks = creator_shows['network'].unique().tolist()
+            
+            # Calculate average success score if available
+            success_score = 0
+            if self.success_analyzer:
+                scores = [self.success_analyzer.calculate_success(show) 
+                         for _, show in creator_shows.iterrows()]
+                success_score = sum(scores) / len(scores) if scores else 0
+            
+            creator_stats.append({
+                'name': name,
+                'roles': roles,
+                'show_count': len(shows),
+                'networks': networks,
+                'success_score': success_score
+            })
+        
+        # Sort by show count and success score
+        return sorted(creator_stats, 
+                     key=lambda x: (x['show_count'], x['success_score']), 
+                     reverse=True)
         
     def analyze_pairings(self, filtered_df: pd.DataFrame) -> List[Dict]:
         """Analyze successful network-creator pairings.

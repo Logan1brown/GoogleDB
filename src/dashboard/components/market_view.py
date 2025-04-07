@@ -58,7 +58,8 @@ def render_market_snapshot(market_analyzer):
             "Filter Shows", 
             shows,
             max_selections=5,
-            help="Select up to 5 shows to filter the data"
+            help="Select up to 5 shows to filter the data",
+            key="market_filter_shows"
         )
     with col2:
         st.metric("Unique Creatives", f"{insights['total_creatives']:,}")
@@ -67,7 +68,8 @@ def render_market_snapshot(market_analyzer):
             "Filter Creatives", 
             creatives,
             max_selections=5,
-            help="Select up to 5 creatives to filter the data"
+            help="Select up to 5 creatives to filter the data",
+            key="market_filter_creatives"
         )
     with col3:
         st.metric("Networks", f"{insights['total_networks']:,}")
@@ -75,7 +77,8 @@ def render_market_snapshot(market_analyzer):
         selected_networks = st.multiselect(
             "Filter Networks", 
             networks,
-            help="Select networks to filter the data"
+            help="Select networks to filter the data",
+            key="market_filter_networks"
         )
     with col4:
         avg_success = insights['avg_success_score']

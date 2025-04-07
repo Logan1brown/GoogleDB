@@ -5,12 +5,12 @@
 1. **Analysis Files** (in src/data_processing/):
    - Named with suffix '_analyzer.py'
    - Focus on data processing and analysis
-   - Examples: market_analyzer.py, genre_analyzer.py
+   - Examples: unified_analyzer.py, success_analyzer.py
 
 2. **View Files** (in src/dashboard/components/):
    - Named with suffix '_view.py'
    - Focus on visualization and UI
-   - Examples: market_view.py, genre_view.py
+   - Examples: unified_view.py, connections_view.py
 
 ## Directory Layout
 
@@ -22,24 +22,26 @@ GoogleDB/
     RETROSPECTIVE.md        # Project learnings
     DIRECTORY_STRUCTURE.md  # Directory guide
 
-    # Configuration
+    # Configuration & Setup
     requirements.txt        # Python dependencies
+    setup.py               # Package setup
     setup_env.sh           # Environment setup
+    restart_streamlit.sh   # Dashboard restart
     .env.example           # Environment template
-    .env                   # Active environment
-    .gitignore             # Git ignore rules
-    test_app.py            # Main test runner
 
-    # Environment & Settings
-    .streamlit/            # Streamlit config
-        config.toml        # Dashboard settings
-    .pytest_cache/         # Test cache
-    cache/                 # Data cache
-    venv/                  # Virtual env
+    # Apps Script Integration
+    apps_script/           # Google Apps Script files
+        Code.gs            # Sheet automation
+
+    # Cache & Runtime
+    cache/                 # Data and request cache
+        sheets/           # Sheets data cache
+        tmdb/            # TMDB API cache
 
     # System Configuration
     config/                # App settings
-        .env.example       # Config template
+        logging_config.py  # Logging setup
+        sheets_config.py   # Sheets integration
         credentials.json   # API credentials
         sheets_config.json # Sheets settings
 
@@ -57,42 +59,59 @@ GoogleDB/
             DATA_CONFIDENCE.md         # Data quality guide
             STS_ANALYSIS_FRAMEWORK.md  # Analysis methodology
         development/
+            STYLE_GUIDE.md            # Visual standards
+            TEMPLATE_SYSTEM.md        # Template architecture
+        proposals/
+            UNIFIED_DASHBOARD_VIEW.md # Unified view spec
+        sheets/
+            shows.csv               # Main show data
+            show_team.csv          # Team member data
+            role_types.csv         # Role definitions
 
     # Source Code
     src/
         # Core Application
         dashboard/         # Streamlit dashboard
-            pages/        # Dashboard pages
-            utils/        # Dashboard utilities
-            app.py        # Main dashboard
+            components/   # Dashboard components
+                connections_view.py    # Network connections
+                genre_view.py         # Genre analysis
+                prototype_market_intel_view.py # Market intel
+                source_view.py        # Source analysis
+                studio_view.py        # Studio performance
+                unified_view.py       # Unified dashboard
+            templates/    # Reusable templates
+                defaults/ # Default styles
+                grids/    # Grid layouts
+            utils/       # Dashboard utilities
+                sheets_client.py  # Sheets integration
+                cache.py         # Data caching
+            app.py      # Main dashboard
 
         # Data Processing
         data_processing/
-            external/     # External API integrations
-                tmdb/    # TMDB API integration
-                    __init__.py
-                    client.py     # API client
-                    models.py     # Data models
-                    cache.py      # Caching layer
-                    matcher.py    # Show matching logic
-                    scripts/     # TMDB-specific scripts
-                        match_shows.py
+            content_strategy/   # Content analysis
+                genre_analyzer.py    # Genre insights
+                source_analyzer.py   # Source patterns
+            creative_networks/  # Network analysis
+                connections_analyzer.py  # Creator connections
+            market_analysis/   # Market insights
+                market_analyzer.py    # Market overview
+            studio_performance/ # Studio analysis
+                studio_analyzer.py    # Studio metrics
+            success_analysis/  # Success metrics
+                success_analyzer.py   # Success scoring
+            unified/          # Unified analysis
+                unified_analyzer.py   # Combined insights
+            analyze_shows.py  # Core show analysis
 
-        # General Scripts
-        scripts/          # Utility scripts
-            test_tmdb.py  # TMDB API testing
-
-        # Tests
-        tests/            # Test suite
-            test_tmdb_client.py  # TMDB client tests
-            STYLE_GUIDE.md            # Visual standards
-            TEMPLATE_SYSTEM.md        # Template architecture
-        google_sheets_setup.md      # Sheets integration guide
-        sheets/                     # Data files
-            # Core Data Files (Actively Used)
-            STS Sales Database - shows.csv        # Main show data
-            STS Sales Database - show_team.csv    # Team member data
-            STS Sales Database - role_types.csv   # Role definitions
+    # Testing
+    tests/
+        dashboard/    # Dashboard tests
+            test_components/  # Component tests
+            test_utils/      # Utility tests
+        test_data/   # Test datasets
+            csv_samples/      # Sample CSVs
+            sheets_responses/ # Mock responses
             
             # Reference Lists
             STS Sales Database - genre_list.csv    # Valid genres

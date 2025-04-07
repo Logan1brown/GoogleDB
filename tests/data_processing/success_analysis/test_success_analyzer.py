@@ -18,34 +18,34 @@ def sample_shows():
     return pd.DataFrame([
         # High success - 3 seasons + high episode volume
         {
-            'show_id': 1,
-            'name': 'Hit Show',
-            'status': 'Returning Series',
-            'number_of_seasons': 3,
+            'tmdb_id': '1',
+            'shows': 'Hit Show',
+            'tmdb_status': 'Returning Series',
+            'tmdb_seasons': 3,
             'tmdb_avg_eps': 12,  # Gets volume bonus
         },
         # Medium success - 2 seasons + meets min episodes
         {
-            'show_id': 2,
-            'name': 'Solid Show',
-            'status': 'Ended',
-            'number_of_seasons': 2,
+            'tmdb_id': '2',
+            'shows': 'Solid Show',
+            'tmdb_status': 'Ended',
+            'tmdb_seasons': 2,
             'tmdb_avg_eps': 9,  # Gets base points only
         },
         # Low success - 1 season + low episode count
         {
-            'show_id': 3,
-            'name': 'Failed Show',
-            'status': 'Canceled',
-            'number_of_seasons': 1,
+            'tmdb_id': '3',
+            'shows': 'Failed Show',
+            'tmdb_status': 'Canceled',
+            'tmdb_seasons': 1,
             'tmdb_avg_eps': 6,  # Below minimum
         },
         # Unreliable - In development
         {
-            'show_id': 4,
-            'name': 'New Show',
-            'status': 'In Production',
-            'number_of_seasons': 1,
+            'tmdb_id': '4',
+            'shows': 'New Show',
+            'tmdb_status': 'In Production',
+            'tmdb_seasons': 1,
             'tmdb_avg_eps': None,
         }
     ])
@@ -90,10 +90,10 @@ def test_market_analysis(success_analyzer, sample_shows):
     
     # Check show tiers
     shows = results['shows']
-    assert shows[1]['tier'] == 'high'  # Hit Show
-    assert shows[2]['tier'] == 'medium'  # Solid Show
-    assert shows[3]['tier'] == 'low'  # Failed Show
-    assert 4 not in shows  # Unreliable show excluded
+    assert shows['1']['tier'] == 'high'  # Hit Show
+    assert shows['2']['tier'] == 'medium'  # Solid Show
+    assert shows['3']['tier'] == 'low'  # Failed Show
+    assert '4' not in shows  # Unreliable show excluded
 
 
 def test_custom_config():
@@ -110,8 +110,8 @@ def test_custom_config():
     
     # Create a show that would fail with default config
     show = pd.Series({
-        'status': 'Returning Series',
-        'number_of_seasons': 3,
+        'tmdb_status': 'Returning Series',
+        'tmdb_seasons': 3,
         'tmdb_avg_eps': 9  # Gets base points only
     })
     
@@ -125,7 +125,7 @@ def test_custom_config():
 def test_empty_market():
     """Test handling of empty market data."""
     analyzer = SuccessAnalyzer()
-    empty_df = pd.DataFrame(columns=['status', 'number_of_seasons', 'episode_count'])
+    empty_df = pd.DataFrame(columns=['tmdb_status', 'tmdb_seasons', 'tmdb_avg_eps'])
     
     results = analyzer.analyze_market(empty_df)
     assert results['max_score'] == 0

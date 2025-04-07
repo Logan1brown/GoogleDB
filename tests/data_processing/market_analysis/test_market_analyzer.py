@@ -11,27 +11,30 @@ def test_market_analyzer():
     # Create test data
     shows_df = pd.DataFrame([
         {
-            'name': 'Hit Show',
+            'shows': 'Hit Show',
             'network': 'Netflix',
             'studio': 'Warner Bros',
-            'status': 'Returning Series',
-            'number_of_seasons': 3,
+            'tmdb_id': '1',
+            'tmdb_status': 'Returning Series',
+            'tmdb_seasons': 3,
             'tmdb_avg_eps': 12,  # Gets volume bonus
         },
         {
-            'name': 'Solid Show',
+            'shows': 'Solid Show',
             'network': 'Hulu',
             'studio': 'Disney',
-            'status': 'Ended',
-            'number_of_seasons': 2,
+            'tmdb_id': '2',
+            'tmdb_status': 'Ended',
+            'tmdb_seasons': 2,
             'tmdb_avg_eps': 9,  # Gets base points
         },
         {
-            'name': 'Failed Show',
+            'shows': 'Failed Show',
             'network': 'Amazon',
             'studio': 'Sony',
-            'status': 'Canceled',
-            'number_of_seasons': 1,
+            'tmdb_id': '3',
+            'tmdb_status': 'Canceled',
+            'tmdb_seasons': 1,
             'tmdb_avg_eps': 6,  # Below minimum
         }
     ])
@@ -58,11 +61,12 @@ def test_custom_success_config():
     """Test market analyzer with custom success config."""
     shows_df = pd.DataFrame([
         {
-            'name': 'Test Show',
+            'shows': 'Test Show',
             'network': 'Netflix',
             'studio': 'Warner Bros',
-            'status': 'Returning Series',
-            'number_of_seasons': 3,
+            'tmdb_id': '4',
+            'tmdb_status': 'Returning Series',
+            'tmdb_seasons': 3,
             'tmdb_avg_eps': 9,
         }
     ])

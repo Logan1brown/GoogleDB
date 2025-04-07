@@ -59,6 +59,9 @@ class MarketAnalyzer:
         if missing_shows_cols:
             raise ValueError(f"Missing required columns in shows_df: {missing_shows_cols}")
             
+        # Calculate success scores for all shows
+        self.shows_df['success_score'] = self.shows_df.apply(self.success_analyzer.calculate_success, axis=1)
+            
         # Validate team_df required columns if provided
         if not self.team_df.empty:
             required_team_cols = ['show_name', 'name']

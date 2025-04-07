@@ -17,30 +17,14 @@ NEVER try to normalize these column names - they must stay different.
 import streamlit as st
 import pandas as pd
 import logging
+from typing import Optional
 from data_processing.unified.unified_analyzer import UnifiedAnalyzer
+from data_processing.success_analysis.success_analyzer import SuccessAnalyzer
 from dashboard.utils.style_config import COLORS
 
 logger = logging.getLogger(__name__)
 
-def render_filters():
-    """Render source type and genre filters that persist across tabs."""
-    with st.sidebar:
-        source_type = st.selectbox(
-            "Source Type",
-            options=["All", "Original", "Book", "IP"],
-            key="unified_source_type"
-        )
-        
-        genre = st.selectbox(
-            "Genre",
-            options=["All", "Drama", "Comedy", "Thriller", "Fantasy"],
-            key="unified_genre"
-        )
-        
-    return (
-        None if source_type == "All" else source_type,
-        None if genre == "All" else genre
-    )
+
 
 def render_acquisition_view(unified_analyzer: UnifiedAnalyzer, source_type: str, genre: str):
     """Render the acquisition view with its tabs.
@@ -101,12 +85,13 @@ def render_development_view(unified_analyzer: UnifiedAnalyzer, source_type: str,
     st.markdown("### Development Strategy")
     # Implementation will go here
 
-def render_unified_dashboard(shows_df: pd.DataFrame, team_df: pd.DataFrame):
+def render_unified_dashboard(shows_df: pd.DataFrame, team_df: pd.DataFrame, success_analyzer: Optional['SuccessAnalyzer'] = None):
     """Main entry point for the unified dashboard view.
     
     Args:
         shows_df: DataFrame containing show information
         team_df: DataFrame containing team member information
+        success_analyzer: Optional SuccessAnalyzer instance for success metrics
     """
     try:
         logger.info("Starting unified dashboard render")
@@ -114,38 +99,75 @@ def render_unified_dashboard(shows_df: pd.DataFrame, team_df: pd.DataFrame):
         logger.info(f"Team DataFrame columns: {team_df.columns.tolist()}")
         
         # Initialize analyzer
-        try:
-            unified_analyzer = UnifiedAnalyzer(shows_df, team_df)
-            logger.info("Successfully initialized UnifiedAnalyzer")
-        except Exception as e:
-            logger.error(f"Failed to initialize UnifiedAnalyzer: {str(e)}")
-            raise
+        unified_analyzer = UnifiedAnalyzer(shows_df, team_df)
         
-        # Render persistent filters
-        try:
-            source_type, genre = render_filters()
-            logger.info(f"Filters selected - Source Type: {source_type}, Genre: {genre}")
-        except Exception as e:
-            logger.error(f"Failed to render filters: {str(e)}")
-            raise
+        # Create analysis type selector at the top
+        analysis_type = st.radio(
+            "",
+            ["Acquisition", "Packaging", "Development"],
+            horizontal=True,
+            key="unified_analysis_type"
+        )
         
-        # Render view tabs
-        try:
-            view_tabs = st.tabs(["Acquisition", "Packaging", "Development"])
+        if analysis_type == "Acquisition":
+            # Create two columns - narrow one for filters, wide one for content
+            filter_col, content_col = st.columns([1, 3])
             
-            with view_tabs[0]:
+            with filter_col:  # Input Panel
+                source_type = st.selectbox(
+                    "Source Type",
+                    options=["Original", "Book", "IP"],
+                    key="unified_source_type"
+                )
+                
+                genre = st.selectbox(
+                    "Genre",
+                    options=["Drama", "Comedy", "Thriller", "Fantasy"],
+                    key="unified_genre"
+                )
+            
+            with content_col:  # Results Panel
                 render_acquisition_view(unified_analyzer, source_type, genre)
                 
-            with view_tabs[1]:
+        elif analysis_type == "Packaging":
+            # Create two columns - narrow one for filters, wide one for content
+            filter_col, content_col = st.columns([1, 3])
+            
+            with filter_col:  # Input Panel
+                source_type = st.selectbox(
+                    "Source Type",
+                    options=["Original", "Book", "IP"],
+                    key="unified_source_type_pkg"
+                )
+                
+                genre = st.selectbox(
+                    "Genre",
+                    options=["Drama", "Comedy", "Thriller", "Fantasy"],
+                    key="unified_genre_pkg"
+                )
+            
+            with content_col:  # Results Panel
                 render_packaging_view(unified_analyzer, source_type, genre)
                 
-            with view_tabs[2]:
-                render_development_view(unified_analyzer, source_type, genre)
+        else:  # Development
+            # Create two columns - narrow one for filters, wide one for content
+            filter_col, content_col = st.columns([1, 3])
+            
+            with filter_col:  # Input Panel
+                source_type = st.selectbox(
+                    "Source Type",
+                    options=["Original", "Book", "IP"],
+                    key="unified_source_type_dev"
+                )
                 
-            logger.info("Successfully rendered all view tabs")
-        except Exception as e:
-            logger.error(f"Failed to render view tabs: {str(e)}")
-            raise
+                genre = st.selectbox(
+                    "Genre",
+                    options=["Drama", "Comedy", "Thriller", "Fantasy"],
+                    key="unified_genre_dev"
+                )
+            
+            with content_col:  # Results Panel
+                render_development_view(unified_analyzer, source_type, genre)
             
     except Exception as e:
         logger.error(f"Error in unified dashboard: {str(e)}")

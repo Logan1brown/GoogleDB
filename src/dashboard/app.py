@@ -8,11 +8,23 @@ This dashboard provides:
 - Trend analysis
 """
 
+import os
+import sys
+
+# Add project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Add src directory to Python path
+src_dir = os.path.join(project_root, 'src')
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import logging
-import sys
 
 # Configure logging
 logging.basicConfig(
@@ -28,17 +40,18 @@ import plotly.io as pio
 pio.templates.default = "plotly_white"
 
 # Data processing and analysis
-from data_processing.analyze_shows import shows_analyzer
-from data_processing.content_strategy.source_analyzer import analyze_source_patterns
-from data_processing.content_strategy.genre_analyzer import analyze_genre_patterns
-from data_processing.market_analysis.market_analyzer import MarketAnalyzer
-from dashboard.components.genre_view import render_genre_analysis
-from dashboard.components.source_view import render_source_analysis
-from dashboard.components.connections_view import render_network_connections_dashboard
-from dashboard.components.studio_view import render_studio_performance_dashboard
-from dashboard.components.prototype_market_intel_view import render_market_intel
-from dashboard.components.unified_view import render_unified_dashboard
-from data_processing.creative_networks.connections_analyzer import analyze_network_connections
+from src.data_processing.analyze_shows import shows_analyzer
+from src.data_processing.content_strategy.source_analyzer import analyze_source_patterns
+from src.data_processing.content_strategy.genre_analyzer import analyze_genre_patterns
+from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
+from src.dashboard.components.genre_view import render_genre_analysis
+from src.dashboard.components.source_view import render_source_analysis
+from src.dashboard.components.connections_view import render_network_connections_dashboard
+from src.dashboard.components.studio_view import render_studio_performance_dashboard
+from src.dashboard.components.prototype_market_intel_view import render_market_intel
+from src.dashboard.components.unified_view import render_unified_dashboard
+from src.data_processing.creative_networks.connections_analyzer import analyze_network_connections
+from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
 import plotly.graph_objects as go
 
 def main():
@@ -74,7 +87,7 @@ def main():
         st.info("Please ensure Google Sheets credentials are properly configured.")
         return
     
-    if page == "Market Intel (Prototype)":
+    if page == "(Prototype) Market Intel":
         try:
             render_market_intel()
         except Exception as e:
@@ -84,7 +97,12 @@ def main():
         st.markdown('<p class="section-header">Unified TV Series Dashboard</p>', unsafe_allow_html=True)
         
         try:
-            render_unified_dashboard(shows_df, team_df)
+            # Initialize success analyzer
+            from data_processing.success_analysis.success_analyzer import SuccessAnalyzer
+            success_analyzer = SuccessAnalyzer()
+            success_analyzer.initialize_data(shows_df)
+            
+            render_unified_dashboard(shows_df, team_df, success_analyzer)
         except Exception as e:
             st.error(f"Error displaying unified dashboard: {str(e)}")
             

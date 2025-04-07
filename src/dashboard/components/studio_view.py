@@ -162,12 +162,17 @@ def render_studio_filter(shows_df: pd.DataFrame, analysis_results: Dict) -> None
     # Create studio options with show counts
     studio_options = [f"{studio} ({count} shows)" for studio, count in valid_studios.items()]
     
-    # Studio selection
-    selected_option = st.selectbox(
-        "Select Studio",
-        studio_options,
-        help="Choose a studio to analyze"
-    )
+    # Create a row for filters
+    filter_cols = st.columns(3)
+    
+    # Studio selection in first column
+    with filter_cols[0]:
+        selected_option = st.selectbox(
+            "Select Studio",
+            studio_options,
+            help="Choose a studio to analyze",
+            key="studio_filter_studio"
+        )
     
     # Extract studio name from selection and handle 'Other:' prefix
     if selected_option:
@@ -276,26 +281,75 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame) -> None:
         # Render metrics at the top
         render_studio_metrics(analysis_results)
         
-        # Create two columns for main content
-        col1, col2 = st.columns([2, 1])
+        # Create tabs for main content
+        graph_tab, filter_tab, stories_tab = st.tabs(["Studio Graph", "Studio Filter", "Success Stories"])
         
-        with col1:
+        with graph_tab:
             # Studio relationship graph
             fig = create_studio_graph(shows_df)
             st.plotly_chart(fig, use_container_width=True)
-            
         
-        with col2:
-            # Create tabs for Studio Filter and Success Stories
-            filter_tab, stories_tab = st.tabs(["Studio Filter", "Success Stories"])
+        with filter_tab:
+            # Create two columns - narrow one for filters, wide one for content
+            filter_col, content_col = st.columns([1, 3])
             
-            # Studio Filter tab
-            with filter_tab:
-                render_studio_filter(shows_df, analysis_results)
-            
-            # Success Stories tab
-            with stories_tab:
-                render_studio_success_stories(analysis_results)
+            with filter_col:
+                # Studio selection
+                studio_counts = pd.Series(analysis_results['studio_sizes'])
+                valid_studios = pd.Series({k: v for k, v in studio_counts.items() 
+                                        if k and not str(k).isspace()})
+                valid_studios = valid_studios.sort_values(ascending=False)
+                studio_options = [f"{studio} ({count} shows)" for studio, count in valid_studios.items()]
+                
+                selected_option = st.selectbox(
+                    "Select Studio",
+                    studio_options,
+                    help="Choose a studio to analyze",
+                    key="studio_filter_studio"
+                )
+                
+            with content_col:
+                # Extract studio name and show insights
+                if selected_option:
+                    selected_studio = selected_option.split(' (')[0].strip()
+                    if selected_studio.startswith('Other: '):
+                        selected_studio = selected_studio[7:].strip()
+                        
+                    # Get insights for selected studio
+                    insights = get_studio_insights(shows_df, selected_studio)
+                    
+                    # Cache insights in session state
+                    if 'studio_insights' not in st.session_state:
+                        st.session_state.studio_insights = {}
+                    st.session_state.studio_insights[selected_studio] = insights
+                    
+                    # Show total valid shows
+                    st.write(f"### {insights.get('show_count', 0)} Shows")
+                    
+                    # Display insights in expandable sections
+                    if insights.get('top_genres'):
+                        with st.expander("Genre Distribution", expanded=True):
+                            for genre, count in sorted(insights['top_genres'].items(), key=lambda x: x[1], reverse=True):
+                                st.write(f"{genre}: {count} shows")
+                    
+                    if insights.get('network_partners'):
+                        with st.expander("Network Partners", expanded=True):
+                            for network, count in sorted(insights['network_partners'].items(), key=lambda x: x[1], reverse=True):
+                                st.write(f"{network}: {count} shows")
+                    
+                    if insights.get('show_details'):
+                        with st.expander("Show List", expanded=True):
+                            # Create a table of shows
+                            show_data = []
+                            for show in sorted(insights['show_details'], key=lambda x: x['title']):
+                                show_data.append([show['title'], show['network'], show['genre']])
+                            
+                            if show_data:
+                                df = pd.DataFrame(show_data, columns=['Title', 'Network', 'Genre'])
+                                st.dataframe(df, hide_index=True)
+        
+        with stories_tab:
+            render_studio_success_stories(analysis_results)
                 
     except Exception as e:
         st.error(f"Error in studio analysis: {str(e)}")

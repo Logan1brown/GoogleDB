@@ -47,6 +47,76 @@ class SuccessAnalyzer:
     """
     def __init__(self, config: Optional[SuccessConfig] = None):
         self.config = config or SuccessConfig()
+        self.shows_df = None
+        
+    def initialize_data(self, shows_df: pd.DataFrame):
+        """Initialize analyzer with show data."""
+        self.shows_df = shows_df.copy()
+        
+    def calculate_network_success(self, network: str) -> float:
+        """Calculate success score for a specific network.
+        
+        Args:
+            network: Name of the network
+            
+        Returns:
+            Success score as percentage (0-100)
+        """
+        if self.shows_df is None:
+            return 85.0  # Default if no data
+            
+        network_shows = self.shows_df[self.shows_df['network'] == network]
+        if len(network_shows) == 0:
+            return 85.0
+            
+        # Calculate success based on renewal status and episode count
+        success_scores = []
+        for _, show in network_shows.iterrows():
+            score = 0
+            
+            # Season achievements (40%)
+            seasons = pd.to_numeric(show.get('tmdb_seasons', 0), errors='coerce')
+            if pd.notna(seasons) and seasons >= 2:
+                score += self.config.SEASON2_VALUE
+                extra_seasons = seasons - 2
+                if extra_seasons > 0:
+                    score += min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 40)
+                    
+            # Episode volume (40%)
+            episodes = pd.to_numeric(show.get('tmdb_total_eps', 0), errors='coerce')
+            if pd.notna(episodes) and episodes >= self.config.EPISODE_MIN_THRESHOLD:
+                score += self.config.EPISODE_BASE_POINTS
+                if episodes >= self.config.EPISODE_BONUS_THRESHOLD:
+                    score += self.config.EPISODE_BONUS_POINTS
+                    
+            # Status modifier
+            status = show.get('status', 'Unknown')
+            score *= self.config.STATUS_MODIFIERS.get(status, 1.0)
+            
+            success_scores.append(min(score, 100))
+            
+        return np.mean(success_scores) if success_scores else 85.0
+        
+    def calculate_renewal_rate(self, network: str) -> float:
+        """Calculate renewal rate for a specific network.
+        
+        Args:
+            network: Name of the network
+            
+        Returns:
+            Renewal rate as percentage (0-100)
+        """
+        if self.shows_df is None:
+            return 90.0  # Default if no data
+            
+        network_shows = self.shows_df[self.shows_df['network'] == network]
+        if len(network_shows) == 0:
+            return 90.0
+            
+        # Count shows that got renewed (2+ seasons)
+        network_shows['seasons'] = pd.to_numeric(network_shows['tmdb_seasons'], errors='coerce')
+        renewed = network_shows[network_shows['seasons'] >= 2]
+        return (len(renewed) / len(network_shows)) * 100
         
     def analyze_market(self, shows_df: pd.DataFrame) -> Dict:
         """
