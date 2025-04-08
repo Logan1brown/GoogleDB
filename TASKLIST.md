@@ -2,135 +2,123 @@
 
 ## Current Sprint 🔄
 
-1. Unified Dashboard View
-   - [x] Set up basic structure
-   - [x] Create unified_analyzer.py
-   - [x] Implement persistent filters
-   - [x] Add Networks tab under Acquisition
-   - [x] Add real success metrics (replace placeholders)
-   - [ ] Add Creators tab under Acquisition
-   - [ ] Add Pairings tab under Acquisition
-   - [ ] Implement Packaging view
-   - [ ] Implement Development view
-   - [ ] Add loading states and error handling
-   - [ ] Add tooltips and help text
+Add static sentiment report page?
+
+#### Phase 1: Setup (Week 1)
+- [ ] Create Django project with modern schema
+    - [ ] Install dependencies
+    - [ ] Set up virtual environment
+    - [ ] Create initial models
+    - [ ] Configure database
+    - [ ] Create Model
+    - [ ] Setup Django Admin interface
+    - [ ] Configure authentication
+- [ ] Setup Railway.app infrastructure
+    - [ ] Create new Railway project
+    - [ ] Add PostgreSQL plugin
+    - [ ] Configure high-availability settings
+    - [ ] Set up automated backups
+    - [ ] Configure connection pooling
+    - [ ] Configure environment variables
+    - [ ] Database credentials
+    - [ ] Django secret key
+    - [ ] Debug settings
+    - [ ] Set up deployment pipeline
+    - [ ] Connect GitHub repository
+    - [ ] Configure build settings
+    - [ ] Set up auto-deployments
+    - [ ] Configure custom domain
+    - [ ] Add domain to Railway
+    - [ ] Set up SSL certificate
+    - [ ] Configure PostgreSQL indexes
+    - [ ] Add indexes for foreign keys
+    - [ ] Add indexes for search fields
+    - [ ] Add composite indexes for common queries
+- [ ] Configure performance optimizations
+    - [ ] Optimize database queries
+        - [ ] Add select_related for foreign keys (network, studio)
+        - [ ] Add prefetch_related for reverse relations (team_members)
+        - [ ] Create database views for complex queries
+        - [ ] Use values() for lightweight list operations 
+    - [ ] Configure database indexes
+        - [ ] Add index on shows.title (frequent searches)
+        - [ ] Add composite index on (network_id, studio_id)
+        - [ ] Add index on show_team.show_id
+        - [ ] Monitor and adjust indexes based on query patterns
+    - [ ] Set up Redis caching
+        - [ ] Cache frequently accessed data (shows, networks)
+        - [ ] Cache API responses
+        - [ ] Set up session storage
+    - [ ] Configure batching
+        - [ ] Implement Django Batch Create
+        - [ ] Set up bulk operations
+        - [ ] Configure connection pooling size
+    - [ ] Set up monitoring
+        - [ ] Configure Django Debug Toolbar
+        - [ ] Set up Railway metrics
+        - [ ] Add performance logging
+#### Phase 2: Data Migration (Week 2)
+- [ ] Export lookup tables from Google Sheets
+  - [ ] Export network_list to CSV
+  - [ ] Export studio_list to CSV
+  - [ ] Export genre and subgenre lists
+  - [ ] Export type mappings (source, order, status, role)
+- [ ] Migrate lookup tables to Django
+  - [ ] Create canonical entries
+  - [ ] Create aliases and mappings
+  - [ ] Validate lookup table integrity
+- [ ] Export main data from Sheets
+  - [ ] Export shows data
+  - [ ] Export team data
+  - [ ] Validate CSV exports
+- [ ] Run main data migration
+  - [ ] Create networks and studios
+  - [ ] Import shows with relationships
+  - [ ] Import team members
+  - [ ] Verify data consistency
+
+#### Phase 3: Validation & Cleanup (Week 2)
+- [ ] Run data validation scripts
+  - [ ] Compare record counts
+  - [ ] Verify relationships
+  - [ ] Check data integrity
+- [ ] Setup automated tests
+  - [ ] Unit tests for models
+  - [ ] Integration tests for data flow
+  - [ ] Migration test cases
+- [ ] Add database constraints
+  - [ ] Foreign key constraints
+  - [ ] Unique constraints
+  - [ ] Check constraints
+- [ ] Create API endpoints
+  - [ ] Shows endpoints
+  - [ ] Teams endpoints
+  - [ ] Analytics endpoints
+
+#### Phase 4: Dashboard Updates (Week 3)
+- [ ] Update Streamlit connection
+  - [ ] Switch to Django backend
+  - [ ] Update data fetching
+  - [ ] Test all visualizations
+- [ ] Verify dashboard features
+  - [ ] Studio view
+  - [ ] Network view
+  - [ ] Team analysis
+- [ ] Performance testing
+  - [ ] Load testing
+  - [ ] Query optimization
+  - [ ] Caching setup
+
 
 ### Backlog
-
-2. Network Connections Enhancement
-   - [ ] Add shows tab to network connections dashboard
-   - [ ] Add error logging for data loading/merging
-   - [ ] Add loading states during data processing
-   - [ ] Optimize performance for large result sets
-
-3. Genre Analysis Enhancement
-   - [ ] Add search functionality
-   - [ ] Add show and creator views
-   - [ ] Implement success metrics in heatmap
-   - [ ] Add genre success scoring
-
-4. Source Analysis Integration
-   - [x] Design: Add success rate comparison
-   - [x] Design: Source success correlation
-   - [x] Design: Success metrics tooltips
-   - [ ] Implement source success comparisons
-   - [ ] Add source-specific success metrics
-   - [ ] Enhance tooltips with success data
-
-5. Success Metrics Implementation
-   - [ ] Implement core success metrics dashboard
-   - [ ] Add distribution visualizations
-   - [ ] Create risk analysis features
-   - [ ] Build multi-factor analysis tools
-   - [ ] Add success-based network visualization
-   - [ ] Integrate success stories view
-
-1. Content Strategy Integration
-   - [ ] Combine genre and source views
-   - [ ] Add cross-dimensional insights
-   - [ ] Market gap identification
-   - [ ] Network preference analysis
 
 2. Role Analysis
    - [ ] Role distribution charts
    - [ ] Network role preferences
    - [ ] Role-based filtering
 
-
-2. Content Strategy Integration
-   - [ ] Combine genre and source views
-   - [ ] Add cross-dimensional insights
-   - [ ] Market gap identification view
-   - [ ] Network preference analysis
-
-
-### Improvements
-
-   1. Combined Insights Engine
-     - [ ] Network-Genre-Source correlations
-     - [ ] Creator specialization tracking
-     - [ ] Market gap detection algorithms
-     - [ ] Trend prediction models
-
-2. Advanced Visualizations
-
-   - Data Presentation
-     - [ ] Progressive loading for large datasets
-     - [ ] Smart result summarization
-     - [ ] Export and sharing options
-
 ## Completed ✅
 
-### Success Metrics Implementation
-1. Market Snapshot Integration
-   - [x] Design: Add "Average Success Score" to Key Metrics
-   - [x] Design: Add success score distribution chart
-   - [x] Design: Add success rate filter option
-   - [x] Implement success score metrics
-     - Success score thresholds adjusted to match real data
-     - Network success scores visible in hover text
-     - Average success score shown in metrics
-   - [x] Add distribution chart component
-   - [x] Add success rate filtering
-   - [x] Refactor data loading and validation
-
-2. Network Connections Dashboard
-   - [x] Fix NoneType error in creator profiles
-   - [x] Stabilize heatmap and filter functionality
-   - [x] Refactor ConnectionsAnalyzer initialization
-   - [x] Fix creator profiles data structure
-
-   ### 3. Implementation Plan
-
-1. **Phase 1: Add New Structure** ✅
-   - [x] Create `pages/` directory
-   - [x] Create `state/` directory and session management
-   - [x] Add minimal `app.py` template
-
-2. **Phase 2: Move Navigation Logic** ✅
-   - [x] Create page files for each view
-   - [x] Move each view's initialization from `app.py` to its page file
-   - [x] Keep view rendering logic in components/
-
-3. **Phase 3: Add State Management** ✅
-   - [x] Create state utilities in session.py
-   - [x] Update pages to use scoped state
-   - [x] Test state isolation
-
-4. **Phase 4: Clean Up** ✅
-   - [x] Remove navigation code from `app.py`
-   - [x] Keep only:
-     - CSS/styling
-     - Data initialization
-     - Error handling
-   - [x] Verify all pages work independently
-   - [x] Fix network connections import
-
-5. **Phase 5: Testing & Documentation** ✅
-   - [x] Test all pages with new structure
-   - [x] Verify no state leakage
-   - [x] Update documentation
-   - [x] Remove old `app.py` after verification
 
 
 ### Must Have 
