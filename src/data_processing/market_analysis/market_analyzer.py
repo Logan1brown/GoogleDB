@@ -44,6 +44,10 @@ class MarketAnalyzer:
         self.shows_df = self.shows_df.reset_index(drop=True)
         self.team_df = self.team_df.reset_index(drop=True)
         
+        # Clean team names - remove leading/trailing spaces and dots
+        if not self.team_df.empty and 'name' in self.team_df.columns:
+            self.team_df['name'] = self.team_df['name'].apply(lambda x: x.strip('. '))
+        
         # Initialize success analyzer
         self.success_analyzer = SuccessAnalyzer(success_config)
         

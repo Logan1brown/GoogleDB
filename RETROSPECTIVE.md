@@ -18,6 +18,27 @@
 3. Always ensure code explicitly matches sheet structure
 4. Sheet operations like adding/removing columns can invalidate cache
 
+### Code Maintenance Issues (2025-04)
+
+**Issue**: Problematic coding habits in maintenance and cleanup
+
+**Context**:
+1. Comments not updated when code changes
+   - Leading to documentation drift
+   - Comments becoming misleading or incorrect
+   - Makes code harder to understand and maintain
+
+2. Failed fixes not properly reverted
+   - Keeping code changes that didn't solve the problem
+   - Accumulating unnecessary code complexity
+   - Making it harder to track what actually fixed issues
+
+**Learning**:
+1. Always update comments when modifying related code
+2. Revert changes that don't fix the target issue
+3. Keep code history clean and meaningful
+4. Document both what code does AND why it does it that way
+
 ## Critical Incidents and Lessons
 
 ### Directory Management Incident (2025-03)

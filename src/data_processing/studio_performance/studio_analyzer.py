@@ -30,11 +30,11 @@ def get_all_studios(shows_df: pd.DataFrame) -> pd.Series:
     all_studios = all_studios.str.strip()
     all_studios = all_studios[all_studios.notna() & (all_studios != '')]
     
-    # Filter out studios that start with 'Other:'
-    real_studios = all_studios[~all_studios.str.startswith('Other:')]
+    # Filter out studios prefixed with 'Other:'
+    all_studios = all_studios[~all_studios.str.startswith('Other:', na=False)]
     
     # Count occurrences of each studio
-    return real_studios.value_counts()
+    return all_studios.value_counts()
 
 def get_shows_for_studio(shows_df: pd.DataFrame, studio: str) -> pd.DataFrame:
     """Get all shows for a specific studio, handling multiple studios per show.

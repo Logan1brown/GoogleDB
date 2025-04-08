@@ -32,6 +32,17 @@ def render_market_snapshot(market_analyzer):
     Args:
         market_analyzer: MarketAnalyzer instance with processed data
     """
+    # Add custom CSS for selectbox
+    st.markdown("""
+    <style>
+    div[data-baseweb="select"] > div {
+        background-color: white;
+        border-radius: 4px;
+        border-color: rgb(49, 51, 63);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     # Get market insights
     insights = market_analyzer.generate_market_insights()
     
@@ -81,11 +92,12 @@ def render_market_snapshot(market_analyzer):
                  "- Episode Volume (penalty for <11 eps)\n\n" +
                  "Note: Limited series typically score low since the metric focuses on multi-season success."
         )
-        success_options = ["All", "High Success (>80)", "Medium Success (50-80)", "Low Success (<50)"]
         success_filter = st.selectbox(
-            "Filter by Success", 
-            success_options,
-            help="Filter by success score range"
+            "Success Tier", 
+            ["All", "High (>80)", "Medium (50-80)", "Low (<50)"],
+            help="Filter by success score range",
+            key="market_filter_success",
+            label_visibility="visible"
         )
         
     # Track which filter is active and disable others
@@ -96,9 +108,8 @@ def render_market_snapshot(market_analyzer):
         active_filter = "networks"
     elif selected_creatives:
         active_filter = "creatives"
-    elif success_filter != "All":
-        active_filter = "success"
         
+    # Only show warning for multi-select filters that need to be cleared
     if active_filter:
         st.info(f"⚠️ {active_filter.title()} filter is active. Clear it to use other filters.")
 
@@ -117,13 +128,13 @@ def render_market_snapshot(market_analyzer):
             success_scores[show_id] = data['score']
         
         # Filter based on success tier
-        if success_filter == "High Success (>80)":
+        if success_filter == "High (>80)":
             high_success_ids = [id for id, score in success_scores.items() if score > 80]
             filtered_df = filtered_df[filtered_df['tmdb_id'].isin(high_success_ids)]
-        elif success_filter == "Medium Success (50-80)":
+        elif success_filter == "Medium (50-80)":
             med_success_ids = [id for id, score in success_scores.items() if 50 <= score <= 80]
             filtered_df = filtered_df[filtered_df['tmdb_id'].isin(med_success_ids)]
-        elif success_filter == "Low Success (<50)":
+        elif success_filter == "Low (<50)":
             low_success_ids = [id for id, score in success_scores.items() if score < 50]
             filtered_df = filtered_df[filtered_df['tmdb_id'].isin(low_success_ids)]
     
@@ -154,10 +165,7 @@ def render_market_snapshot(market_analyzer):
     # Get success metrics from the filtered data
     success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
     
-    # Get network distribution
-    shows_by_network = filtered_df.groupby('network').size().sort_values(ascending=False)
-    
-    # Get success scores by network
+    # Get success scores by network first
     network_scores = {}
     for show_id, show_data in success_metrics['shows'].items():
         show = filtered_df[filtered_df['tmdb_id'] == show_id].iloc[0] if len(filtered_df[filtered_df['tmdb_id'] == show_id]) > 0 else None
@@ -166,6 +174,14 @@ def render_market_snapshot(market_analyzer):
             if network not in network_scores:
                 network_scores[network] = []
             network_scores[network].append(show_data['score'])
+    
+    # If filtering by success tier, only include networks that have scores
+    if success_filter != "All":
+        networks_with_scores = set(network_scores.keys())
+        filtered_df = filtered_df[filtered_df['network'].isin(networks_with_scores)]
+    
+    # Get network distribution after filtering
+    shows_by_network = filtered_df.groupby('network').size().sort_values(ascending=False)
     
     # Calculate average scores and create hover text
     avg_scores = []
@@ -184,11 +200,16 @@ def render_market_snapshot(market_analyzer):
     colors = []
     for score in avg_scores:
         if score == 0:
-            colors.append(COLORS['success']['none'])  # Grey for no data
+            # Use grey color for networks without score data
+            colors.append(COLORS['success']['none'])
         else:
-            # Map score (0-100) to Viridis colorscale (0-1)
-            normalized_score = score / 100
-            colors.append(f'rgb({int(72 + (253-72)*normalized_score)}, {int(17 + (231-17)*normalized_score)}, {int(121 + (37-121)*normalized_score)})')
+            # Use predefined success colors based on score ranges
+            if score > 80:
+                colors.append(COLORS['success']['high'])
+            elif score >= 50:
+                colors.append(COLORS['success']['medium'])
+            else:
+                colors.append(COLORS['success']['low'])
     
     # Create chart
     fig = go.Figure()
