@@ -8,7 +8,11 @@ pydantic>=2.0.0  # Data validation
 gspread>=5.10.0
 google-auth>=2.22.0
 google-auth-oauthlib>=1.0.0
+google-api-python-client>=2.0.0  # For sheets API
 tenacity>=8.2.0  # For retry logic
+
+# Database
+psycopg2-binary>=2.9.0  # PostgreSQL adapter
 
 # Data Analysis and Insights
 pandas-profiling>=3.6.0

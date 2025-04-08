@@ -369,7 +369,13 @@ class Command(BaseCommand):
 ```
 
 ## 4. Key Improvements
-1. **Better Data Model**:
+1. **Standardized Field Names**:
+   - Consistent, lowercase field names following Django conventions
+   - Rename legacy columns (e.g., 'shows', 'show_name') to standard 'title' field
+   - Clear, descriptive names for all fields
+   - Temporary migration mappings to ensure data integrity
+
+2. **Better Data Model**:
    - Proper foreign key relationships
    - Indexed fields for performance
    - Enum choices for roles

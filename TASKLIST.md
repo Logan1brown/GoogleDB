@@ -1,113 +1,117 @@
 # TV Series Database Tasks
 
-## Current Sprint 🔄
+## Current Sprint 
 
-Add static sentiment report page?
+### Day 1: Setup & Database 
+- [x] Setup Supabase Project
+    - [x] Configure auth settings
+        - [x] Email auth with security settings
+        - [x] GitHub OAuth integration
+- [ ] Plan Database Schema
+    - [x] Document schema design
+        - [x] Field naming standards
+        - [x] Relationship diagram
+        - [x] Validation rules
+    - [x] Define table structures
+        - [x] Shows table structure
+        - [x] Team Members table structure
+        - [x] Support tables (Networks, Studios, Genres)
+    - [x] Plan constraints and indexes
+        - [x] Foreign key relationships
+        - [x] Required fields
+        - [x] Unique constraints
+        - [x] Search and filter indexes
 
-#### Phase 1: Setup (Week 1)
-- [ ] Create Django project with modern schema
-    - [ ] Install dependencies
-    - [ ] Set up virtual environment
-    - [ ] Create initial models
-    - [ ] Configure database
-    - [ ] Create Model
-    - [ ] Setup Django Admin interface
-    - [ ] Configure authentication
-- [ ] Setup Railway.app infrastructure
-    - [ ] Create new Railway project
-    - [ ] Add PostgreSQL plugin
-    - [ ] Configure high-availability settings
-    - [ ] Set up automated backups
-    - [ ] Configure connection pooling
-    - [ ] Configure environment variables
-    - [ ] Database credentials
-    - [ ] Django secret key
-    - [ ] Debug settings
-    - [ ] Set up deployment pipeline
-    - [ ] Connect GitHub repository
-    - [ ] Configure build settings
-    - [ ] Set up auto-deployments
-    - [ ] Configure custom domain
-    - [ ] Add domain to Railway
-    - [ ] Set up SSL certificate
-    - [ ] Configure PostgreSQL indexes
-    - [ ] Add indexes for foreign keys
-    - [ ] Add indexes for search fields
-    - [ ] Add composite indexes for common queries
-- [ ] Configure performance optimizations
-    - [ ] Optimize database queries
-        - [ ] Add select_related for foreign keys (network, studio)
-        - [ ] Add prefetch_related for reverse relations (team_members)
-        - [ ] Create database views for complex queries
-        - [ ] Use values() for lightweight list operations 
-    - [ ] Configure database indexes
-        - [ ] Add index on shows.title (frequent searches)
-        - [ ] Add composite index on (network_id, studio_id)
-        - [ ] Add index on show_team.show_id
-        - [ ] Monitor and adjust indexes based on query patterns
-    - [ ] Set up Redis caching
-        - [ ] Cache frequently accessed data (shows, networks)
-        - [ ] Cache API responses
-        - [ ] Set up session storage
-    - [ ] Configure batching
-        - [ ] Implement Django Batch Create
-        - [ ] Set up bulk operations
-        - [ ] Configure connection pooling size
-    - [ ] Set up monitoring
-        - [ ] Configure Django Debug Toolbar
-        - [ ] Set up Railway metrics
-        - [ ] Add performance logging
-#### Phase 2: Data Migration (Week 2)
-- [ ] Export lookup tables from Google Sheets
-  - [ ] Export network_list to CSV
-  - [ ] Export studio_list to CSV
-  - [ ] Export genre and subgenre lists
-  - [ ] Export type mappings (source, order, status, role)
-- [ ] Migrate lookup tables to Django
-  - [ ] Create canonical entries
-  - [ ] Create aliases and mappings
-  - [ ] Validate lookup table integrity
-- [ ] Export main data from Sheets
-  - [ ] Export shows data
-  - [ ] Export team data
-  - [ ] Validate CSV exports
-- [ ] Run main data migration
-  - [ ] Create networks and studios
-  - [ ] Import shows with relationships
-  - [ ] Import team members
-  - [ ] Verify data consistency
+- [x] Prepare Database Schema Scripts
+    - [x] Write support tables migrations
+        - [x] Networks (name, type, search_name)
+        - [x] Studios (name, category, search_name)
+        - [x] Genres (name, search_name)
+    - [x] Write main tables migrations
+        - [x] Shows table
+            - [x] Standard fields (title, description, status)
+            - [x] Foreign keys (network_id, studio_id)
+            - [x] Timestamps (created_at, updated_at)
+        - [x] Show Team table (renamed from Team Members)
+            - [x] Core fields (member_name, role)
+            - [x] Foreign key to shows (show_title)
+            - [x] Search fields (search_name)
+    - [x] Document constraints and indexes
+        - [x] Foreign key constraints
+        - [x] Index definitions
+            - [x] title and search_title
+            - [x] member_name and search_name
+            - [x] foreign key lookups
+            - [x] network_id, studio_id (for filters)
+            - [x] show_title in show_team (for joins)
+    - [x] Define materialized views
+        - [x] show_details view (with search fields)
+        - [x] show_team_stats view (with member lists)
 
-#### Phase 3: Validation & Cleanup (Week 2)
-- [ ] Run data validation scripts
-  - [ ] Compare record counts
-  - [ ] Verify relationships
-  - [ ] Check data integrity
-- [ ] Setup automated tests
-  - [ ] Unit tests for models
-  - [ ] Integration tests for data flow
-  - [ ] Migration test cases
-- [ ] Add database constraints
-  - [ ] Foreign key constraints
-  - [ ] Unique constraints
-  - [ ] Check constraints
-- [ ] Create API endpoints
-  - [ ] Shows endpoints
-  - [ ] Teams endpoints
-  - [ ] Analytics endpoints
+- [ ] Execute Database Setup
+    - [ ] Run support tables migration
+    - [ ] Run lookup data migration
+    - [ ] Run main tables migration
+    - [ ] Run auth policies setup
+    - [ ] Verify all constraints
+    - [ ] Test materialized views
+    - [ ] Configure RLS policies
 
-#### Phase 4: Dashboard Updates (Week 3)
-- [ ] Update Streamlit connection
-  - [ ] Switch to Django backend
-  - [ ] Update data fetching
-  - [ ] Test all visualizations
-- [ ] Verify dashboard features
-  - [ ] Studio view
-  - [ ] Network view
-  - [ ] Team analysis
-- [ ] Performance testing
-  - [ ] Load testing
-  - [ ] Query optimization
-  - [ ] Caching setup
+### Day 2: Data Migration
+- [ ] Export existing data
+    - [ ] Export shows data
+    - [ ] Export team members data
+    - [ ] Export lookup tables
+- [ ] Transform data
+    - [ ] Clean and normalize show titles
+        - [ ] Generate search_title fields
+        - [ ] Handle special characters
+    - [ ] Map network names
+        - [ ] Generate search_name fields
+        - [ ] Handle aliases
+    - [ ] Map studio names
+        - [ ] Generate search_name fields
+        - [ ] Handle divisions/platforms
+    - [ ] Map genres
+        - [ ] Generate search_name fields
+        - [ ] Split into primary/secondary
+- [ ] Import data
+    - [ ] Import lookup tables first
+    - [ ] Import shows data
+    - [ ] Import show_team data
+    - [ ] Verify data integrity
+        - [ ] Check all FKs resolve
+        - [ ] Validate search fields
+        - [ ] Test materialized views
+
+### Day 3: Streamlit Apps 
+- [ ] Create Data Entry App
+    - [ ] Setup Supabase client
+    - [ ] Create login form
+    - [ ] Build data entry forms with validation
+    - [ ] Test CRUD operations
+- [ ] Update Analytics Dashboard
+    - [ ] Connect to Supabase
+    - [ ] Implement performance optimizations
+        - [ ] Add st.cache_data for query results
+        - [ ] Use pagination for large datasets
+        - [ ] Implement lazy loading for visualizations
+        - [ ] Add loading states during data fetch
+    - [ ] Port existing visualizations
+        - [ ] Use materialized views for complex charts
+        - [ ] Implement incremental updates
+    - [ ] Add user authentication
+
+### Day 4: Testing & Deploy 🚀
+- [ ] Testing
+    - [ ] Test all forms
+    - [ ] Verify permissions
+- [ ] Deploy
+    - [ ] Deploy to Streamlit Cloud
+    - [ ] Setup monitoring
+    - [ ] Document usage
+
+
 
 
 ### Backlog
