@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field, field_validator
 class ShowStatus:
     """Valid show statuses for success calculation."""
     RELIABLE = ['Returning Series', 'Ended', 'Canceled']
-    UNRELIABLE = ['Planned', 'In Production']
+    IN_DEVELOPMENT = ['Planned', 'In Production', 'Pilot', 'In Development']
+    UNRELIABLE = []  # Any status not in RELIABLE or IN_DEVELOPMENT
     
     @classmethod
     def is_reliable(cls, status: str) -> bool:

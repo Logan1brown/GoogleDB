@@ -77,8 +77,11 @@ class ConnectionsAnalyzer:
         if DataFields.SHOWS.value in df.columns:
             df = df.rename(columns={DataFields.SHOWS.value: DataFields.SHOW_NAME.value})
         
-        # Handle missing values
+        # Handle missing and empty values
         for col in [DataFields.GENRE.value, DataFields.SOURCE_TYPE.value]:
+            # Replace empty strings with NaN
+            df[col] = df[col].replace('', pd.NA)
+            # Then replace NaN with Unknown
             df[col] = df[col].fillna(self.UNKNOWN_VALUE)
             
         return df

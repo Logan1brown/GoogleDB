@@ -24,7 +24,7 @@ class UnifiedState:
     success_filter: str = "All"
 
 # Page title
-st.markdown('<p class="section-header">Unified TV Series Dashboard</p>', unsafe_allow_html=True)
+st.markdown('<p class="section-header">Content Analysis</p>', unsafe_allow_html=True)
 
 try:
     # Get page state
@@ -51,7 +51,7 @@ try:
         unified_state["year_range"] = st.session_state["year_range"]
     
     # Render view with state
-    render_unified_dashboard(shows_df, team_df, success_analyzer)
+    render_unified_dashboard(success_analyzer)
     
 except Exception as e:
     st.error(f"Error displaying unified dashboard: {str(e)}")

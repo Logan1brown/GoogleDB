@@ -104,6 +104,11 @@ class ShowsAnalyzer:
             self.shows_df = pd.DataFrame(shows_data[1:], columns=headers).reset_index(drop=True)
             logger.info(f"Initial shows_df shape after loading: {self.shows_df.shape}, has_duplicates: {self.shows_df.index.has_duplicates}")
             
+            # Log raw episode count values
+            if 'episode_count' in self.shows_df.columns:
+                logger.info("Raw episode count values from shows sheet:")
+                logger.info(self.shows_df[['shows', 'episode_count']].to_string())
+            
             # Get TMDB metrics
             tmdb_data = sheets_client.get_tmdb_metrics()
             tmdb_headers = [col.lower().replace(' ', '_') for col in tmdb_data[0]]
@@ -115,7 +120,15 @@ class ShowsAnalyzer:
                 # Convert TMDB_ID to string for merging
                 self.shows_df[tmdb_id_col] = self.shows_df[tmdb_id_col].astype(str)
                 tmdb_df[tmdb_id_col] = tmdb_df[tmdb_id_col].astype(str)
+                
+                # Simple merge since TMDB columns already have tmdb_ prefix
                 self.shows_df = pd.merge(self.shows_df, tmdb_df, on=tmdb_id_col, how='left')
+                
+                # Coalesce order_type - use shows sheet value if available, otherwise use TMDB value
+                if 'order_type' in self.shows_df.columns and 'order_type_tmdb' in self.shows_df.columns:
+                    self.shows_df['order_type'] = self.shows_df['order_type'].fillna(self.shows_df['order_type_tmdb'])
+                    self.shows_df = self.shows_df.drop('order_type_tmdb', axis=1)
+                    
                 logger.info(f"Shows_df shape after TMDB merge: {self.shows_df.shape}")
             else:
                 logger.warning("Could not merge TMDB metrics - missing TMDB_ID column")
@@ -352,6 +365,10 @@ class ShowsAnalyzer:
             logger.info("Data quality warnings:\n- " + "\n- ".join(quality_warnings))
             
     def clean_data(self) -> None:
+        # Log raw episode count values before cleaning
+        if 'episode_count' in self.shows_df.columns:
+            logger.info("Raw episode count values before cleaning:")
+            logger.info(self.shows_df[['shows', 'episode_count']].to_string())
         """Clean and preprocess the fetched data.
         
         This includes:
@@ -450,10 +467,24 @@ class ShowsAnalyzer:
         # 4. Handle numeric fields if present
         logger.info("Processing numeric fields...")
         if 'episode_count' in self.shows_df.columns:
-            self.shows_df['episode_count'] = pd.to_numeric(
-                self.shows_df['episode_count'],
-                errors='coerce'
-            ).fillna(0).astype(int)
+            # Log raw episode counts for debugging
+            logger.info(f"Raw episode counts:\n{self.shows_df[['shows', 'episode_count']].to_string()}")
+            logger.info(f"Episode count type before cleaning: {self.shows_df['episode_count'].dtype}")
+            
+            # Convert episode count directly to numeric
+            self.shows_df['episode_count'] = pd.to_numeric(self.shows_df['episode_count'], errors='coerce')
+            logger.info(f"Episode count after to_numeric:\n{self.shows_df[['shows', 'episode_count']].to_string()}")
+            
+            # Drop invalid values
+            invalid_mask = self.shows_df['episode_count'].isna()
+            if invalid_mask.any():
+                logger.error(f"Invalid episode counts:\n{self.shows_df[invalid_mask][['shows', 'episode_count']].to_string()}")
+            self.shows_df = self.shows_df[~invalid_mask]
+            
+            # Convert to int
+            self.shows_df['episode_count'] = self.shows_df['episode_count'].astype(int)
+            logger.info(f"Episode count type after cleaning: {self.shows_df['episode_count'].dtype}")
+            logger.info(f"Cleaned episode counts:\n{self.shows_df[['shows', 'episode_count']].to_string()}")
         
         # Log data quality stats
         self._validate_data()
