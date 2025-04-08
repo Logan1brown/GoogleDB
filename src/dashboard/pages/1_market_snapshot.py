@@ -6,6 +6,7 @@ Displays market analysis and insights for TV series data.
 
 import streamlit as st
 from dataclasses import asdict, dataclass, field
+from src.dashboard.utils.style_config import COLORS, FONTS
 from src.data_processing.analyze_shows import shows_analyzer
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.components.market_view import render_market_snapshot
@@ -19,8 +20,8 @@ class MarketState:
     selected_networks: list[str] = field(default_factory=list)
     success_filter: str = "All"
 
-# Page title
-st.markdown('<p class="section-header">Market Snapshot</p>', unsafe_allow_html=True)
+# Page title using style from style_config
+st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Market Snapshot</p>', unsafe_allow_html=True)
 
 try:
     # Get page state

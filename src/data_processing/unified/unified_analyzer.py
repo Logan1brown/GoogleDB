@@ -33,8 +33,6 @@ class UnifiedAnalyzer:
         
         # Convert episode_count to float since it comes as strings
         self.shows_df['episode_count'] = pd.to_numeric(self.shows_df['episode_count'], errors='coerce')
-        logger.info(f"Episode count converted to {self.shows_df['episode_count'].dtype}")
-        
         # Initialize success analyzer if not provided
         self.success_analyzer = success_analyzer or SuccessAnalyzer()
         # Initialize analyzer with show data
@@ -107,8 +105,6 @@ class UnifiedAnalyzer:
         # Keep shows that meet criteria
         reliable_df = df[has_order_type & has_episode_count]
         
-        logger.info(f"Article shows with order_type and episode_count: {len(reliable_df[reliable_df['source_type'] == 'Article'])}")
-        
         # Calculate success score for each show
         reliable_df['success_score'] = reliable_df.apply(self.success_analyzer.calculate_success, axis=1)
         
@@ -143,16 +139,11 @@ class UnifiedAnalyzer:
             'regular series': 'Ongoing',
             'anthology': 'Anthology',
             'anthology series': 'Anthology',
-            'article': 'Article',
-            'article series': 'Article',
             'pilot': 'Pilot'
         }
         
         # Apply case-insensitive mapping
         reliable_df['order_type'] = reliable_df['order_type'].str.lower().map(lambda x: order_type_map.get(x, x))
-        
-        logger.info('Initial Article shows:')
-        logger.info(reliable_df[reliable_df['source_type'] == 'Article'][['shows', 'network', 'source_type', 'order_type']])
         
         # Filter out pilots and empty values first
         has_valid_order = (
@@ -162,25 +153,10 @@ class UnifiedAnalyzer:
         )
         reliable_df = reliable_df[has_valid_order]
         
-        logger.info('After filtering - Article shows:')
-        logger.info(reliable_df[reliable_df['source_type'] == 'Article'][['shows', 'network', 'source_type', 'order_type']])
-        
-        # Get series type counts from both order_type and source_type
+        # Get series type counts from order_type
         order_type_counts = reliable_df['order_type'].value_counts()
-        logger.info(f'Order type counts: {order_type_counts}')
         
-        # Only count Article shows that have both source_type and order_type
-        article_shows = reliable_df[
-            (reliable_df['source_type'] == 'Article') & 
-            (reliable_df['order_type'].notna()) & 
-            (reliable_df['order_type'] != '')
-        ]
-        article_count = len(article_shows)
-        
-        logger.info('Final Article shows:')
-        logger.info(article_shows[['shows', 'network', 'source_type', 'order_type']])
-        
-        # Use order type counts directly (no need to add Articles)
+        # Use order type counts directly
         series_type_counts = order_type_counts.copy()
         
         total_shows = len(reliable_df) if not reliable_df.empty else 1  # Prevent division by zero
@@ -201,10 +177,6 @@ class UnifiedAnalyzer:
             }
         }
         
-        # Debug article show counts by network
-        if source_type == 'Article':
-            network_counts = reliable_df['network'].value_counts()
-            logger.info(f"Article show counts by network:\n{network_counts}")
         
         # Analyze by network
         network_insights = {}
@@ -663,27 +635,3 @@ class UnifiedAnalyzer:
         return sorted(creator_stats, 
                      key=lambda x: (x['show_count'], x['success_score']), 
                      reverse=True)
-        
-    def analyze_pairings(self, filtered_df: pd.DataFrame) -> List[Dict]:
-        """Analyze successful network-creator pairings.
-        
-        Args:
-            filtered_df: Pre-filtered DataFrame of shows
-            
-        Returns:
-            List of pairing analysis results
-        """
-        # Implementation will go here
-        pass
-        
-
-        """Generate package suggestions based on success patterns.
-        
-        Args:
-            filtered_df: Pre-filtered DataFrame of shows
-            
-        Returns:
-            List of package suggestions
-        """
-        # Implementation will go here
-        pass

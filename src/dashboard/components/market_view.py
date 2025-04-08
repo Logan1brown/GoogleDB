@@ -35,16 +35,6 @@ def render_market_snapshot(market_analyzer):
     # Get market insights
     insights = market_analyzer.generate_market_insights()
     
-    # Dataset Overview
-    st.markdown('<p class="section-header">Dataset Overview</p>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    This analysis is based on a curated dataset of straight-to-series orders tracked from Deadline Hollywood.
-    While comprehensive within its scope, please note:
-    - Focus is on straight-to-series orders rather than traditional pilots
-    - Data collection is more complete for recent years
-    - Some historical data may be incomplete
-    """)
     
     # Display key dataset metrics and filters
     col1, col2, col3, col4 = st.columns(4)
