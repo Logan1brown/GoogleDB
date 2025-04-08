@@ -22,6 +22,14 @@ GoogleDB/
     RETROSPECTIVE.md        # Project learnings
     DIRECTORY_STRUCTURE.md  # Directory guide
 
+    # Documentation & Analysis
+    docs/
+        analysis/           # Generated analysis reports
+            content_tone_analysis.md  # Network tone analysis
+        proposals/          # Project proposals
+            sheets_to_django_migration.md  # Django migration plan
+        DATA_COLUMNS.md     # Column naming conventions
+
     # Configuration & Setup
     requirements.txt        # Python dependencies
     setup.py               # Package setup
@@ -71,16 +79,15 @@ GoogleDB/
     # Source Code
     src/
         # Core Application
-        dashboard/         # Streamlit dashboard
-            components/   # Dashboard components
-                connections_view.py    # Network connections
-                genre_view.py         # Genre analysis
-                prototype_market_intel_view.py # Market intel
-                source_view.py        # Source analysis
-                studio_view.py        # Studio performance
-                unified_view.py       # Unified dashboard
-            templates/    # Reusable templates
-                defaults/ # Default styles
+        dashboard/         # Frontend components
+            components/   # UI components
+                unified_view.py
+                connections_view.py
+                studio_view.py
+                genre_view.py
+            pages/          # Page components
+            state/          # State management
+            app.py          # Main app
                 grids/    # Grid layouts
             utils/       # Dashboard utilities
                 sheets_client.py  # Sheets integration
@@ -246,6 +253,13 @@ GoogleDB/
 1. **Analysis vs. View Separation**:
    - Analysis logic goes in `data_processing/` with '_analyzer.py' suffix
    - UI components go in `dashboard/components/` with '_view.py' suffix
+   - Experimental features go in `data_processing/experiments/`
+   - Generated reports go in `docs/analysis/`
+
+2. **Documentation Organization**:
+   - Analysis reports in `docs/analysis/`
+   - Project proposals in `docs/proposals/`
+   - Column naming in `docs/DATA_COLUMNS.md`
    - Each view file has a corresponding analyzer file
 
 2. **Module Organization**:
