@@ -118,6 +118,33 @@
 - updated_at: TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
+#### TMDB Success Metrics (tmdb_success_metrics)
+```sql
+- id: BIGSERIAL PRIMARY KEY
+- tmdb_id: INTEGER REFERENCES shows(tmdb_id)  -- Link to show
+- seasons: INTEGER  -- Number of seasons
+- episodes_per_season: INTEGER[]  -- Episodes per season
+- total_episodes: INTEGER  -- Total episode count
+- average_episodes: FLOAT  -- Average episodes per season
+- status: TEXT  -- Raw TMDB status (e.g., 'Returning Series', 'Canceled')
+- last_air_date: DATE  -- Last air date
+
+Status Mapping:
+- TMDB 'Returning Series' -> status_types 'Active'
+- TMDB 'In Production' -> status_types 'Active'
+- TMDB 'Ended' -> status_types 'Ended'
+- TMDB 'Canceled'/'Cancelled' -> status_types 'Cancelled'
+- TMDB 'Planned' -> status_types 'Development'
+- created_at: TIMESTAMPTZ NOT NULL DEFAULT NOW()
+- updated_at: TIMESTAMPTZ NOT NULL DEFAULT NOW()
+```
+
+Notes:
+- Links to shows table via tmdb_id
+- Stores detailed episode metrics from TMDB
+- Status is kept as raw text from TMDB
+- Episodes per season stored as array for detailed tracking
+
 Indexes:
 - `title`: Exact matches
 - `search_title`: Case-insensitive search

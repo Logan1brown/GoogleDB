@@ -14,6 +14,7 @@ erDiagram
 
     Shows ||--o{ ShowTeam : "has many"
     ShowTeam }|--|| RoleTypes : "has role"
+    Shows ||--o| TMDBMetrics : "has metrics"
 
     Shows {
         bigserial id PK
@@ -31,6 +32,19 @@ erDiagram
         integer episode_count
         integer tmdb_id UK
         boolean active
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    TMDBMetrics {
+        bigserial id PK
+        integer tmdb_id FK
+        integer seasons
+        integer[] episodes_per_season
+        integer total_episodes
+        float average_episodes
+        text status
+        date last_air_date
         timestamptz created_at
         timestamptz updated_at
     }
