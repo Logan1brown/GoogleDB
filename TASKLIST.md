@@ -48,48 +48,73 @@
         - [x] show_details view (with search fields)
         - [x] show_team_stats view (with member lists)
 
-- [ ] Execute Database Setup
-    - [ ] Run support tables migration
-    - [ ] Run lookup data migration
-    - [ ] Run main tables migration
-    - [ ] Run auth policies setup
-    - [ ] Verify all constraints
-    - [ ] Test materialized views
-    - [ ] Configure RLS policies
+- [x] Execute Database Setup
+    - [x] Run support tables migration
+    - [x] Run lookup data migration
+    - [x] Run main tables migration
+    - [x] Run auth policies setup
+    - [x] Verify all constraints
+    - [x] Test materialized views
+    - [x] Configure RLS policies
 
 ### Day 2: Data Migration
-- [ ] Export existing data
-    - [ ] Export shows data
-    - [ ] Export team members data
-    - [ ] Export lookup tables
-- [ ] Transform data
-    - [ ] Clean and normalize show titles
-        - [ ] Generate search_title fields
-        - [ ] Handle special characters
-    - [ ] Map network names
-        - [ ] Generate search_name fields
-        - [ ] Handle aliases
-    - [ ] Map studio names
-        - [ ] Generate search_name fields
-        - [ ] Handle divisions/platforms
-    - [ ] Map genres
-        - [ ] Generate search_name fields
-        - [ ] Split into primary/secondary
-- [ ] Import data
-    - [ ] Import lookup tables first
-    - [ ] Import shows data
-    - [ ] Import show_team data
-    - [ ] Verify data integrity
-        - [ ] Check all FKs resolve
-        - [ ] Validate search fields
-        - [ ] Test materialized views
+- [x] Export existing data
+    - [x] Export shows data
+    - [x] Export team members data
+    - [x] Export lookup tables
+- [x] Transform data
+    - [x] Clean and normalize show titles
+        - [x] Generate search_title fields
+        - [x] Handle special characters
+    - [x] Map network names
+        - [x] Generate search_name fields
+        - [x] Handle aliases
+    - [x] Map studio names
+        - [x] Generate search_name fields
+        - [x] Handle divisions/platforms
+    - [x] Map genres
+        - [x] Generate search_name fields
+        - [x] Split into primary/secondary
+- [x] Import data
+    - [x] Import lookup tables first
+    - [x] Import shows data
+    - [x] Import show_team data
+    - [x] Import TMDB metrics data
+    - [x] Verify data integrity
+        - [x] Check all FKs resolve
+        - [x] Validate search fields
+        - [x] Test materialized views
+    - [x] Setup test helper functions
+        - [x] User impersonation helpers
+        - [x] Test data generators
+        - [x] Cleanup functions
+    - [x] Policy Tests
+        - [x] Test each RLS policy
+        - [x] Verify allowed/denied operations
+        - [x] Test different user roles
+    - [x] Fuzzy Matching Tests
+        - [x] Test similar titles
+        - [x] Test special characters
+        - [x] Test common prefixes/suffixes
+    - [x] Audit Trail Tests
+        - [x] Verify operation logging
+        - [x] Check user attribution
+        - [x] Validate JSON payloads
 
 ### Day 3: Streamlit Apps 
 - [ ] Create Data Entry App
     - [ ] Setup Supabase client
     - [ ] Create login form
     - [ ] Build data entry forms with validation
+    - [ ] Implement fuzzy matching for show entry
+    - [ ] Implement merge logic for show updates
     - [ ] Test CRUD operations
+    
+- [ ] Integration Tests (BLOCKED: DB connection issues)
+    - [ ] Complete workflow tests (needs DB access)
+    - [ ] Trigger verification (needs DB access)
+    - [ ] Constraint validation (needs DB access)
+
 - [ ] Update Analytics Dashboard
     - [ ] Connect to Supabase
     - [ ] Implement performance optimizations
@@ -103,9 +128,16 @@
     - [ ] Add user authentication
 
 ### Day 4: Testing & Deploy 🚀
-- [ ] Testing
-    - [ ] Test all forms
-    - [ ] Verify permissions
+
+- [ ] Application Testing
+    - [ ] Form Testing
+        - [ ] Input validation
+        - [ ] Error handling
+        - [ ] Success flows
+    - [ ] Authentication Testing
+        - [ ] Login flows
+        - [ ] Permission checks
+        - [ ] Session handling
 - [ ] Deploy
     - [ ] Deploy to Streamlit Cloud
     - [ ] Setup monitoring

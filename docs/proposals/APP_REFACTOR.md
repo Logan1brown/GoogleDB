@@ -20,7 +20,14 @@ This requires updates to:
 - [ ] Frontend components that reference these columns
 - [ ] Data import/export scripts
 
-### 2. Show Team Multiple Roles
+### 2. Studios Array Migration
+
+- `studios` array column (multiple studios per show)
+- Follows same pattern as other array columns (e.g. `subgenres`)
+- Preserves all studio relationships including production companies
+- Now instead of Other: xyz, we capture all studios and delineate production companies by type in studio_list.
+
+### 3. Show Team Multiple Roles
 
 The show_team table now uses a normalized design where each role a person has on a show gets its own row. This requires significant changes to the app's data handling and UI.
 

@@ -37,7 +37,7 @@
 
 ### Support Tables
 
-#### Networks
+#### Network List (network_list)
 ```sql
 - id: BIGSERIAL PRIMARY KEY
 - name: TEXT NOT NULL UNIQUE
@@ -52,7 +52,7 @@
 - timestamps
 ```
 
-#### Studios
+#### Studio List (studio_list)
 ```sql
 - id: BIGSERIAL PRIMARY KEY
 - name: TEXT NOT NULL UNIQUE
@@ -67,7 +67,7 @@
 - timestamps
 ```
 
-#### Genres
+#### Genre List (genre_list)
 ```sql
 - id: BIGSERIAL PRIMARY KEY
 - name: TEXT NOT NULL UNIQUE
@@ -81,7 +81,7 @@
 - timestamps
 ```
 
-#### Subgenres
+#### Subgenre List (subgenre_list)
 ```sql
 - id: BIGSERIAL PRIMARY KEY
 - name: TEXT NOT NULL UNIQUE
@@ -104,9 +104,9 @@
 - search_title: TEXT GENERATED  -- For case-insensitive search
 - description: TEXT
 - status_id: BIGINT REFERENCES status_types(id)
-- network_id: BIGINT REFERENCES networks(id)
-- studio_id: BIGINT REFERENCES studios(id)  -- Primary studio
-- genre_id: BIGINT REFERENCES genres(id)  -- Primary genre
+- network_id: BIGINT REFERENCES network_list(id)
+- studio_id: BIGINT REFERENCES studio_list(id)  -- Primary studio
+- genre_id: BIGINT REFERENCES genre_list(id)  -- Primary genre
 - subgenres: BIGINT[]  -- Additional genres
 - source_type_id: BIGINT REFERENCES source_types(id)
 - order_type_id: BIGINT REFERENCES order_types(id)

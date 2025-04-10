@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""
+Migration to import all lookup data from sheets
+"""
+import os
+import sys
+from typing import List
+from dotenv import load_dotenv
+import psycopg2
+from psycopg2.extensions import connection
+import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
+
+# Add src to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+from src.config.sheets_config import sheets_config
+
+def get_supabase_connection() -> connection:
+    """Get connection to Supabase database."""
+    load_dotenv()
+    required_vars = ['DATABASE_URL']
+    for var in required_vars:
+        if not os.getenv(var):
+            print(f"Missing required environment variable: {var}")
+            sys.exit(1)
+    
+    conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+    conn.autocommit = False
+    return conn
+
+def get_sheets_data(gc: gspread.Client, sheets_config) -> pd.DataFrame:
+    """Get data from Google Sheets."""
+    # Open spreadsheet and get shows sheet
+    spreadsheet = gc.open_by_key(sheets_config.spreadsheet_id)
+    shows_sheet = spreadsheet.worksheet(sheets_config.shows_sheet)
+    
+    # Get all data including headers
+    data = shows_sheet.get_all_values()
+    
+    # First row is headers
+    headers = data[0]
+    rows = data[1:]
+    
+    # Convert to DataFrame
+    return pd.DataFrame(rows, columns=headers)
+
+def import_lookup_data(df: pd.DataFrame, cur, gc: gspread.Client):
+    """Import all lookup data from the shows sheet."""
+    # Import networks
+    networks = set()
+    for network in df['network'].dropna().unique():
+        networks.update(n.strip() for n in network.split(','))
+    
+    for network in networks:
+        cur.execute("""
+            INSERT INTO network_list (name)
+            VALUES (%s)
+            ON CONFLICT (name) DO NOTHING
+        """, (network,))
+
+    # Import studios (both main studios and production companies)
+    studios = set()
+    for studio in df['studio'].dropna().unique():
+        studios.update(s.strip() for s in studio.split(','))
+    
+    for studio in studios:
+        name = studio[7:].strip() if studio.startswith('Other: ') else studio
+        studio_type = 'production company' if studio.startswith('Other: ') else 'studio'
+        cur.execute("""
+            INSERT INTO studio_list (name, type)
+            VALUES (%s, %s)
+            ON CONFLICT (name) DO NOTHING
+        """, (name, studio_type))
+
+    # Import genres
+    genres = set()
+    for genre in df['genre'].dropna().unique():
+        genres.update(g.strip() for g in genre.split(','))
+    
+    for genre in genres:
+        cur.execute("""
+            INSERT INTO genre_list (name)
+            VALUES (%s)
+            ON CONFLICT (name) DO NOTHING
+        """, (genre,))
+
+    # Import subgenres
+    subgenres = set()
+    for subgenre in df['subgenre'].dropna().unique():
+        subgenres.update(sg.strip() for sg in subgenre.split(','))
+    
+    for subgenre in subgenres:
+        cur.execute("""
+            INSERT INTO subgenre_list (name)
+            VALUES (%s)
+            ON CONFLICT (name) DO NOTHING
+        """, (subgenre,))
+
+    # Import status types
+    statuses = df['status'].dropna().unique()
+    for status in statuses:
+        cur.execute("""
+            INSERT INTO status_types (name)
+            VALUES (%s)
+            ON CONFLICT (name) DO NOTHING
+        """, (status,))
+
+    # Import source types
+    sources = df['source_type'].dropna().unique()
+    for source in sources:
+        cur.execute("""
+            INSERT INTO source_types (name)
+            VALUES (%s)
+            ON CONFLICT (name) DO NOTHING
+        """, (source,))
+
+    # Import order types
+    orders = df['order_type'].dropna().unique()
+    for order in orders:
+        cur.execute("""
+            INSERT INTO order_types (name)
+            VALUES (%s)
+            ON CONFLICT (name) DO NOTHING
+        """, (order,))
+
+    # Import role types from team sheet
+    team_sheet = gc.open_by_key(sheets_config.spreadsheet_id).worksheet(sheets_config.team_sheet)
+    team_data = team_sheet.get_all_values()
+    team_df = pd.DataFrame(team_data[1:], columns=team_data[0])
+    
+    roles = team_df['roles'].dropna().unique()
+    for role in roles:
+        cur.execute("""
+            INSERT INTO role_types (name)
+            VALUES (%s)
+            ON CONFLICT (name) DO NOTHING
+        """, (role,))
+
+def main():
+    """Main migration function."""
+    print("\nStarting migration to import lookup data...")
+    
+    # Connect to database
+    conn = get_supabase_connection()
+    
+    try:
+        # Set up credentials
+        creds = Credentials.from_service_account_file(
+            sheets_config.get_credentials_path(),
+            scopes=sheets_config.SCOPES
+        )
+        
+        # Get sheets client
+        gc = gspread.authorize(creds)
+        
+        # Get sheets data
+        df = get_sheets_data(gc, sheets_config)
+        
+        with conn.cursor() as cur:
+            # Import lookup data
+            import_lookup_data(df, cur, gc)
+        
+        # Commit transaction
+        conn.commit()
+        print("Migration completed successfully!")
+    
+    except Exception as e:
+        conn.rollback()
+        print(f"Error during migration: {str(e)}")
+        sys.exit(1)
+    
+    finally:
+        conn.close()
+
+if __name__ == '__main__':
+    main()

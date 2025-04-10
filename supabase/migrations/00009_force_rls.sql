@@ -1,0 +1,14 @@
+-- Migration: Force RLS
+-- Created: 2025-04-08
+
+-- Force RLS on all tables
+ALTER TABLE network_list FORCE ROW LEVEL SECURITY;
+ALTER TABLE studio_list FORCE ROW LEVEL SECURITY;
+ALTER TABLE genre_list FORCE ROW LEVEL SECURITY;
+ALTER TABLE subgenre_list FORCE ROW LEVEL SECURITY;
+ALTER TABLE shows FORCE ROW LEVEL SECURITY;
+ALTER TABLE show_team FORCE ROW LEVEL SECURITY;
+ALTER TABLE tmdb_success_metrics FORCE ROW LEVEL SECURITY;
+
+-- Clean up test data
+DELETE FROM shows WHERE title LIKE 'test_show%';
