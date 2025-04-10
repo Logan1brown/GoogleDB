@@ -20,36 +20,36 @@ def load_lookup_data() -> Dict[str, List[Dict]]:
     lookups = {}
     
     # Load networks
-    response = supabase.table('network_list').select('id, name').execute()
-    lookups['networks'] = response.data
+    response = supabase.table('network_list').select('id, network').execute()
+    lookups['networks'] = [{'id': n['id'], 'name': n['network']} for n in response.data]
     
     # Load studios
-    response = supabase.table('studio_list').select('id, name, type').execute()
-    lookups['studios'] = response.data
+    response = supabase.table('studio_list').select('id, studio, type').execute()
+    lookups['studios'] = [{'id': s['id'], 'name': s['studio'], 'type': s['type']} for s in response.data]
     
     # Load genres
-    response = supabase.table('genre_list').select('id, name').execute()
-    lookups['genres'] = response.data
+    response = supabase.table('genre_list').select('id, genre').execute()
+    lookups['genres'] = [{'id': g['id'], 'name': g['genre']} for g in response.data]
     
     # Load subgenres
-    response = supabase.table('subgenre_list').select('id, name').execute()
-    lookups['subgenres'] = response.data
+    response = supabase.table('subgenre_list').select('id, subgenre').execute()
+    lookups['subgenres'] = [{'id': s['id'], 'name': s['subgenre']} for s in response.data]
     
     # Load source types
-    response = supabase.table('source_types').select('id, name').execute()
-    lookups['source_types'] = response.data
+    response = supabase.table('source_types').select('id, type').execute()
+    lookups['source_types'] = [{'id': s['id'], 'name': s['type']} for s in response.data]
     
     # Load order types
-    response = supabase.table('order_types').select('id, name').execute()
-    lookups['order_types'] = response.data
+    response = supabase.table('order_types').select('id, type').execute()
+    lookups['order_types'] = [{'id': o['id'], 'name': o['type']} for o in response.data]
     
     # Load status types
-    response = supabase.table('status_types').select('id, name').execute()
-    lookups['statuses'] = response.data
+    response = supabase.table('status_types').select('id, status').execute()
+    lookups['statuses'] = [{'id': s['id'], 'name': s['status']} for s in response.data]
     
     # Load roles
-    response = supabase.table('role_types').select('id, name').execute()
-    lookups['roles'] = response.data
+    response = supabase.table('role_types').select('id, role').execute()
+    lookups['roles'] = [{'id': r['id'], 'name': r['role']} for r in response.data]
     
     return lookups
 
@@ -223,9 +223,12 @@ def main():
             else:
                 status_placeholder.success("✅ No similar shows found in database.")
         
-        # Initialize session state for storing form data if not exists
+        # Initialize or preserve session state
         if 'form_data' not in st.session_state:
             st.session_state.form_data = {}
+        
+        # Debug current session state
+        st.write("Current form data:", st.session_state.form_data)
         
         # Show Details Form
         with st.form("show_details_form"):
@@ -234,12 +237,13 @@ def main():
             # Title from search
             title = st.text_input(
                 "Title",
-                value=st.session_state.get('form_title', ''),
+                value=st.session_state.form_data.get('title', st.session_state.get('form_title', '')),
                 key="show_title_input",  # Different key from search state
                 disabled=False  # Allow editing in case user wants to modify the title slightly
             )
             # Update form_title state with any manual edits
             st.session_state.form_title = title
+            st.session_state.form_data['title'] = title  # Save to form data immediately
             
             # Create two columns for the form layout
             left_col, right_col = st.columns(2)
@@ -348,17 +352,19 @@ def main():
                 
                 form_data = {
                     'title': title,
-                    'network_id': network_id,
-                    'genre_id': genre_id,
-                    'subgenre_id': subgenre_id,
-                    'source_type_id': source_type_id,
-                    'order_type_id': order_type_id,
-                    'status_id': status_id,
+                    'network_id': network[0] if network else None,
+                    'genre_id': genre[0] if genre else None,
+                    'subgenre_id': subgenre[0] if subgenre else None,
+                    'source_type_id': source_type[0] if source_type else None,
+                    'order_type_id': order_type[0] if order_type else None,
+                    'status_id': status[0] if status else None,
                     'episode_count': None if episode_count == 0 else episode_count,
                     'description': description,
                     'announcement_date': date.isoformat() if date else None
                 }
+                st.write("Before update:", st.session_state.form_data)
                 st.session_state.form_data.update(form_data)
+                st.write("After update:", st.session_state.form_data)
                 st.success("Show details saved!")
                 
                 # Debug view
@@ -410,7 +416,9 @@ def main():
                             'selected_studios': selected_studios,  # List of (id, name) tuples for existing studios
                             'new_studios': [s for s in new_studios if s]  # List of new studio names to create
                         }
+                        st.write("Before studio save:", st.session_state.form_data)
                         st.session_state.form_data['studios'] = studio_data
+                        st.write("After studio save:", st.session_state.form_data)
                         st.success("Studios saved! (Will be created when you submit all)")
                         
         # Debug view for studios (outside expander)
@@ -469,7 +477,9 @@ def main():
                         member_data = {
                             'members': team_members
                         }
+                        st.write("Before team save:", st.session_state.form_data)
                         st.session_state.form_data['team'] = member_data
+                        st.write("After team save:", st.session_state.form_data)
                         st.success("Team members saved!")
                     except Exception as e:
                         st.error(f"Error saving team members: {str(e)}")
@@ -524,18 +534,18 @@ def main():
                         try:
                             # Check if studio exists (case insensitive)
                             existing = supabase.table('studio_list') \
-                                .select('id, name') \
-                                .ilike('name', studio_name) \
+                                .select('id, studio') \
+                                .ilike('studio', studio_name) \
                                 .execute()
                             
                             if existing.data:
                                 # Studio exists, use its ID
                                 studio_ids.append(existing.data[0]['id'])
-                                st.warning(f"Using existing studio: {existing.data[0]['name']}")
+                                st.warning(f"Using existing studio: {existing.data[0]['studio']}")
                             else:
                                 # Create new studio
                                 response = supabase.table('studio_list').insert({
-                                    "name": studio_name,
+                                    "studio": studio_name,
                                     "type": "production company"
                                 }).execute()
                                 if response.data:
@@ -548,9 +558,31 @@ def main():
                     # Format show data
                     show_data = {
                         'title': st.session_state.form_data['title'],
-                        'studios': studio_ids if studio_ids else None,  # Array of all studio IDs
-                        'tmdb_id': st.session_state.form_data.get('tmdb_id')
+                        'network_id': st.session_state.form_data.get('network_id'),  # Required
+                        'genre_id': st.session_state.form_data.get('genre_id'),
+                        'subgenres': [st.session_state.form_data.get('subgenre_id')] if st.session_state.form_data.get('subgenre_id') else [],
+                        'source_type_id': st.session_state.form_data.get('source_type_id'),
+                        'order_type_id': st.session_state.form_data.get('order_type_id'),
+                        'status_id': st.session_state.form_data.get('status_id'),
+                        'episode_count': st.session_state.form_data.get('episode_count'),
+                        'description': st.session_state.form_data.get('description'),
+                        'studios': studio_ids,  # Already an array of bigints
+                        'tmdb_id': st.session_state.form_data.get('tmdb_id'),
+                        'date': st.session_state.form_data.get('announcement_date')
                     }
+                    
+                    # Validate required fields
+                    if not show_data['network_id']:
+                        raise ValueError('Network is required')
+                    
+                    # Check if show with this title already exists
+                    existing = supabase.table('shows') \
+                        .select('id, title') \
+                        .eq('title', show_data['title']) \
+                        .execute()
+                    
+                    if existing.data:
+                        raise ValueError(f"A show with title '{show_data['title']}' already exists. Please use a different title.")
                     
                     # Add show to database
                     response = supabase.table('shows').insert(show_data).execute()
@@ -564,7 +596,7 @@ def main():
                                 supabase.table('show_team').insert({
                                     'show_id': show_id,
                                     'name': member['name'],
-                                    'role_id': role_id
+                                    'role_type_id': role_id
                                 }).execute()
                         
                         st.success(f"Successfully added show: {show_data['title']}")
@@ -575,12 +607,8 @@ def main():
                         st.error("Failed to add show to database")
                 except Exception as e:
                     st.error(f"Error submitting show: {str(e)}")
-                    # Clear form data
-                    st.session_state.form_data = {}
-                    st.session_state.form_title = ''
-                    st.experimental_rerun()
-                else:
-                    st.error("Failed to add show")
+                    # Don't clear form data on error so user can fix and retry
+                    return
 
                 
                 # Create new studio if needed
@@ -623,7 +651,7 @@ def main():
                     st.success(f"Added show: {title}")
                     # Clear form
                     st.session_state.form_title = ''
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("Failed to add show")
     
