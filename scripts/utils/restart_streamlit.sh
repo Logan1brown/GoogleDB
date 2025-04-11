@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Usage: ./scripts/utils/restart_streamlit.sh <path/to/app.py>
+# Example: ./scripts/utils/restart_streamlit.sh src/data_entry/v3/data_entry_app_v3.py
+
 # Load environment variables
 set -a
 source .env
@@ -34,4 +37,4 @@ while lsof -i :$PORT > /dev/null 2>&1; do
 done
 
 echo "Starting Streamlit..."
-source venv/bin/activate && streamlit run src/dashboard/app.py --server.port $PORT
+source venv/bin/activate && streamlit run "$1" --server.port $PORT

@@ -9,5 +9,8 @@ port = 8501
 primaryColor = "#1E4D8C"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F5F5FA"
+
+[client]
+showSidebarNavigation = false
 textColor = "#1A1A1A"
 font = "Source Sans Pro"

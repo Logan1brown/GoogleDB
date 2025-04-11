@@ -4,31 +4,37 @@
 
 ```mermaid
 erDiagram
-    Networks ||--o{ Shows : "has many"
-    Studios ||--o{ Shows : "has many"
-    Shows }|--|| Genres : "primary genre"
-    Shows }|--o{ Subgenres : "secondary genres"
-    Shows }|--|| StatusTypes : "current status"
-    Shows }|--|| OrderTypes : "order type"
-    Shows }|--|| SourceTypes : "source type"
+    %% One-to-Many Relationships (Foreign Keys)
+    network_list ||--o{ shows : "has many"
+    genre_list ||--o{ shows : "primary genre"
+    status_types ||--o{ shows : "current status"
+    order_types ||--o{ shows : "order type"
+    source_types ||--o{ shows : "source type"
 
-    Shows ||--o{ ShowTeam : "has many"
-    ShowTeam }|--|| RoleTypes : "has role"
-    Shows ||--o| TMDBMetrics : "has metrics"
+    %% Array-based Many-to-Many
+    shows ||--o{ studios_array : "contains"
+    studios_array }o--|| studio_list : "references"
+    shows ||--o{ subgenres_array : "contains"
+    subgenres_array }o--|| genre_list : "references"
 
-    Shows {
-        bigserial id PK
-        text title UK "preserve formatting"
+    %% Team and TMDB Relationships
+    shows ||--o{ show_team : "has many"
+    role_types ||--o{ show_team : "has role"
+    shows ||--o| tmdb_success_metrics : "has metrics"
+
+    shows {
+        bigint id PK
+        text title UK
         text search_title UK "GENERATED"
         text description
         bigint network_id FK
-        bigint studio_id FK "primary studio"
-        bigint genre_id FK "primary genre"
-        bigint[] subgenres "additional genres"
+        bigint genre_id FK
+        bigint[] subgenres
+        bigint[] studios
         bigint status_id FK
         bigint order_type_id FK
         bigint source_type_id FK
-        date date "original date"
+        date date
         integer episode_count
         integer tmdb_id UK
         boolean active
@@ -36,8 +42,8 @@ erDiagram
         timestamptz updated_at
     }
 
-    TMDBMetrics {
-        bigserial id PK
+    tmdb_success_metrics {
+        bigint id PK
         integer tmdb_id FK
         integer seasons
         integer[] episodes_per_season
@@ -49,56 +55,44 @@ erDiagram
         timestamptz updated_at
     }
 
-    ShowTeam {
-        bigserial id PK
+    show_team {
+        bigint id PK
         bigint show_id FK
-        text name "preserve formatting"
-        text search_name "GENERATED"
+        text name
         bigint role_type_id FK
-        integer team_order
-        text notes
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    network_list {
+        bigint id PK
+        text network UK
+        text search_network UK "GENERATED"
+        text type
+        text parent_company
+        text[] aliases
         boolean active
         timestamptz created_at
         timestamptz updated_at
     }
 
-    Networks {
-        bigserial id PK
-        text name UK
-        text search_name "GENERATED"
-        text type
-        text category
-        text parent_company
-        text parent_division
-        text[] business_tags
-        text[] aliases
+    studio_list {
+        bigint id PK
+        text studio UK
+        text search_studio UK "GENERATED"
         boolean active
         timestamptz created_at
-        timestamp updated_at
+        timestamptz updated_at
     }
 
-    Studios {
-        bigserial id PK
-        text name UK
-        text type
-        text category
-        text parent_company
-        text parent_division
-        text[] business_tags
-        text[] aliases
+    genre_list {
+        bigint id PK
+        text genre UK
+        text search_genre UK "GENERATED"
         boolean active
-        timestamp created_at
-        timestamp updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
-
-    Genres {
-        bigserial id PK
-        text name UK
-        text category
-        text[] aliases
-        boolean active
-        timestamp created_at
-        timestamp updated_at
     }
 
     Subgenres {
@@ -111,87 +105,113 @@ erDiagram
         timestamp updated_at
     }
 
-    show_team {
-        bigserial id PK
-        text show_title FK "references shows.title"
-        text member_name
-        text search_name "GENERATED"
-        bigint role_type_id FK
-        integer team_order
-        text notes
+    role_types {
+        bigint id PK
+        text role UK
         boolean active
-        timestamp created_at
-        timestamp updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    StatusTypes {
-        bigserial id PK
-        text name UK
-        text category
+    source_types {
+        bigint id PK
+        text type UK
         boolean active
-        timestamp created_at
-        timestamp updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    OrderTypes {
-        bigserial id PK
-        text name UK
-        text category
+    order_types {
+        bigint id PK
+        text type UK
         boolean active
-        timestamp created_at
-        timestamp updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    SourceTypes {
-        bigserial id PK
-        text name UK
-        text category
+    status_types {
+        bigint id PK
+        text status UK
         boolean active
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    RoleTypes {
-        bigserial id PK
-        text name UK
-        text category
-        boolean active
-        timestamp created_at
-        timestamp updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 ```
 
 ## Key Relationships
 
-### shows table
-- Central entity
-- Has many team members (through ShowTeam)
-- Belongs to one Network
-- Belongs to one Studio
-- Has one primary Genre
-- Has many secondary Genres (through subgenre_ids array)
-- Has one StatusType
-- Has one OrderType
-- Has one SourceType
+### Primary Table Relationships
 
-### show_team table
-Matches current implementation:
-- One row per creative per show
-- Links to show via show_title field
-- Captures:
-  - Team member's name
-  - Their role on the show
-  - Team order (for display priority)
-  - Additional notes
-- Through name matching across shows, we can find:
-  - All shows a person worked on
-  - Their role history
-  - Network/studio connections
+#### Shows Foreign Keys
+- `network_id` → `network_list(id)` (required)
+- `genre_id` → `genre_list(id)` (optional)
+- `status_id` → `status_types(id)` (optional)
+- `order_type_id` → `order_types(id)` (optional)
+- `source_type_id` → `source_types(id)` (optional)
 
-### support tables
-All support tables (Networks, Studios, Genres, etc.) follow similar patterns:
-- Have unique names
-- Include category and type fields where relevant
-- Support aliases where needed
-- Include active flag for soft deletes
-- Track creation and update timestamps
+#### Shows Array Fields
+- `studios`: bigint[] referencing `studio_list(id)`
+  - Many-to-many without join table
+  - Default: empty array
+  - GIN indexed for performance
+- `subgenres`: bigint[] referencing `genre_list(id)`
+  - Many-to-many without join table
+  - GIN indexed for performance
+
+#### Shows Unique Fields
+- `title`: text (unique, case-sensitive)
+- `search_title`: text (unique, lowercase)
+- `tmdb_id`: integer (unique, optional)
+
+### Child Table Relationships
+
+#### Show Team
+- Foreign Keys:
+  - `show_id` → `shows(id)` (required)
+  - `role_type_id` → `role_types(id)` (required)
+- Fields:
+  - `name`: text (original formatting preserved)
+  - Timestamps for creation and updates
+
+#### TMDB Success Metrics
+- Foreign Key:
+  - `tmdb_id` → `shows(tmdb_id)` (required)
+  - Note: Links via `tmdb_id` not `id` to match TMDB API
+- Episode Data:
+  - `seasons`: integer (total seasons)
+  - `episodes_per_season`: integer[] (per-season count)
+  - `total_episodes`: integer (total count)
+  - `average_episodes`: float (mean per season)
+- Status:
+  - `status`: text (e.g., 'Ended', 'Running')
+  - `last_air_date`: date
+
+### Support Tables
+
+#### Network List
+- Primary key: `id`
+- Unique network names with generated search version
+- Additional metadata:
+  - Type (e.g., Broadcast, Streaming)
+  - Parent company
+  - Aliases array
+
+#### Studio List
+- Primary key: `id`
+- Unique studio names with generated search version
+- Referenced by shows via `studios` array
+
+#### Genre List
+- Primary key: `id`
+- Unique genre names with generated search version
+- Used for both primary genres and subgenres
+
+#### Type Tables
+- Role Types: Defines creative team roles
+- Source Types: Show source material types
+- Order Types: Show order types (Limited, Ongoing, etc.)
+- Status Types: Show status values
+
+All support tables include:
+- Active status for soft deletes
+- Creation and update timestamps
