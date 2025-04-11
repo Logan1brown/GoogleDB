@@ -3,71 +3,87 @@ from datetime import date
 from typing import Dict, List, Any
 import streamlit as st
 from supabase import create_client, Client
+from dotenv import load_dotenv
 
 # Must be the first Streamlit command
 st.set_page_config(page_title="Data Entry App", layout="wide")
 
+# Load environment variables from project root
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+dotenv_path = os.path.join(project_root, '.env')
+load_dotenv(dotenv_path=dotenv_path)
+
 # Initialize Supabase client
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_SERVICE_KEY")
-
-if not url or not key:
-    st.error("""
-    ⚠️ Missing Supabase credentials
-    
-    Please ensure you have a .env file in the project root with:
-    SUPABASE_URL=your_url
-    SUPABASE_KEY=your_key
-    """)
-    st.stop()
-
+url = os.getenv('SUPABASE_URL')
+key = os.getenv('SUPABASE_SERVICE_KEY')
 supabase: Client = create_client(url, key)
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes
+# Initialize session state
+if 'lookups' not in st.session_state:
+    st.session_state.lookups = load_lookup_data()
+
+if 'show_data' not in st.session_state:
+    st.session_state.show_data = {
+        'title': '',
+        'network_id': None,
+        'genre_id': None,
+        'subgenre_id': None,
+        'source_type_id': None,
+        'order_type_id': None,
+        'episode_count': 0,
+        'date': date.today()
+    }
+
+@st.cache_data(ttl=3600)
 def load_lookup_data() -> Dict[str, List[Dict]]:
     """Load all lookup data from Supabase with caching"""
-    try:
-        lookups = {}
-        
-        # Load networks
-        response = supabase.table('network_list').select('id, network').execute()
-        lookups['networks'] = {n['id']: n['network'] for n in response.data}
-        
-        # Load genres
-        response = supabase.table('genre_list').select('id, genre').execute()
-        lookups['genres'] = {g['id']: g['genre'] for g in response.data}
-        
-        # Load subgenres
-        response = supabase.table('subgenre_list').select('id, subgenre').execute()
-        lookups['subgenres'] = {s['id']: s['subgenre'] for s in response.data}
-        
-        # Load source types
-        response = supabase.table('source_types').select('id, type').execute()
-        lookups['source_types'] = {s['id']: s['type'] for s in response.data}
-        
-        # Load order types
-        response = supabase.table('order_types').select('id, type').execute()
-        lookups['order_types'] = {o['id']: o['type'] for o in response.data}
-        
-        # Load studios
-        response = supabase.table('studio_list').select('id, studio').execute()
-        lookups['studios'] = {s['id']: s['studio'] for s in response.data}
-        
-        # Load roles
-        response = supabase.table('role_types').select('id, role').execute()
-        lookups['roles'] = {r['id']: r['role'] for r in response.data}
-        
-        return lookups
-    except Exception as e:
-        st.error(f"Error loading lookup data: {str(e)}")
-        return {
-            'networks': {},
-            'genres': {},
-            'subgenres': {},
-            'source_types': {},
-            'order_types': {},
-            'studios': {},
-            'roles': {}
+    lookups = {}
+    
+    # Load networks
+    response = supabase.table('network_list').select('id, network').execute()
+    lookups['networks'] = [{'id': n['id'], 'name': n['network']} for n in response.data]
+    
+    # Load studios
+    response = supabase.table('studio_list').select('id, studio, type').execute()
+    lookups['studios'] = [{'id': s['id'], 'name': s['studio'], 'type': s['type']} for s in response.data]
+    
+    # Load genres
+    response = supabase.table('genre_list').select('id, genre').execute()
+    lookups['genres'] = [{'id': g['id'], 'name': g['genre']} for g in response.data]
+    
+    # Load subgenres
+    response = supabase.table('subgenre_list').select('id, subgenre').execute()
+    lookups['subgenres'] = [{'id': s['id'], 'name': s['subgenre']} for s in response.data]
+    
+    # Load roles
+    response = supabase.table('role_types').select('id, role').execute()
+    lookups['roles'] = [{'id': r['id'], 'name': r['role']} for r in response.data]
+    
+    # Load source types
+    response = supabase.table('source_types').select('id, type').execute()
+    lookups['source_types'] = [{'id': s['id'], 'name': s['type']} for s in response.data]
+    
+    # Load order types
+    response = supabase.table('order_types').select('id, type').execute()
+    lookups['order_types'] = [{'id': o['id'], 'name': o['type']} for o in response.data]
+    
+    return lookups
+
+def init_session_state():
+    """Initialize session state with default values"""
+    if 'lookups' not in st.session_state:
+        st.session_state.lookups = load_lookup_data()
+    
+    if 'show_data' not in st.session_state:
+        st.session_state.show_data = {
+            'title': '',
+            'network_id': None,
+            'genre_id': None,
+            'subgenre_id': None,
+            'source_type_id': None,
+            'order_type_id': None,
+            'episode_count': 0,
+            'date': date.today()
         }
 
 def save_studios(studio_data: Dict) -> List[int]:
@@ -100,43 +116,43 @@ def save_team(show_id: int, team_data: List[Dict]) -> None:
                 'role_type_id': role_id
             }).execute()
 
-def save_show(form_data: Dict) -> bool:
+def save_show(show_data: Dict) -> bool:
     """Save show and related data"""
     try:
         # Process studios first
-        studio_ids = save_studios(form_data['studios'])
+        studio_ids = save_studios({
+            'studio_ids': show_data['studio_ids'],
+            'new_studios': show_data['new_studios']
+        })
         
-        # Format show data
-        show_data = {
-            'title': form_data['title'],
-            'network_id': form_data.get('network_id'),
-            'genre_id': form_data.get('genre_id'),
-            'subgenres': [form_data.get('subgenre_id')] if form_data.get('subgenre_id') else [],
-            'source_type_id': form_data.get('source_type_id'),
-            'order_type_id': form_data.get('order_type_id'),
-            'status_id': form_data.get('status_id'),
-            'episode_count': form_data.get('episode_count'),
-            'description': form_data.get('description'),
-            'studios': studio_ids,
-            'tmdb_id': form_data.get('tmdb_id'),
-            'date': form_data.get('announcement_date')
+        # Format show data for database
+        db_show_data = {
+            'title': show_data['title'],
+            'network_id': show_data['network_id'],
+            'genre_id': show_data['genre_id'],
+            'subgenres': [show_data['subgenre_id']] if show_data['subgenre_id'] else [],
+            'source_type_id': show_data['source_type_id'],
+            'order_type_id': show_data['order_type_id'],
+            'episode_runtime': show_data['episode_runtime'],
+            'start_date': show_data['start_date'],
+            'studios': studio_ids
         }
         
         # Validate required fields
-        if not show_data['network_id']:
+        if not db_show_data['network_id']:
             raise ValueError('Network is required')
         
         # Check if show exists
-        existing = supabase.table('shows').select('id, title').eq('title', show_data['title']).execute()
+        existing = supabase.table('shows').select('id, title').eq('title', db_show_data['title']).execute()
         if existing.data:
-            raise ValueError(f"A show with title '{show_data['title']}' already exists")
+            raise ValueError(f"A show with title '{db_show_data['title']}' already exists")
         
         # Save show
-        response = supabase.table('shows').insert(show_data).execute()
+        response = supabase.table('shows').insert(db_show_data).execute()
         if response.data:
             show_id = response.data[0]['id']
-            save_team(show_id, form_data['team']['members'])
-            st.success(f"✅ Successfully added: {show_data['title']}")
+            save_team(show_id, show_data['team_members'])
+            st.success(f"✅ Successfully added: {db_show_data['title']}")
             return True
         else:
             st.error("⚠️ Show not saved - Database error")
@@ -179,7 +195,7 @@ def init_session_state():
             'source_type_id': None,
             'order_type_id': None,
             'episode_runtime': 0,
-            'start_date': None,
+            'start_date': date.today(),
             'studio_ids': [],
             'new_studios': [],
             'team_members': []

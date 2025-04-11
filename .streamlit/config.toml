@@ -11,6 +11,6 @@ backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F5F5FA"
 
 [client]
-showSidebarNavigation = false
+showSidebarNavigation = true
 textColor = "#1A1A1A"
 font = "Source Sans Pro"

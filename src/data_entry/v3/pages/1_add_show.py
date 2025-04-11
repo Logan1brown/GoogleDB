@@ -8,6 +8,9 @@ from datetime import date
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 
+# Import messaging system
+from utils.messages import UserMessage, MessageType, MessageCategory
+
 # Import menu and data functions
 from data_entry_menu import menu
 from data_entry_app_v3 import (
@@ -16,7 +19,9 @@ from data_entry_app_v3 import (
     supabase
 )
 
-# Initialize session state
+# Initialize session state (this will also load lookups)
+if 'lookups' not in st.session_state:
+    st.session_state.lookups = {}
 if 'show_data' not in st.session_state:
     st.session_state.show_data = {
         'title': '',
@@ -25,21 +30,23 @@ if 'show_data' not in st.session_state:
         'subgenre_id': None,
         'source_type_id': None,
         'order_type_id': None,
-        'episode_runtime': 0,
-        'start_date': date.today(),
+        'episode_count': 0,
+        'date': date.today(),
         'studio_ids': [],
         'new_studios': [],
         'team_members': []
     }
-
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = 0
-
 if 'num_new_studios' not in st.session_state:
     st.session_state.num_new_studios = 0
-
 if 'num_team_members' not in st.session_state:
     st.session_state.num_team_members = 0
+
+# Debug: Show what's in lookups
+st.write("Lookups loaded:")
+for key, value in st.session_state.lookups.items():
+    st.write(f"{key}: {len(value)} items")
 
 # Show menu
 menu()
@@ -81,19 +88,20 @@ def format_lookup(key: str):
         return st.session_state.lookups[key].get(x, str(x))
     return _format
 
-def on_show_submit():
-    """Save show details"""
-    st.session_state.show_data.update({
-        'title': st.session_state.title,
-        'network_id': st.session_state.network_id,
-        'genre_id': st.session_state.genre_id,
-        'subgenre_id': st.session_state.subgenre_id,
-        'source_type_id': st.session_state.source_type_id,
-        'order_type_id': st.session_state.order_type_id,
-        'episode_runtime': st.session_state.episode_runtime,
-        'start_date': st.session_state.start_date
-    })
-    st.session_state.active_tab = TAB_STUDIOS
+def validate_show_details() -> bool:
+    """Validate show details form data.
+    Returns:
+        bool: True if validation passes, False otherwise
+    """
+    # Validate genre and subgenre are different
+    if st.session_state.genre == st.session_state.subgenre and st.session_state.genre is not None:
+        UserMessage.show(
+            "Genre and Subgenre must be different",
+            MessageType.ERROR,
+            MessageCategory.VALIDATION
+        )
+        return False
+    return True
 
 def on_studios_submit():
     """Save studio selections"""
@@ -109,11 +117,11 @@ def on_team_submit():
     """Save team members"""
     st.session_state.show_data['team_members'] = [
         {
-            'name': st.session_state[f'member_name_{i}'],
-            'role_ids': st.session_state[f'member_roles_{i}']
+            'name': st.session_state[f'team_member_{i}_name'],
+            'role_ids': st.session_state[f'team_member_{i}_roles']
         }
         for i in range(st.session_state.num_team_members)
-        if st.session_state.get(f'member_name_{i}') and st.session_state.get(f'member_roles_{i}')
+        if st.session_state.get(f'team_member_{i}_name') and st.session_state.get(f'team_member_{i}_roles')
     ]
     st.session_state.active_tab = TAB_REVIEW
 
@@ -122,83 +130,102 @@ tabs = st.tabs(["Show Details", "Studios", "Team Members", "Review"])
 
 # Show Details Tab
 with tabs[TAB_DETAILS]:
-    st.subheader("Add Show Details")
+    st.subheader("Add New Show")
     
-    with st.form("show_details_form"):
+    show_form = st.form("show_details_form")
+    with show_form:
         # Title
-        st.text_input(
+        show_form.text_input(
             "Title",
             key="title",
             value=st.session_state.show_data['title']
         )
         
-        # Network
-        st.selectbox(
-            "Network",
-            key="network",
-            options=list(st.session_state.lookups['networks'].keys()),
-            format_func=format_lookup('networks'),
-            index=None if st.session_state.show_data['network_id'] is None else 
-                list(st.session_state.lookups['networks'].keys()).index(st.session_state.show_data['network_id'])
-        )
+        # Date and Episode Count
+        col1, col2 = show_form.columns(2)
         
-        # Genre
-        st.selectbox(
-            "Genre",
-            key="genre",
-            options=list(st.session_state.lookups['genres'].keys()),
-            format_func=format_lookup('genres'),
-            index=None if st.session_state.show_data['genre_id'] is None else 
-                list(st.session_state.lookups['genres'].keys()).index(st.session_state.show_data['genre_id'])
-        )
+        with col1:
+            show_form.date_input(
+                "Announcement Date",
+                key="date",
+                value=st.session_state.show_data['date']
+            )
         
-        # Subgenre
-        st.selectbox(
-            "Subgenre",
-            key="subgenre",
-            options=list(st.session_state.lookups['subgenres'].keys()),
-            format_func=format_lookup('subgenres'),
-            index=None if st.session_state.show_data['subgenre_id'] is None else 
-                list(st.session_state.lookups['subgenres'].keys()).index(st.session_state.show_data['subgenre_id'])
-        )
+        with col2:
+            show_form.number_input(
+                "Episode Count",
+                key="episode_count",
+                min_value=0,
+                value=st.session_state.show_data['episode_count']
+            )
         
-        # Source Type
-        st.selectbox(
-            "Source Type",
-            key="source_type",
-            options=list(st.session_state.lookups['source_types'].keys()),
-            format_func=format_lookup('source_types'),
-            index=None if st.session_state.show_data['source_type_id'] is None else 
-                list(st.session_state.lookups['source_types'].keys()).index(st.session_state.show_data['source_type_id'])
-        )
+        # Network, Genre, and Order Type
+        col1, col2 = show_form.columns(2)
         
-        # Order Type
-        st.selectbox(
-            "Order Type",
-            key="order_type",
-            options=list(st.session_state.lookups['order_types'].keys()),
-            format_func=format_lookup('order_types'),
-            index=None if st.session_state.show_data['order_type_id'] is None else 
-                list(st.session_state.lookups['order_types'].keys()).index(st.session_state.show_data['order_type_id'])
-        )
+        with col1:
+            # Network
+            network_options = [{'id': None, 'name': 'Select a network'}]
+            network_options.extend(st.session_state.lookups.get('networks', []))
+            show_form.selectbox(
+                "Network",
+                key="network_id",
+                options=network_options,
+                format_func=lambda x: x['name'],
+                index=0
+            )
+            
+            # Genre
+            genre_options = [{'id': None, 'name': 'Select a genre'}]
+            genre_options.extend(st.session_state.lookups.get('genres', []))
+            show_form.selectbox(
+                "Genre",
+                key="genre_id",
+                options=genre_options,
+                format_func=lambda x: x['name'],
+                index=0
+            )
+            
+            # Subgenre
+            subgenre_options = [{'id': None, 'name': 'Select a subgenre'}]
+            subgenre_options.extend(st.session_state.lookups.get('subgenres', []))
+            show_form.selectbox(
+                "Subgenre",
+                key="subgenre_id",
+                options=subgenre_options,
+                format_func=lambda x: x['name'],
+                index=0
+            )
         
-        # Episode Runtime
-        st.number_input(
-            "Episode Runtime (minutes)",
-            key="episode_runtime",
-            min_value=0,
-            value=st.session_state.show_data['episode_runtime']
-        )
-        
-        # Start Date
-        st.date_input(
-            "Start Date",
-            key="start_date",
-            value=st.session_state.show_data['start_date']
-        )
+        with col2:
+            # Source Type
+            source_type_options = [{'id': None, 'name': 'Select a source type'}]
+            source_type_options.extend(st.session_state.lookups.get('source_types', []))
+            show_form.selectbox(
+                "Source Type",
+                key="source_type_id",
+                options=source_type_options,
+                format_func=lambda x: x['name'],
+                index=0
+            )
+            
+            # Order Type
+            order_type_options = [{'id': None, 'name': 'Select an order type'}]
+            order_type_options.extend(st.session_state.lookups.get('order_types', []))
+            show_form.selectbox(
+                "Order Type",
+                key="order_type_id",
+                options=order_type_options,
+                format_func=lambda x: x['name'],
+                index=0
+            )
         
         # Submit button
-        if st.form_submit_button("Continue to Studios", type="primary"):
+        submitted = show_form.form_submit_button("Continue to Studios")
+        
+        if submitted:
+            if not validate_show_details():
+                st.stop()
+            
             # Update show data
             st.session_state.show_data.update({
                 'title': st.session_state.title,
@@ -207,8 +234,8 @@ with tabs[TAB_DETAILS]:
                 'subgenre_id': st.session_state.subgenre,
                 'source_type_id': st.session_state.source_type,
                 'order_type_id': st.session_state.order_type,
-                'episode_runtime': st.session_state.episode_runtime,
-                'start_date': st.session_state.start_date
+                'episode_count': st.session_state.episode_count,
+                'date': st.session_state.date
             })
             st.rerun()
 
@@ -303,8 +330,9 @@ with tabs[TAB_REVIEW]:
     with col2:
         st.write("**Source Type:**", format_lookup('source_types')(st.session_state.show_data['source_type_id']))
         st.write("**Order Type:**", format_lookup('order_types')(st.session_state.show_data['order_type_id']))
-        st.write("**Episode Runtime:**", f"{st.session_state.show_data['episode_runtime']} minutes")
-        st.write("**Start Date:**", st.session_state.show_data['start_date'].strftime('%Y-%m-%d'))
+        st.write("**Episode Count:**", st.session_state.show_data.get('episode_count', 0))
+        announce_date = st.session_state.show_data.get('date')
+        st.write("**Announcement Date:**", announce_date.strftime('%Y-%m-%d') if announce_date else "*Not set*")
     
     # Studios
     st.markdown("### 🎬 Studios")
