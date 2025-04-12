@@ -10,7 +10,8 @@ pg = st.navigation([
     st.Page("pages/overview.py", title="Overview"),
     st.Page("pages/1_market_snapshot.py", title="Market Snapshot"),
     st.Page("pages/2_content_analysis.py", title="Content Analysis"),
-    st.Page("pages/3_studio_performance.py", title="Studio Performance")
+    st.Page("pages/3_studio_performance.py", title="Studio Performance"),
+    st.Page("pages/6_data_entry.py", title="Data Entry")
 ])
 
 # Run the selected page
