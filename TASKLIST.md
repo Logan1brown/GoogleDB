@@ -148,6 +148,13 @@
 
 ### Backlog
 
+### Database Improvements
+- Add soft delete support for show_team table
+  - Add `active` column (boolean, default true)
+  - Update queries to filter by active=true
+  - Update UI to only show active roles
+  - Add audit trail for role changes
+
 ### Database Optimization
 - [ ] Implement automated materialized view refresh strategy
   - [ ] Evaluate pg_cron vs external scheduler

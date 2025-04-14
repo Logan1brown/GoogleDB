@@ -265,3 +265,149 @@ This query checks:
 3. Array fields (studios, subgenres)
 4. Team members and their roles
 5. TMDB data and metrics
+
+# 6. Streamlit Form Best Practices
+
+## 6.1 Form State Management
+
+### Landing Page Pattern
+For multi-step forms, use a landing page pattern to properly initialize state:
+```python
+if not st.session_state.get('show_form_loaded', False):
+    with st.form('landing_form'):
+        st.markdown('Click Start to begin adding a show')
+        st.form_submit_button('Start', on_click=handle_start)
+else:
+    show_form = st.form('show_details_form')
+    # Form fields here...
+```
+
+### Form Initialization
+Handle form initialization in a callback to ensure clean state:
+```python
+def handle_start():
+    st.session_state.show_form_loaded = True
+    # Clear any existing form values
+    for key in ['show_network', 'show_genre', 'show_title']:
+        if key in st.session_state:
+            del st.session_state[key]
+```
+
+## 6.2 Dropdown Best Practices
+
+### Default State
+To show proper placeholders in selectboxes:
+```python
+st.selectbox(
+    'Network',
+    options=network_options,
+    format_func=lambda x: x['name'],
+    key='show_network',
+    index=None  # This shows 'Choose an option' placeholder
+)
+```
+
+### Form Submission
+Use callbacks for form submission to ensure proper state updates:
+```python
+def handle_save():
+    if errors:
+        show_form.error('\n'.join(errors))
+    else:
+        # Update state
+        state['form']['show_form']['title'] = st.session_state.show_title
+        # Show success message INSIDE the form
+        show_form.success('Show details saved!')
+
+# In the form
+show_form.form_submit_button('Save', on_click=handle_save)
+```
+
+## 6.3 Common Pitfalls
+
+1. **Form Messages**: Always show messages (success/error) inside the form context:
+   ```python
+   # ❌ Don't do this:
+   st.success('Saved!')  # Shows at top of page
+   
+   # ✅ Do this:
+   show_form.success('Saved!')  # Shows in form
+   ```
+
+2. **State Updates**: Don't check button values directly, use callbacks:
+   ```python
+   # ❌ Don't do this:
+   if show_form.form_submit_button('Save'):
+       update_state()
+   
+   # ✅ Do this:
+   show_form.form_submit_button('Save', on_click=handle_save)
+   ```
+
+3. **Form Reset**: Don't use `st.rerun()` in callbacks:
+   ```python
+   # ❌ Don't do this:
+   def handle_save():
+       update_state()
+       st.rerun()  # Streamlit handles this automatically
+   
+   # ✅ Do this:
+   def handle_save():
+       update_state()  # Streamlit will rerun after callback
+   ```
+
+4. **Message Timing**: Don't use `time.sleep()` for messages:
+   ```python
+   # ❌ Don't do this:
+   show_form.success('Saved!')
+   time.sleep(1.5)  # Blocks unnecessarily
+   
+   # ✅ Do this:
+   show_form.success('Saved!')  # Streamlit handles timing
+   ```
+
+## 6.4 Form Components
+
+### Allowed Inside Forms
+```python
+# ✅ These work in forms:
+show_form.text_input('Title')
+show_form.selectbox('Network', options)
+show_form.number_input('Episodes')
+show_form.text_area('Description')
+show_form.date_input('Date')
+show_form.radio('Type', options)
+show_form.checkbox('Active')
+show_form.form_submit_button('Save')
+show_form.success('Saved!')  # Form messages
+```
+
+### Not Allowed Inside Forms
+```python
+# ❌ These don't work in forms:
+st.button('Click')  # Use form_submit_button instead
+st.download_button('Download')  # Must be outside form
+st.file_uploader('Upload')  # Must be outside form
+st.multiselect('Select')  # Must be outside form
+st.tabs(['Tab1'])  # Must be outside form
+st.expander('More')  # Must be outside form
+```
+
+### Form Layout Best Practices
+```python
+# ✅ Do this: Put form-specific inputs in the form
+with st.form('show_form'):
+    show_form.text_input('Title')
+    show_form.selectbox('Network', options)
+    show_form.form_submit_button('Save')
+
+# ✅ Do this: Put shared/persistent elements outside
+st.multiselect('Team Members', options)  # Used across forms
+st.file_uploader('Attachments')  # Files persist across submissions
+
+# ❌ Don't do this: Mix form/non-form elements
+with st.form('bad_form'):
+    show_form.text_input('Title')
+    st.multiselect('Team')  # Won't submit with form!
+    show_form.form_submit_button('Save')
+```

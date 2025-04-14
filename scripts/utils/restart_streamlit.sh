@@ -37,4 +37,4 @@ while lsof -i :$PORT > /dev/null 2>&1; do
 done
 
 echo "Starting Streamlit..."
-source venv/bin/activate && streamlit run "$1" --server.port $PORT
+source venv/bin/activate && PYTHONPATH=$PYTHONPATH:$(pwd)/src streamlit run "$1" --server.port $PORT

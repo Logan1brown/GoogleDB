@@ -9,6 +9,11 @@ src/__init__.py
 src/dashboard/__init__.py
 src/dashboard/app.py
 src/dashboard/preview_market_snapshot.py
+src/dashboard/services/__init__.py
+src/dashboard/services/data_entry.py
+src/dashboard/state/__init__.py
+src/dashboard/state/data_entry.py
+src/dashboard/state/session.py
 src/dashboard/templates/__init__.py
 src/dashboard/templates/base.py
 src/dashboard/templates/defaults/__init__.py

@@ -28,6 +28,12 @@
   - Between sections: 30px
   - Between elements: 20px
 
+### Text Styling
+- **Professional Tone**: Use clear, concise language
+- **No Emojis**: Do not use emojis in UI elements (buttons, headers, etc.) to maintain a professional appearance
+- **Sentence Case**: Use sentence case for buttons and headers (e.g., "Add new show" not "Add New Show")
+- **Punctuation**: Avoid exclamation marks in UI text unless absolutely necessary
+
 ### Charts & Visualizations
 1. **General Rules**:
    - Full width (use_container_width=True)

@@ -5,14 +5,27 @@ Main application file for the Streamlit dashboard.
 
 import streamlit as st
 
-# Define pages with custom titles
-pg = st.navigation([
-    st.Page("pages/overview.py", title="Overview"),
-    st.Page("pages/1_market_snapshot.py", title="Market Snapshot"),
-    st.Page("pages/2_content_analysis.py", title="Content Analysis"),
-    st.Page("pages/3_studio_performance.py", title="Studio Performance"),
-    st.Page("pages/6_data_entry.py", title="Data Entry")
-])
+# Configure the app
+st.set_page_config(
+    page_title="TV Series Database",
+    page_icon="📺",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Run the selected page
-pg.run()
+# Main page content
+st.title("📺 TV Series Database")
+st.sidebar.success("Select a page from the menu above.")
+
+# Overview content
+st.markdown("""
+### Welcome to the TV Series Database Dashboard
+
+This dashboard provides tools for:
+- 📊 Market analysis and insights
+- 📈 Content performance tracking
+- 🏢 Studio performance metrics
+- ✨ Data entry and management
+
+Select a page from the menu to get started.
+""")

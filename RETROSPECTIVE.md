@@ -39,6 +39,12 @@
 3. Keep code history clean and meaningful
 4. Document both what code does AND why it does it that way
 
+3. Naming Pattern Issues
+   - Using identical names for different components (e.g., multiple forms named "load_form")
+   - Leading to runtime errors and confusion
+   - Making code harder to debug and maintain
+   - Need for more descriptive and unique names
+
 ## Critical Incidents and Lessons
 
 ### Directory Management Incident (2025-03)
