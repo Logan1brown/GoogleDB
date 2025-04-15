@@ -54,7 +54,8 @@ from src.dashboard.services.show_service import (
     load_lookup_data,
     search_shows,
     load_show,
-    save_show
+    save_show,
+    remove_show
 )
 
 def render_section_header(title: str):
@@ -140,9 +141,8 @@ def render_landing_page(state: DataEntryState):
                     # Reset state before loading new show
                     state.form_started = True
                     state.operation = "Remove Show"  # Ensure operation is set correctly
-                    state.read_only = True
-                    state.show_form = ShowFormState()  # Reset form
-                    state.show_form = ShowFormState(**show_data)  # Load new data
+                    state.read_only = True  # Make sure form is read-only
+                    state.show_form = ShowFormState(**show_data)  # Load show data
                     update_data_entry_state(state)
                     st.rerun()  # Need this to show the form
             except Exception as e:
@@ -655,48 +655,62 @@ def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False)
 
 def handle_submit(show_form: ShowFormState):
     """Handle final form submission"""
-    try:
-        # Validate form
-        state = get_data_entry_state()
+    state = get_data_entry_state()
+    
+    # Only validate form for add/edit operations
+    if state.operation != "Remove Show":
         if not validate_show_details(show_form, state.lookups):
             return
-            
-        # Convert ShowFormState to dict for saving
-        show_data = {
-            'id': show_form.id,  # Important for edit operations
-            'title': show_form.title,
-            'description': show_form.description,
-            'network_id': show_form.network_id,
-            'genre_id': show_form.genre_id,
-            'subgenres': show_form.subgenres,
-            'source_type_id': show_form.source_type_id,
-            'order_type_id': show_form.order_type_id,
-            'status_id': show_form.status_id,
-            'date': show_form.date.isoformat() if show_form.date else None,
-            'episode_count': show_form.episode_count,
-            'studios': show_form.studios,
-            'new_studios': show_form.new_studios,
-            'team_members': show_form.team_members
-        }
-            
-        # Save show data
-        state = get_data_entry_state()
-        save_show(show_data, operation=state.operation)
         
-        # Set success message and reset form
-        state.success_message = f"Show '{show_form.title}' saved successfully!"
+    # Convert ShowFormState to dict for saving
+    show_data = {
+        'id': show_form.id,  # Important for edit operations
+        'title': show_form.title,
+        'description': show_form.description,
+        'network_id': show_form.network_id,
+        'genre_id': show_form.genre_id,
+        'subgenres': show_form.subgenres,
+        'source_type_id': show_form.source_type_id,
+        'order_type_id': show_form.order_type_id,
+        'status_id': show_form.status_id,
+        'date': show_form.date.isoformat() if show_form.date else None,
+        'episode_count': show_form.episode_count,
+        'studios': show_form.studios,
+        'new_studios': show_form.new_studios,
+        'team_members': show_form.team_members
+    }
+        
+    # Handle show data
+    state = get_data_entry_state()
+    if state.operation == "Remove Show":
+        # Clear search box before removing show
+        if 'remove_show_search' in st.session_state:
+            del st.session_state['remove_show_search']
+            
+        newly_removed = remove_show(show_form.id)
+        # This is a success case - the show is now inactive (either newly or already)
+        state.success_message = f"Show '{show_form.title}' {'marked as inactive' if newly_removed else 'was already inactive'}"
         state.form_started = False
         state.show_form = ShowFormState()
-        
-        # Clear search box based on operation
-        search_key = 'add_show_search' if state.operation == 'Add Show' else 'edit_show_search'
-        if search_key in st.session_state:
-            del st.session_state[search_key]
-        
         update_data_entry_state(state)
-        
-    except Exception as e:
-        st.error(f"Error saving show: {str(e)}")
+            
+    else:
+        try:
+            save_show(show_data, operation=state.operation)
+            state.success_message = f"Show '{show_form.title}' saved successfully!"
+            state.form_started = False
+            state.show_form = ShowFormState()
+            
+            # Clear search box based on operation
+            search_key = 'add_show_search' if state.operation == 'Add Show' else 'edit_show_search'
+            if search_key in st.session_state:
+                del st.session_state[search_key]
+                
+            update_data_entry_state(state)
+            
+        except Exception as e:
+            st.error(f"Error saving show: {str(e)}")
+            return
 
 def render_review(show_form: ShowFormState, lookups: Dict, readonly: bool = False):
     """Render review tab"""
@@ -790,20 +804,30 @@ def validate_show_details(show_form: ShowFormState, lookups: Dict) -> bool:
 if not state.form_started:
     render_landing_page(state)
 else:
-    # Form tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Show Details", "Studios", "Team Members", "Review"])
-    
-    with tab1:
-        render_show_details(state.show_form, state.lookups, state.read_only)
-    
-    with tab2:
-        render_studios(state.show_form, state.lookups, state.read_only)
-    
-    with tab3:
-        render_team(state.show_form, state.lookups, state.read_only)
-    
-    with tab4:
+    if state.operation == "Remove Show":
+        # For remove operations, only show review and confirmation
+        st.warning("Please review the show details below and confirm removal. This will hide the show from the active shows list.")
         render_review(state.show_form, state.lookups, state.read_only)
+        
+        # Show remove button
+        st.divider()
+        if st.button("Remove Show (Click Twice)", type="primary", use_container_width=True):
+            handle_submit(state.show_form)
+    else:
+        # Form tabs for add/edit
+        tab1, tab2, tab3, tab4 = st.tabs(["Show Details", "Studios", "Team Members", "Review"])
+        
+        with tab1:
+            render_show_details(state.show_form, state.lookups, state.read_only)
+        
+        with tab2:
+            render_studios(state.show_form, state.lookups, state.read_only)
+        
+        with tab3:
+            render_team(state.show_form, state.lookups, state.read_only)
+        
+        with tab4:
+            render_review(state.show_form, state.lookups, state.read_only)
         
         # Only show submit button in review tab
         if not state.read_only:

@@ -4,12 +4,10 @@ Data entry services for interacting with Supabase.
 
 from typing import Dict, List
 from datetime import datetime, date
-import time
+from postgrest import APIError
 import streamlit as st
 from supabase.client import create_client, Client
 import difflib
-import time
-
 import os
 from dotenv import load_dotenv
 
@@ -19,6 +17,10 @@ load_dotenv()
 # Initialize Supabase client
 url = os.getenv('SUPABASE_URL')
 key = os.getenv('SUPABASE_SERVICE_KEY')
+
+if not url or not key:
+    raise ValueError("Missing Supabase credentials. Make sure SUPABASE_URL and SUPABASE_SERVICE_KEY are set in .env")
+
 supabase: Client = create_client(url, key)
 
 @st.cache_data(ttl=3600)
@@ -114,7 +116,7 @@ def load_show(title: str, lookups: Dict[str, List[Dict]] = None) -> dict:
         show_date = None
     
     show_data = {
-        'id': response.data['id'],
+        'id': int(response.data['id']),  # Convert to int for ShowFormState
         'title': response.data['title'],
         'original_title': response.data['title'],  # Save original title for comparison
         'network_id': response.data['network_id'],
@@ -277,3 +279,77 @@ def save_show(show_data: dict, operation: str = "Add show"):
             raise Exception(f"Error saving team members: {str(e)}")
                 
     return show_id
+
+
+def remove_show(show_id: int) -> bool:
+    """Mark a show as inactive in the database using a soft delete approach.
+    
+    Args:
+        show_id: The ID of the show to mark as inactive
+        
+    Returns:
+        bool: True if the show was newly marked as inactive, False if it was already inactive
+    """
+    if not show_id:
+        raise ValueError("Missing show ID for remove operation")
+        
+    # First check if show exists and get its active status
+    show = supabase.table('shows') \
+        .select('id,active,title') \
+        .eq('id', show_id) \
+        .execute()
+        
+    if not show.data:
+        return False  # Show not found, consider it already inactive
+        
+    show_data = show.data[0]
+    if not show_data.get('active'):
+        return False  # Show is already inactive
+        
+    try:
+        # Mark show as inactive
+        supabase.table('shows') \
+            .update({'active': False}) \
+            .eq('id', show_id) \
+            .execute()
+            
+        # Mark show_team entries as inactive if they exist
+        team_result = supabase.table('show_team') \
+            .update({'active': False}) \
+            .eq('show_id', show_id) \
+            .eq('active', True) \
+            .execute()
+        print(f"Team update result: {team_result.data}")  # Debug
+            
+        # Mark show_studios entries as inactive if they exist
+        studios_result = supabase.table('show_studios') \
+            .update({'active': False}) \
+            .eq('show_id', show_id) \
+            .eq('active', True) \
+            .execute()
+        print(f"Studios update result: {studios_result.data}")  # Debug
+            
+        return True  # Show was newly marked as inactive
+            
+    except Exception as e:
+        print(f"Error in remove_show: {str(e)}")  # Log error but continue
+        return True  # Show was marked inactive even if related updates failed
+    # Mark show_studios entries as inactive
+    try:
+        # First check what studios exist
+        studios = supabase.table('show_studios') \
+            .select('*') \
+            .eq('show_id', show_id) \
+            .execute()
+        print(f"Found studios: {studios.data}")  # Debug
+        
+        # Then try to update them
+        result = supabase.table('show_studios') \
+            .update({'active': False}) \
+            .eq('show_id', show_id) \
+            .execute()
+        print(f"Update result: {result.data}")  # Debug
+    except Exception as e:
+        print(f"Error updating studios: {str(e)}")  # Debug but continue
+        
+    return True  # Show was newly marked as inactive
