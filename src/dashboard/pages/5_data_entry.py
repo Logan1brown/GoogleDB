@@ -106,14 +106,20 @@ def render_landing_page(state: DataEntryState):
         
         if selected_show:
             # Load show data
-            show_data = load_show(selected_show)
-            if show_data:
-                state.form_started = True
-                state.show_form = ShowFormState(**show_data)
-                update_data_entry_state(state)
-                st.rerun()
-            else:
-                st.error("Show not found")
+            try:
+                st.info(f"⏳ Loading show '{selected_show}'... Please wait.")
+                show_data = load_show(selected_show)
+                if show_data:
+                    # Reset state before loading new show
+                    state.form_started = True
+                    state.operation = "Edit Show"  # Ensure operation is set correctly
+                    state.read_only = False  # Make sure form is editable
+                    state.show_form = ShowFormState()  # Reset form
+                    state.show_form = ShowFormState(**show_data)  # Load new data
+                    update_data_entry_state(state)
+                    st.rerun()  # Need this to show the form
+            except Exception as e:
+                st.error(f"Error loading show: {str(e)}")
                 
     else:  # Remove Show
         render_section_header("Remove Show")
@@ -127,15 +133,20 @@ def render_landing_page(state: DataEntryState):
         
         if selected_show:
             # Load show data in read-only mode
-            show_data = load_show(selected_show)
-            if show_data:
-                state.form_started = True
-                state.read_only = True
-                state.show_form = ShowFormState(**show_data)
-                update_data_entry_state(state)
-                st.rerun()
-            else:
-                st.error("Show not found")
+            try:
+                st.info(f"⏳ Loading show '{selected_show}'... Please wait.")
+                show_data = load_show(selected_show)
+                if show_data:
+                    # Reset state before loading new show
+                    state.form_started = True
+                    state.operation = "Remove Show"  # Ensure operation is set correctly
+                    state.read_only = True
+                    state.show_form = ShowFormState()  # Reset form
+                    state.show_form = ShowFormState(**show_data)  # Load new data
+                    update_data_entry_state(state)
+                    st.rerun()  # Need this to show the form
+            except Exception as e:
+                st.error(f"Error loading show: {str(e)}")
 
 def get_data_entry_state() -> DataEntryState:
     """Get the data entry state from session state"""
@@ -444,10 +455,14 @@ def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = Fal
     
     # Select existing studios
     studio_options = [(s['id'], s['name']) for s in lookups.get('studios', [])]
+    # Convert studio IDs to tuples for the multiselect
+    default_studios = [(s['id'], s['name']) for s in lookups.get('studios', []) if s['id'] in show_form.studios]
+    
     selected = st.multiselect(
         "Select Existing Studios",
         options=studio_options,
         format_func=lambda x: x[1],
+        default=default_studios,
         key="studios_dropdown",
         disabled=readonly,
         on_change=lambda: handle_studio_select(st.session_state.studios_dropdown)
@@ -648,6 +663,7 @@ def handle_submit(show_form: ShowFormState):
             
         # Convert ShowFormState to dict for saving
         show_data = {
+            'id': show_form.id,  # Important for edit operations
             'title': show_form.title,
             'description': show_form.description,
             'network_id': show_form.network_id,
@@ -672,9 +688,10 @@ def handle_submit(show_form: ShowFormState):
         state.form_started = False
         state.show_form = ShowFormState()
         
-        # Clear search box
-        if 'add_show_search' in st.session_state:
-            del st.session_state.add_show_search
+        # Clear search box based on operation
+        search_key = 'add_show_search' if state.operation == 'Add Show' else 'edit_show_search'
+        if search_key in st.session_state:
+            del st.session_state[search_key]
         
         update_data_entry_state(state)
         
@@ -760,14 +777,8 @@ def validate_show_details(show_form: ShowFormState, lookups: Dict) -> bool:
         
     # Check if any subgenre matches the genre
     if show_form.genre_id and show_form.subgenres:
-        st.write("Debug - Genre ID:", show_form.genre_id)
-        st.write("Debug - Subgenres:", show_form.subgenres)
-        
         genre_name = next((g['name'] for g in lookups.get('genres', []) if g['id'] == show_form.genre_id), None)
         subgenre_names = [s['name'] for s in lookups.get('subgenres', []) if s['id'] in show_form.subgenres]
-        
-        st.write("Debug - Genre name:", genre_name)
-        st.write("Debug - Subgenre names:", subgenre_names)
         
         if genre_name in subgenre_names:
             st.error(f"Subgenre cannot be the same as the genre ('{genre_name}')")
@@ -798,9 +809,9 @@ else:
         if not state.read_only:
             st.divider()
             submit_label = {
-                "Add Show": "Add Show",
-                "Edit Show": "Update Show",
-                "Remove Show": "Remove Show"
+                "Add Show": "Add Show (Click Twice)",
+                "Edit Show": "Update Show (Click Twice)",
+                "Remove Show": "Remove Show (Click Twice)"
             }.get(state.operation, 'Submit')
             
             if st.button(submit_label, type="primary", use_container_width=True):

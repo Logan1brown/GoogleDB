@@ -3,7 +3,8 @@ Data entry services for interacting with Supabase.
 """
 
 from typing import Dict, List
-from datetime import datetime
+from datetime import datetime, date
+import time
 import streamlit as st
 from supabase.client import create_client, Client
 import difflib
@@ -79,7 +80,7 @@ def load_show(title: str, lookups: Dict[str, List[Dict]] = None) -> dict:
     # Get lookups if not provided
     if lookups is None:
         lookups = load_lookup_data()
-    """Load show data for editing"""
+    
     # Get show details
     response = supabase.table('shows') \
         .select('*') \
@@ -92,31 +93,37 @@ def load_show(title: str, lookups: Dict[str, List[Dict]] = None) -> dict:
         raise ValueError(f"Show not found: {title}")
     
     # Get team members
-    print("Loading team members for show ID:", response.data['id'])
     team_response = supabase.table('show_team') \
         .select('*') \
         .eq('show_id', response.data['id']) \
         .execute()
-    print("Team member response:", team_response.data)
     
-    # Load team members
-    team_response = supabase.table('show_team').select('*').eq('show_id', response.data['id']).execute()
     team_members = [{
         'name': member['name'],
         'role_type_id': member['role_type_id']
     } for member in team_response.data]
-    print("Loaded team members:", team_members)
+    
+    # Parse date string into date object if present
+    date_str = response.data.get('date')
+    if date_str:
+        try:
+            show_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            show_date = None
+    else:
+        show_date = None
     
     show_data = {
         'id': response.data['id'],
         'title': response.data['title'],
+        'original_title': response.data['title'],  # Save original title for comparison
         'network_id': response.data['network_id'],
         'genre_id': response.data['genre_id'],
         'subgenres': response.data.get('subgenres', []) if response.data.get('subgenres') else [],
         'source_type_id': response.data.get('source_type_id'),
         'order_type_id': response.data.get('order_type_id'),
         'status_id': response.data.get('status_id'),
-        'date': response.data.get('date'),
+        'date': show_date,
         'episode_count': response.data.get('episode_count', 0),
         'description': response.data.get('description', ''),
         'studios': response.data.get('studios', []) if response.data.get('studios') else [],
@@ -128,159 +135,136 @@ def load_show(title: str, lookups: Dict[str, List[Dict]] = None) -> dict:
 
 def save_show(show_data: dict, operation: str = "Add show"):
     """Save show data to database and handle form reset."""
-    print("\n" + "="*80)
-    print("DEBUG: save_show() called")
-    print("="*80)
-    print("\nOperation:", operation)
-    print("Show data keys:", list(show_data.keys()))
-    print("\nTeam data:")
-    print(show_data.get('team_members'))
-
     # Validate required fields
     required_fields = ['title', 'network_id']
-    for field in required_fields:
-        if not show_data.get(field):
-            raise ValueError(f"Missing required field: {field}")
+    if not all(show_data.get(field) for field in required_fields):
+        raise ValueError(f"Missing required fields: {', '.join(required_fields)}")
     
-    print("\n" + "="*80)
-    print("DEBUG: Studio Save")
-    print("="*80)
+    # First handle the show data
+    if operation == "Edit Show":
+        if not show_data.get('id'):
+            raise ValueError("Missing show ID for edit operation")
+            
+        show_id = show_data['id']  # Set show_id before the try block
+            
+        # Get existing show to verify it exists
+        try:
+            existing = supabase.table('shows') \
+                .select('id,title,active') \
+                .eq('id', show_id) \
+                .eq('active', True) \
+                .execute()
+                
+            if not existing.data:
+                raise ValueError(f"Show with ID {show_id} not found")
+                
+            if len(existing.data) > 1:
+                raise ValueError(f"Multiple shows found with ID {show_id}")
+                
+        except Exception as e:
+            raise
     
-    # Handle existing studio IDs
-    studio_ids = []
-    print("\nExisting studios:", show_data.get('studios'))
-    for studio in show_data.get('studios', []):
-        if isinstance(studio, tuple):
-            print(f"- Converting tuple: {studio} -> {studio[0]}")
-            studio_ids.append(studio[0])  # Extract ID from tuple
-        else:
-            print(f"- Using ID directly: {studio}")
-            studio_ids.append(studio)  # Already just an ID
+    else:
+        show_id = None
+        
+    # Check title uniqueness
+    title_check_query = supabase.table('shows') \
+        .select('id,title') \
+        .eq('title', show_data['title']) \
+        .eq('active', True)
+        
+    if show_id is not None:
+        title_check_query = title_check_query.neq('id', show_id)
+        
+    title_check = title_check_query.execute()
     
-    # Add new studios
+    if title_check.data:
+        raise ValueError(f"Show title '{show_data['title']}' already exists")
+    
+    # Handle studios first to get IDs
+    studio_ids = show_data.get('studios', [])
+    
+    # Handle new studios
     new_studios = show_data.get('new_studios', [])
-    print("\nNew studios:", new_studios)
     if new_studios:
         for studio_name in new_studios:
-            print(f"\nAdding new studio: {studio_name}")
             try:
                 # Add new studio as production company
                 response = supabase.table('studio_list').insert({
                     'studio': studio_name,
                     'type': 'Production Company'
                 }).execute()
-                new_id = response.data[0]['id']
-                print(f"- Created with ID: {new_id}")
-                studio_ids.append(new_id)
+                studio_ids.append(response.data[0]['id'])
             except Exception as e:
-                print(f"- Error adding studio: {str(e)}")
-    
-    print("\nFinal studio_ids:", studio_ids)
+                raise Exception(f"Error adding studio '{studio_name}': {str(e)}")
     
     # Prepare data for insert/update
     data = {
         'title': show_data['title'],
-        'network_id': show_data['network_id'],  # Already an integer
-        'genre_id': show_data['genre_id'],  # Already an integer
-        'subgenres': show_data.get('subgenres', []),  # List of subgenre IDs
-        'source_type_id': show_data.get('source_type_id'),  # Optional
-        'order_type_id': show_data.get('order_type_id'),  # Optional
-        'status_id': show_data.get('status_id'),  # Optional
-        'episode_count': show_data.get('episode_count'),  # Optional
-        'date': show_data.get('date'),  # Optional
-        'description': show_data.get('description', ''),  # Optional with default
-        'studios': studio_ids  # Array of integers
+        'network_id': show_data['network_id'],
+        'genre_id': show_data['genre_id'],
+        'subgenres': show_data.get('subgenres', []),
+        'source_type_id': show_data.get('source_type_id'),
+        'order_type_id': show_data.get('order_type_id'),
+        'status_id': show_data.get('status_id'),
+        'episode_count': show_data.get('episode_count'),
+        'description': show_data.get('description', ''),
+        'studios': studio_ids
     }
+    
+    # Handle date - convert to string if it's a date object
+    show_date = show_data.get('date')
+    if show_date:
+        if isinstance(show_date, date):
+            data['date'] = show_date.isoformat()
+        else:
+            data['date'] = show_date
 
     # Save show
-    if operation == "Edit show":
-        # Use stored show ID for update
-        show_id = show_data['id']
-        
-        # Make sure we have all required fields
-        if not all(show_data.get(field) for field in ['network_id', 'genre_id']):
-            raise ValueError("Missing required fields for update")
-        
-        # Debug data types
-        print("\n" + "="*80)
-        print("DEBUG: Edit Show Data Types")
-        print("="*80)
-        for key, value in data.items():
-            print(f"{key}: {value} (type: {type(value)})")
-        print("="*80)
-        
-        # Update show using ID
-        print("\nUpdating show with ID:", show_id)
-        print("Update data:", data)
-        try:
-            # Start transaction
+    try:
+        if operation == "Edit Show":
+            # Update show using ID
             response = supabase.table('shows') \
                 .update(data) \
                 .eq('id', show_id) \
                 .execute()
-            print("Update response:", response.data)
             if not response.data:
                 raise Exception("No data returned from update")
-        except Exception as e:
-            print("ERROR updating show:", str(e))
-            print("Full error:", e)
-            raise
-
-        # Delete existing team members
-        print(f"\nDeleting team members for show {show_id}")
-        try:
-            # First get existing team members
-            existing = supabase.table('show_team').select('*').eq('show_id', show_id).execute()
-            if existing.data:
-                # Delete them in a transaction
-                delete_response = supabase.table('show_team') \
-                    .delete() \
-                    .eq('show_id', show_id) \
-                    .execute()
-                if not delete_response.data:
-                    raise Exception(f"Failed to delete {len(existing.data)} existing team members")
-                print(f"Deleted {len(delete_response.data)} team members")
-            else:
-                print("No existing team members found")
-        except Exception as e:
-            print("Error deleting team members:", str(e))
-            raise
-    else:
-        print("Inserting new show with data:", data)
-        response = supabase.table('shows').insert(data).execute()
-        print("Insert response:", response.data)
-        show_id = response.data[0]['id']
+                
+            # Delete existing team members for update
+            supabase.table('show_team') \
+                .delete() \
+                .eq('show_id', show_id) \
+                .execute()
+        else:
+            # Insert new show
+            response = supabase.table('shows') \
+                .insert(data) \
+                .execute()
+            if not response.data:
+                raise Exception("No data returned from insert")
+            show_id = response.data[0]['id']
+    except Exception as e:
+        print(f"Error saving show: {str(e)}")
+        raise
     
     # Add team members - one row per role
-    print("\n" + "="*80)
-    print("DEBUG: Team Member Save")
-    print("="*80)
-    
     if show_data.get('team_members'):
         try:
-            print(f"\nDeleting team members for show_id: {show_id}")
-            delete_response = supabase.table('show_team').delete().eq('show_id', show_id).execute()
-            print(f"Delete response: {delete_response.data}")
+            # Delete existing team members
+            supabase.table('show_team').delete().eq('show_id', show_id).execute()
             
             # Create one row per role
             team_inserts = []
             for member in show_data['team_members']:
-                print(f"\nProcessing member: {member}")
-                
                 name = member['name'].strip()
                 if not name:
-                    print("- Skipping: empty name")
                     continue
                 
                 role_type_id = member['role_type_id']
-                print(f"- Name: {name}")
-                print(f"- Role Type ID: {role_type_id}")
-                
                 if not isinstance(role_type_id, int):
-                    print(f"- Skipping role: {role_type_id} (not an integer)")
                     continue
                     
-                print(f"- Adding role: {role_type_id}")
                 team_inserts.append({
                     'show_id': show_id,
                     'name': name,
@@ -288,13 +272,8 @@ def save_show(show_data: dict, operation: str = "Add show"):
                 })
             
             if team_inserts:
-                print(f"\nInserting {len(team_inserts)} team members")
-                insert_response = supabase.table('show_team').insert(team_inserts).execute()
-                print(f"Insert response: {insert_response.data}")
-            else:
-                print("No team members to insert")
+                supabase.table('show_team').insert(team_inserts).execute()
         except Exception as e:
-            print("Error saving team members:", str(e))
-            raise        
+            raise Exception(f"Error saving team members: {str(e)}")
                 
     return show_id

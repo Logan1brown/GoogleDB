@@ -9,7 +9,9 @@ from typing import List, Optional
 @dataclass
 class ShowFormState:
     """State for show entry form."""
+    id: Optional[int] = None  # Show ID for edit/remove operations
     title: str = ""
+    original_title: Optional[str] = None  # Original title for edit operations
     description: str = ""
     network_id: Optional[int] = None
     genre_id: Optional[int] = None
