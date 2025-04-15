@@ -1,611 +1,808 @@
-"""
-Data Entry Page
+"""Data Entry Page
 
 Provides forms for adding and editing show data.
 """
 
 import sys
+from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional
-from datetime import date, datetime
-import difflib
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import asdict
 import time
+
+import streamlit as st
+from streamlit_searchbox import st_searchbox
+from src.dashboard.utils.style_config import COLORS, FONTS
+
+# Add custom CSS for data entry components
+st.markdown("""
+<style>
+/* Search box styling */
+div.stSearchBox > div > div {
+    background-color: white;
+    border-radius: 4px;
+    border-color: rgb(49, 51, 63);
+}
+
+/* Form field styling */
+div.stTextInput > div > div > input {
+    background-color: white;
+    border-radius: 4px;
+}
+
+/* Warning/error styling */
+div.stAlert > div {
+    padding: 1em;
+    border-radius: 4px;
+    margin: 1em 0;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Add src to Python path
 src_path = str(Path(__file__).parent.parent.parent)
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-import streamlit as st
-from streamlit_searchbox import st_searchbox
-from src.dashboard.services.data_entry import supabase, load_lookup_data, search_shows, save_show, load_show
+
+
+from src.dashboard.state.session import get_page_state, update_page_state
+from src.dashboard.state.show_state import DataEntryState, ShowFormState
 from src.dashboard.utils.style_config import COLORS, FONTS
-
-@st.cache_data(ttl=3600)
-def load_lookup_data() -> Dict[str, List[Dict]]:
-    """Load all lookup data from Supabase with caching"""
-    lookups = {}
-    
-    # Load networks
-    response = supabase.table('network_list').select('id, network').execute()
-    lookups['networks'] = [{'id': n['id'], 'name': n['network']} for n in response.data]
-    
-    # Load studios
-    response = supabase.table('studio_list').select('id, studio, type').execute()
-    lookups['studios'] = [{'id': s['id'], 'name': s['studio'], 'type': s['type']} for s in response.data]
-    
-    # Load genres
-    response = supabase.table('genre_list').select('id, genre').execute()
-    lookups['genres'] = [{'id': g['id'], 'name': g['genre']} for g in response.data]
-    
-    # Load subgenres
-    response = supabase.table('subgenre_list').select('id, subgenre').execute()
-    lookups['subgenres'] = [{'id': s['id'], 'name': s['subgenre']} for s in response.data]
-    
-    # Load roles
-    response = supabase.table('role_types').select('id, role').execute()
-    lookups['roles'] = [{'id': r['id'], 'name': r['role']} for r in response.data]
-    
-    # Load source types
-    response = supabase.table('source_types').select('id, type').execute()
-    lookups['source_types'] = [{'id': s['id'], 'name': s['type']} for s in response.data]
-    
-    # Load order types
-    response = supabase.table('order_types').select('id, type').execute()
-    lookups['order_types'] = [{'id': o['id'], 'name': o['type']} for o in response.data]
-    
-    return lookups
-
-def reset_show_data():
-    """Reset show data to initial state"""
-    return {
-        'title': '',
-        'network_id': None,
-        'genre_id': None,
-        'subgenre_id': None,
-        'source_type_id': None,
-        'order_type_id': None,
-        'episode_count': 0,
-        'date': date.today().strftime('%Y-%m-%d'),
-        'description': '',
-        'studio_ids': [],
-        'new_studios': [],
-        'team': []  # Initialize empty team list
-    }
-
-# Initialize session state
-if 'lookups' not in st.session_state:
-    st.session_state.lookups = load_lookup_data()
-if 'show_data' not in st.session_state:
-    st.session_state.show_data = reset_show_data()
-if 'search_text' not in st.session_state:
-    st.session_state.search_text = ''
-if 'form_title' not in st.session_state:
-    st.session_state.form_title = ''
-if 'operation' not in st.session_state:
-    st.session_state.operation = "Add show"
-
-# No need for explicit form clearing - handled in callbacks
-
-# Landing page
-st.title("TV shows data entry")
-
-# Operation selection at the top
-st.radio(
-    "Select Operation",
-    ["Add show", "Edit show", "Remove show"],
-    horizontal=True,
-    key="operation",
-    index=0
+from src.dashboard.services.show_service import (
+    supabase,
+    load_lookup_data,
+    search_shows,
+    load_show,
+    save_show
 )
 
-# Divider
-st.markdown("---")
+def render_section_header(title: str):
+    """Render a section header with consistent styling."""
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">{title}</p>', unsafe_allow_html=True)
 
-# Search section - show for both Add and Edit
-if st.session_state.operation in ["Add show", "Edit show"]:
-    st.markdown("### 🔍 Search Shows")
-    if st.session_state.operation == "Add show":
-        st.markdown("Search before adding a new show to avoid duplicates.")
-    else:
-        st.markdown("Search for the show you want to edit.")
-
-    # Different UI for Add vs Edit
-    if st.session_state.operation == "Add show":
-        # Search box with clear visual separation
-        st.markdown("<div style='margin-bottom: 1em;'></div>", unsafe_allow_html=True)
-        selected = st_searchbox(
-            search_shows,
+def render_landing_page(state: DataEntryState):
+    """Render the landing page based on operation."""
+    # Show success message if present
+    if state.success_message:
+        st.success(state.success_message)
+        state.success_message = None  # Clear the message
+        update_data_entry_state(state)
+    
+    if state.operation == "Add Show":
+        render_section_header("Add New Show")
+        selected_show = st_searchbox(
+            search_function=search_shows,
+            label="Search existing shows",
             placeholder="Start typing show title (3+ characters)...",
-            label="Show Title",
-            key="show_search",
+            key="add_show_search",
             clear_on_submit=True
         )
-
-        # Status and actions based on search
-        current_text = selected if selected else ''
-        if current_text and len(current_text.strip()) >= 3:
-            matches = search_shows(current_text)
-            if matches:
-                st.markdown("### Similar Shows Found")
-                for match in matches:
-                    st.markdown(f"• {match}")
-                st.warning("Please check if your show already exists above.")
-            else:
-                st.success("No similar shows found")
-        elif current_text:
-            st.info("ℹ️ Please enter at least 3 characters to search.")
-    else:  # Edit Show
-        # Get all active shows
-        response = supabase.table('shows').select('title').eq('active', True).order('title').execute()
-        show_titles = [show['title'] for show in response.data]
         
-        # Show dropdown to select show
-        selected = st.selectbox(
-            "Select Show to Edit",
-            options=["Select a show..."] + show_titles,
-            key="edit_show_select"
+        if selected_show:
+            # Show similar shows as warnings
+            matches = search_shows(selected_show)
+            if matches:
+                st.warning("Similar shows found:")
+                for match in matches:
+                    st.write(f"- {match}")
+                
+        # Add New Show button at the bottom
+        st.divider()
+        if st.button("Add New Show", type="primary"):
+            state.form_started = True
+            update_data_entry_state(state)
+            st.rerun()
+                
+    elif state.operation == "Edit Show":
+        render_section_header("Edit Show")
+        selected_show = st_searchbox(
+            search_function=search_shows,
+            label="Select show to edit",
+            placeholder="Start typing show title (3+ characters)...",
+            key="edit_show_search",
+            clear_on_submit=True
         )
         
-        if selected and selected != "Select a show...":
-            try:
-                # Load show data
-                show_data = load_show(selected, st.session_state.lookups)
-                st.session_state.show_data = show_data
-                st.session_state.form_title = show_data['title']
-                st.session_state.show_form_started = True
-            except Exception as e:
-                st.error(f"Error loading show: {str(e)}")
-    
-    # For Add Show, always show the Add as New button
-    if st.session_state.operation == "Add show":
-        st.markdown("")
-        if st.button("Add new show", type="primary", use_container_width=True):
-            st.session_state.show_data = reset_show_data()
-            st.session_state.form_title = current_text.strip() if current_text else ""
-            st.session_state.show_form_started = True
-
-# For Remove Show operation
-if st.session_state.operation == "Remove show":
-    st.markdown("### Remove show")
-    st.markdown("Search for the show you want to remove.")
-    
-    selected = st_searchbox(
-        search_shows,
-        placeholder="Start typing show title (3+ characters)...",
-        label="Show Title",
-        key="remove_search",
-        clear_on_submit=True
-    )
-    
-    if selected:
-        st.warning(f"Are you sure you want to remove '{selected}'?")
-        if st.button("Confirm Remove", type="primary"):
-            # TODO: Implement show removal
-            st.error("Remove functionality not yet implemented")
-            st.session_state.operation = "Add show"
-
-# Create tabs for form sections
-tabs = st.tabs(["Show Details", "Studios", "Team Members", "Review"])
-
-# Show Details Tab
-with tabs[0]:
-    if st.session_state.get('show_form_started', False):
-        # Show appropriate header based on operation
-        if st.session_state.operation == "Add show":
-            st.markdown("### Add new show")
-        else:
-            st.markdown(f"### Edit show: {st.session_state.form_title}")
-        st.subheader("Show Details")
+        if selected_show:
+            # Load show data
+            show_data = load_show(selected_show)
+            if show_data:
+                state.form_started = True
+                state.show_form = ShowFormState(**show_data)
+                update_data_entry_state(state)
+                st.rerun()
+            else:
+                st.error("Show not found")
+                
+    else:  # Remove Show
+        render_section_header("Remove Show")
+        selected_show = st_searchbox(
+            search_function=search_shows,
+            label="Select show to remove",
+            placeholder="Start typing show title (3+ characters)...",
+            key="remove_show_search",
+            clear_on_submit=True
+        )
         
-        with st.form("show_details_form"):
-            # Title from search
-            title = st.text_input(
-                "Title",
-                value=st.session_state.form_title,  # Use the title from search
-                key="show_title_input"
-            )
+        if selected_show:
+            # Load show data in read-only mode
+            show_data = load_show(selected_show)
+            if show_data:
+                state.form_started = True
+                state.read_only = True
+                state.show_form = ShowFormState(**show_data)
+                update_data_entry_state(state)
+                st.rerun()
+            else:
+                st.error("Show not found")
+
+def get_data_entry_state() -> DataEntryState:
+    """Get the data entry state from session state"""
+    state = get_page_state("data_entry")
+    if not state:
+        state = DataEntryState()
+    return state
+
+def update_data_entry_state(state: DataEntryState):
+    """Update the data entry state in session state"""
+    update_page_state("data_entry", state)
+
+# Initialize state
+state = get_data_entry_state()
+
+# Initialize lookups if needed
+if not state.lookups:
+    state.lookups = load_lookup_data()
+    update_data_entry_state(state)
+
+# Page title using dashboard style
+st.markdown(
+    f'<p style="font-family: {FONTS["primary"]["family"]}; '
+    f'font-size: {FONTS["primary"]["sizes"]["header"]}px; '
+    f'text-transform: uppercase; font-weight: 600; '
+    f'letter-spacing: 0.1em; color: {COLORS["accent"]}; '
+    f'margin-bottom: 1em;">Data Entry</p>', 
+    unsafe_allow_html=True
+)
+
+# Operation selection
+new_operation = st.radio(
+    "Select Operation",
+    ["Add Show", "Edit Show", "Remove Show"],
+    horizontal=True,
+    key="operation_radio",
+    index=["Add Show", "Edit Show", "Remove Show"].index(state.operation)
+)
+
+# Update operation if changed
+if new_operation != state.operation:
+    state.operation = new_operation
+    state.form_started = False  # Reset form when operation changes
+    state.read_only = (new_operation == "Remove Show")
+    state.show_form = ShowFormState()  # Reset form data
+    update_data_entry_state(state)
+    st.rerun()
+
+st.divider()
+
+def render_form_field(field_name: str, field_key: str, value: Any, readonly: bool = False):
+    """Render a form field with appropriate behavior"""
+    if readonly:
+        st.write(f"{field_name}: {value}")
+    else:
+        st.text_input(field_name, value=value, key=f"form_{field_key}")
+
+def handle_show_details_save():
+    """Handle show details form submission"""
+    state = get_data_entry_state()
+    show_form = state.show_form
+    
+    # Update form data from session state
+    show_form.title = st.session_state.show_title_input
+    show_form.network_id = st.session_state.network_dropdown[0]
+    show_form.genre_id = st.session_state.genre_dropdown[0] if st.session_state.genre_dropdown else None
+    show_form.status_id = st.session_state.status_dropdown[0] if st.session_state.status_dropdown else None
+    show_form.subgenres = [s[0] for s in st.session_state.subgenre_dropdown] if st.session_state.subgenre_dropdown else []
+    show_form.source_type_id = st.session_state.source_type_dropdown[0] if st.session_state.source_type_dropdown else None
+    show_form.order_type_id = st.session_state.order_type_dropdown[0] if st.session_state.order_type_dropdown else None
+    show_form.episode_count = st.session_state.episode_count_input
+    show_form.date = st.session_state.date_input
+    show_form.description = st.session_state.description_input
+    
+    # Validate required fields
+    if not show_form.title:
+        state.form_error = "Title is required"
+        update_data_entry_state(state)
+        return
+        
+    if not show_form.network_id:
+        state.form_error = "Network is required"
+        update_data_entry_state(state)
+        return
+    
+    # Check if any subgenre matches the genre
+    if show_form.genre_id and show_form.subgenres:
+        genre_name = next((g['name'] for g in state.lookups.get('genres', []) if g['id'] == show_form.genre_id), None)
+        subgenre_names = [s['name'] for s in state.lookups.get('subgenres', []) if s['id'] in show_form.subgenres]
+        
+        if genre_name in subgenre_names:
+            state.form_error = f"Subgenre cannot be the same as the genre ('{genre_name}')"
+            update_data_entry_state(state)
+            return
+    
+    # Clear any previous errors and update state
+    state.form_error = None
+    update_data_entry_state(state)
+
+def handle_studio_select(selected):
+    """Handle studio selection"""
+    state = get_data_entry_state()
+    show_form = state.show_form
+    
+    # Replace studios list with selected IDs
+    show_form.studios = [s[0] for s in selected]
+    update_data_entry_state(state)
+
+def handle_studio_save():
+    """Handle adding a new studio"""
+    state = get_data_entry_state()
+    show_form = state.show_form
+    
+    # Get new studio name from input
+    new_studio = st.session_state.get('new_studio_input', '')
+    
+    # Validate
+    if not new_studio:
+        state.form_error = "Studio name is required"
+        update_data_entry_state(state)
+        return
+    
+    # Check for duplicates
+    if new_studio in show_form.new_studios:
+        state.form_error = f"Studio '{new_studio}' already added"
+        update_data_entry_state(state)
+        return
+    
+    # Add to new studios list
+    show_form.new_studios.append(new_studio)
+    
+    # Clear input
+    if 'new_studio_input' in st.session_state:
+        del st.session_state.new_studio_input
+    
+    update_data_entry_state(state)
+
+def handle_existing_studio_remove(studio_id: int):
+    """Handle removing an existing studio"""
+    state = get_data_entry_state()
+    show_form = state.show_form
+    
+    # Remove the studio from studios list
+    if studio_id in show_form.studios:
+        show_form.studios.remove(studio_id)
+    
+    # Update state
+    update_data_entry_state(state)
+
+def handle_studio_remove(studio_name: str):
+    """Handle removing a new studio"""
+    state = get_data_entry_state()
+    show_form = state.show_form
+    
+    # Remove the studio from new_studios
+    show_form.new_studios.remove(studio_name)
+    
+    # Update state
+    update_data_entry_state(state)
+
+def handle_studios_apply():
+    """Handle applying studio changes"""
+    state = get_data_entry_state()
+    show_form = state.show_form
+    
+    # Clear any previous errors
+    state.form_error = None
+    
+    # Nothing to do here - the studios are already saved
+    # when you click Add Selected Studios or Add Studio
+    update_data_entry_state(state)
+
+def render_select(label: str, options: List[Tuple], value_id: Optional[int], key: str, required: bool = False, readonly: bool = False):
+    """Render a single-select dropdown"""
+    index = next((i for i, (id, _) in enumerate(options) if id == value_id), None)
+    if not readonly:
+        return st.selectbox(
+            f"{label}{'*' if required else ''}",
+            options=options,
+            format_func=lambda x: x[1],
+            key=key,
+            index=index
+        )
+    return st.write(f"{label}: {next((name for id, name in options if id == value_id), '')}")
+
+def render_multi_select(label: str, options: List[Tuple], value_ids: List[int], key: str, readonly: bool = False):
+    """Render a multi-select dropdown"""
+    if not readonly:
+        return st.multiselect(
+            label,
+            options=options,
+            format_func=lambda x: x[1],
+            key=key,
+            default=[opt for opt in options if opt[0] in (value_ids or [])]
+        )
+    return st.write(f"{label}: {', '.join(name for id, name in options if id in (value_ids or []))}")
+
+def render_show_details(show_form: ShowFormState, lookups: Dict, readonly: bool = False):
+    """Render show details tab"""
+    st.subheader("Show Details")
+    
+    with st.form("show_details_form"):
+        # Show error message if any
+        state = get_data_entry_state()
+        if state.form_error:
+            st.error(state.form_error)
+            state.form_error = None  # Clear after showing
+            update_data_entry_state(state)
+        
+        # Title
+        st.text_input(
+            "Title*",
+            value=show_form.title,
+            key="show_title_input",
+            disabled=readonly
+        )
+        
+        # Create columns for the form layout
+        col1, col2 = st.columns(2)
+        
+        # Left Column
+        with col1:
+            # Network (required)
+            network_options = [(n['id'], n['name']) for n in lookups.get('networks', [])]
+            render_select("Network", network_options, show_form.network_id, 
+                         key="network_dropdown", required=True, readonly=readonly)
             
-            # Create columns for the form layout
-            col1, col2 = st.columns(2)
+            # Genre
+            genre_options = [(g['id'], g['name']) for g in lookups.get('genres', [])]
+            render_select("Genre", genre_options, show_form.genre_id,
+                         key="genre_dropdown", readonly=readonly)
             
-            # Left Column
-            with col1:
-                # Network
-                network_options = [(n['id'], n['name']) for n in st.session_state.lookups['networks']]
-                network_index = next((i for i, (id, _) in enumerate(network_options) 
-                                    if id == st.session_state.show_data.get('network_id')), None)
-                network = st.selectbox(
-                    "Network",
-                    options=network_options,
-                    format_func=lambda x: x[1],
-                    key="network_dropdown",
-                    index=network_index
-                )
-                
-                # Genre
-                genre_options = [(g['id'], g['name']) for g in st.session_state.lookups['genres']]
-                genre_index = next((i for i, (id, _) in enumerate(genre_options) 
-                                  if id == st.session_state.show_data.get('genre_id')), None)
-                genre = st.selectbox(
-                    "Genre",
-                    options=genre_options,
-                    format_func=lambda x: x[1],
-                    key="genre_dropdown",
-                    index=genre_index
-                )
-                
-                # Source Type
-                source_type_options = [(s['id'], s['name']) for s in st.session_state.lookups['source_types']]
-                source_type_index = next((i for i, (id, _) in enumerate(source_type_options) 
-                                        if id == st.session_state.show_data.get('source_type_id')), None)
-                source_type = st.selectbox(
-                    "Source Type",
-                    options=source_type_options,
-                    format_func=lambda x: x[1],
-                    key="source_type_dropdown",
-                    index=source_type_index
-                )
-                
-                # Subgenre
-                subgenre_options = [(s['id'], s['name']) for s in st.session_state.lookups['subgenres']]
-                subgenre_index = next((i for i, (id, _) in enumerate(subgenre_options) 
-                                     if id == st.session_state.show_data.get('subgenre_id')), None)
-                subgenre = st.selectbox(
-                    "Subgenre",
-                    options=subgenre_options,
-                    format_func=lambda x: x[1],
-                    key="subgenre_dropdown",
-                    index=subgenre_index
-                )
+            # Subgenre (multi-select)
+            subgenre_options = [(s['id'], s['name']) for s in lookups.get('subgenres', [])]
+            render_multi_select("Subgenre", subgenre_options, show_form.subgenres,
+                              key="subgenre_dropdown", readonly=readonly)
             
-            # Right Column
-            with col2:
-                # Order Type
-                order_type_options = [(o['id'], o['name']) for o in st.session_state.lookups['order_types']]
-                order_type_index = next((i for i, (id, _) in enumerate(order_type_options) 
-                                       if id == st.session_state.show_data.get('order_type_id')), None)
-                order_type = st.selectbox(
-                    "Order Type",
-                    options=order_type_options,
-                    format_func=lambda x: x[1],
-                    key="order_type_dropdown",
-                    index=order_type_index
-                )
-                
-                # Episode Count
-                episode_count = st.number_input(
+            # Status
+            status_options = [(s['id'], s['name']) for s in lookups.get('status_types', [])]
+            render_select("Status", status_options, show_form.status_id,
+                         key="status_dropdown", readonly=readonly)
+            
+            # Source Type
+            source_type_options = [(s['id'], s['name']) for s in lookups.get('source_types', [])]
+            render_select("Source Type", source_type_options, show_form.source_type_id,
+                         key="source_type_dropdown", readonly=readonly)
+        
+        # Right Column
+        with col2:
+            # Order Type
+            order_type_options = [(o['id'], o['name']) for o in lookups.get('order_types', [])]
+            render_select("Order Type", order_type_options, show_form.order_type_id,
+                         key="order_type_dropdown", readonly=readonly)
+            
+            # Episode Count
+            if not readonly:
+                st.number_input(
                     "Episode Count",
                     min_value=0,
-                    value=st.session_state.show_data.get('episode_count', 0),
+                    value=show_form.episode_count,
                     key="episode_count_input"
                 )
-                
-                # Date
-                air_date = st.date_input(
+            else:
+                st.write(f"Episode Count: {show_form.episode_count}")
+            
+            # Date
+            if not readonly:
+                st.date_input(
                     "Date",
-                    value=datetime.strptime(st.session_state.show_data['date'], '%Y-%m-%d').date() if st.session_state.show_data.get('date') else date.today(),
+                    value=show_form.date,
                     key="date_input"
                 )
-                
-                # Description
-                description = st.text_area(
+            else:
+                st.write(f"Date: {show_form.date}")
+            
+            # Description
+            if not readonly:
+                st.text_area(
                     "Description",
-                    value=st.session_state.show_data.get('description', ''),
+                    value=show_form.description,
                     height=100,
                     key="description_input"
                 )
-                
-            # Form buttons
-            if st.form_submit_button("Save show details", type="primary", use_container_width=True):
-                # Create new dict with all existing data
-                updated_data = st.session_state.show_data.copy()
-                # Preserve team data
-                team_data = updated_data.get('team', [])
-                # Update only the form fields
-                updated_data.update({
-                    'title': st.session_state.show_title_input,
-                    'network_id': st.session_state.network_dropdown[0] if st.session_state.network_dropdown else None,
-                    'genre_id': st.session_state.genre_dropdown[0] if st.session_state.genre_dropdown else None,
-                    'subgenre_id': st.session_state.subgenre_dropdown[0] if st.session_state.subgenre_dropdown else None,
-                    'source_type_id': st.session_state.source_type_dropdown[0] if st.session_state.source_type_dropdown else None,
-                    'order_type_id': st.session_state.order_type_dropdown[0] if st.session_state.order_type_dropdown else None,
-                    'episode_count': st.session_state.episode_count_input,
-                    'date': st.session_state.date_input.strftime('%Y-%m-%d') if st.session_state.date_input else None,
-                    'description': st.session_state.description_input
-                })
-                # Restore team data
-                updated_data['team'] = team_data
-                # Replace show data with updated version
-                st.session_state.show_data = updated_data
-                st.success("Show details saved")
-            
-    # Studios Tab
-    with tabs[1]:
-        if st.session_state.get('show_form_started', False):
-            st.subheader("Add Studios")
-            
-            with st.form("studios_form"):
-                # Studio selection
-                selected_studios = st.multiselect(
-                    "Select Studios",
-                    [(s['id'], s['name']) for s in st.session_state.lookups['studios']],
-                    default=st.session_state.show_data.get('studio_ids', []),
-                    format_func=lambda x: x[1] if isinstance(x, tuple) else x
-                )
-                
-                # New studio input
-                new_studio = st.text_input(
-                    "Add New Studio",
-                    key="new_studio"
-                )
-                
-                # Add button for new studio
-                if st.form_submit_button("Add New Studio"):
-                    if new_studio.strip():
-                        new_studios = st.session_state.show_data.get('new_studios', [])
-                        if new_studio not in new_studios:
-                            new_studios.append(new_studio)
-                            st.session_state.show_data['new_studios'] = new_studios
-                            st.session_state.new_studio = ""  # Clear input
-                    else:
-                        st.error("Please enter a studio name")
-                
-                # Show new studios
-                new_studios = st.session_state.show_data.get('new_studios', [])
-                if new_studios:
-                    st.write("New Studios to be added:")
-                    for studio in new_studios:
-                        st.write(f"- {studio}")
-                
-                # Save button
-                if st.form_submit_button("Save Studios", type="primary", use_container_width=True):
-                    # Update show data with selected studios
-                    st.session_state.show_data['studio_ids'] = selected_studios
-
-    # Team Members Tab
-    with tabs[2]:
-        if st.session_state.get('show_form_started', False):
-            st.subheader("Add Team Members")
-            
-            # Show current team members
-            if st.session_state.show_data.get('team'):
-                st.markdown("### Current Team Members")
-                for member in st.session_state.show_data['team']:
-                    # Look up role names from role IDs
-                    role_names = ", ".join(
-                        next(r['name'] for r in st.session_state.lookups['roles'] if r['id'] == role_id)
-                        for role_id in member['roles']
-                    )
-                    st.write(f"- **{member['name']}** ({role_names})")
-        
-            # Add some space
-            st.write("")
-            
-            # Team member selection dropdown (outside form)
-            st.markdown("### Edit Team Member")
-            if st.session_state.show_data.get('team'):
-                st.write("Select an existing team member to edit or choose 'Add new member' to add someone new:")
-                team_members = [m['name'] for m in st.session_state.show_data['team']]
-                selected_member = st.selectbox(
-                    "Team Member",
-                    options=["Add new member"] + team_members,
-                    key="selected_team_member"
-                )
             else:
-                st.write("Add your first team member:")
-                selected_member = "Add new member"
-            
-            with st.form("team_form"):
-                # Create two columns for name and roles
-                name_col, roles_col = st.columns(2)
-            
-            with name_col:
-                # Team member name
-                default_name = "" if selected_member == "Add new member" else selected_member
-                name = st.text_input("Team Member Name", value=default_name)
-            
-            with roles_col:
-                # Role selection
-                if selected_member != "Add new member":
-                    # Find the member's data
-                    member = next((m for m in st.session_state.show_data['team'] 
-                                 if m['name'] == selected_member), None)
-                    if member:
-                        current_role_ids = member['roles']  # Already just IDs
-                        default_roles = [r for r in st.session_state.lookups['roles'] 
-                                       if r['id'] in current_role_ids]
-                    else:
-                        default_roles = []
-                else:
-                    default_roles = []
-
-                # Create a unique key for each member's roles
-                role_key = f"team_roles_{selected_member}" if selected_member else "team_roles_new"
-                selected_roles = st.multiselect(
-                    "Select Roles",
-                    options=st.session_state.lookups['roles'],
-                    format_func=lambda x: x['name'],
-                    default=default_roles,
-                    key=role_key
-                )
-            
-            # Form buttons
-            if st.form_submit_button("Save team member", type="primary", use_container_width=True):
-                if name and selected_roles:
-                    name = name.strip()
-                    # Create new dict with all existing data
-                    updated_data = st.session_state.show_data.copy()
-                    
-                    # Initialize team list if it doesn't exist
-                    if 'team' not in updated_data:
-                        updated_data['team'] = []
-                    
-                    # Remove existing entry for this name if it exists
-                    updated_data['team'] = [m for m in updated_data['team'] 
-                                           if m['name'].lower() != name.lower()]
-                    
-                    # Add/update member
-                    team_member = {
-                        'name': name,
-                        'roles': [r['id'] for r in selected_roles]  # Only store role IDs
-                    }
-                    updated_data['team'].append(team_member)
-                    
-                    # Replace show data with updated version
-                    st.session_state.show_data = updated_data
-                    
-                    # Show success message
-                    role_list = ', '.join(r['name'] for r in selected_roles)
-                    action = "Updated" if selected_member != "Add new member" else "Added"
-                    st.success(f"{action} {name} with roles: {role_list}")
-
-
-    # Review Tab
-    with tabs[3]:
-        st.subheader("Review Show Information")
+                st.write(f"Description: {show_form.description}")
         
-        # Show Details
-        st.markdown("### Show Details")
-        st.write(f"Title: {st.session_state.show_data.get('title', 'Not set')}")
+        # Submit form to update state
+        if not readonly:
+            st.form_submit_button(
+                "Apply Changes", 
+                use_container_width=True,
+                on_click=handle_show_details_save,
+                type="primary"
+            )
 
-        
-        # Find network name
-        network_id = st.session_state.show_data.get('network_id')
-        network_name = next((n['name'] for n in st.session_state.lookups.get('networks', []) 
-                            if n['id'] == network_id), 'Not selected')
-        st.write(f"Network: {network_name}")
-        
-        # Find genre name
-        genre_id = st.session_state.show_data.get('genre_id')
-        genre_name = next((g['name'] for g in st.session_state.lookups.get('genres', []) 
-                          if g['id'] == genre_id), 'Not selected')
-        st.write(f"Genre: {genre_name}")
-        
-        # Find subgenre name
-        subgenre_id = st.session_state.show_data.get('subgenre_id')
-        subgenre_name = next((s['name'] for s in st.session_state.lookups.get('subgenres', []) 
-                             if s['id'] == subgenre_id), 'Not selected')
-        st.write(f"Subgenre: {subgenre_name}")
-        
-        # Find source type name
-        source_type_id = st.session_state.show_data.get('source_type_id')
-        source_type_name = next((s['name'] for s in st.session_state.lookups.get('source_types', []) 
-                                if s['id'] == source_type_id), 'Not selected')
-        st.write(f"Source Type: {source_type_name}")
-        
-        st.write(f"Episode Count: {st.session_state.show_data.get('episode_count', 0)}")
-        st.write(f"Date: {st.session_state.show_data.get('date', 'Not set')}")
-        st.write(f"Description: {st.session_state.show_data.get('description', 'Not set')}")
-
-        # Studios
-        st.markdown("### Studios")
-        selected_studios = [s[0] for s in st.session_state.show_data.get('studio_ids', [])]
-        if selected_studios:
-            for studio_id in selected_studios:
-                studio_name = next((s['name'] for s in st.session_state.lookups['studios'] if s['id'] == studio_id), 'Unknown')
-                st.write(f"- {studio_name}")
-        else:
-            st.write("No studios selected")
-
-        new_studios = st.session_state.show_data.get('new_studios', [])
-        if new_studios:
-            st.markdown("### New Studios")
-            for studio in new_studios:
-                st.write(f"- {studio}")
-        
-        # Team Members
-        st.markdown("### Team members")
-        team = st.session_state.show_data.get('team', [])
-        if team:
-            for member in team:
-                # Look up role names from role IDs
-                role_names = ", ".join(
-                    next(r['name'] for r in st.session_state.lookups['roles'] if r['id'] == role_id)
-                    for role_id in member['roles']
-                )
-                st.write(f"- **{member['name']}** ({role_names})")
-        else:
-            st.write("*No team members added*")
-
-        with st.form("review_form"):
-            st.write("Click 'Submit Show' to save all changes to the database.")
-            # Form buttons
-            # Debug expander above submit button
-            with st.expander("🔍 Debug Info"):
-                st.write("Current Form State")
-                st.write(f"Operation: {st.session_state.operation}\n")
-                
-                # Show Data Keys
-                st.write("Show Data Keys:\n")
-                st.write(f"new_studios: {st.session_state.show_data.get('new_studios')}\n")
-                
-                # Team Members
-                st.write("Team Members")
-                team = st.session_state.show_data.get('team', [])
-                if team:
-                    st.write("Full team data:")
-                    st.json(team)
-                    for member in team:
-                        st.write(f"{member['name']} roles:")
-                        st.json(member['roles'])
-                        st.write(f"Role types: {[type(r) for r in member['roles']]}")
-                        st.write(f"Role values: {member['roles']}")
-                
-                # Form Info
-                st.write("Form Info")
-                st.write(f"Form title: {st.session_state.form_title}")
-            
-            def handle_submit():
-                try:
-                    # Save show data
-                    show_id = save_show(st.session_state.show_data, st.session_state.operation)
-                    
-                    # Show success message inside form context
-                    show_details_form.success(f"Show {st.session_state.operation.lower().replace(' ', '')}ed successfully! ID: {show_id}")
-                    
-                    # Only clear form for Add show
-                    if st.session_state.operation == "Add show":
-                        st.session_state.show_form_started = False
-                        if 'show_data' in st.session_state:
-                            del st.session_state['show_data']
-                except Exception as e:
-                    # Show error inside form context
-                    show_details_form.error(f"Error saving show: {str(e)}")
-            
-        # Submit button with spinner
-        with st.spinner("Submitting show..."):
-            try:
-                st.button("Submit Show", key="submit_show", on_click=handle_submit, type="primary", use_container_width=True)
-            except Exception as e:
-                st.error(f"❌ Error submitting show: {str(e)}")
-
-        # Studios
-        st.markdown("### Studios")
-        selected_studios = [s[0] for s in st.session_state.show_data.get('studio_ids', [])]
-        if selected_studios:
-            for studio_id in selected_studios:
-                studio_name = next((s['name'] for s in st.session_state.lookups['studios'] if s['id'] == studio_id), 'Unknown')
-                st.write(f"- {studio_name}")
-        else:
-            st.write("No studios selected")
-
-        new_studios = st.session_state.show_data.get('new_studios', [])
-        if new_studios:
-            st.markdown("### New Studios")
-            for studio in new_studios:
-                st.write(f"- {studio}")
+def render_studios(show_form: ShowFormState, lookups: Dict, readonly: bool = False):
+    """Render studios tab"""
+    st.subheader("Studios")
     
-        # Team Members
-        st.markdown("### Team members")
-        team = st.session_state.show_data.get('team', [])
-        if team:
-            for member in team:
-                # Look up role names from role IDs
-                role_names = ", ".join(
-                    next(r['name'] for r in st.session_state.lookups['roles'] if r['id'] == role_id)
-                    for role_id in member['roles']
+    # Show error message if any
+    state = get_data_entry_state()
+    if state.form_error:
+        st.error(state.form_error)
+        state.form_error = None
+        update_data_entry_state(state)
+    
+    # Select existing studios
+    studio_options = [(s['id'], s['name']) for s in lookups.get('studios', [])]
+    selected = st.multiselect(
+        "Select Existing Studios",
+        options=studio_options,
+        format_func=lambda x: x[1],
+        key="studios_dropdown",
+        disabled=readonly,
+        on_change=lambda: handle_studio_select(st.session_state.studios_dropdown)
+    )
+    
+    # Form 2: Add new studio
+    if not readonly:
+        with st.form("new_studio_form"):
+            col1, col2 = st.columns([3,1])
+            with col1:
+                st.text_input(
+                    "Add New Studio",
+                    key="new_studio_input",
+                    value="",
+                    placeholder="Enter studio name"
                 )
-                st.write(f"- **{member['name']}** ({role_names})")
-        else:
-            st.write("*No team members added*")
+            with col2:
+                st.write("")
+                st.form_submit_button(
+                    "Add Studio",
+                    on_click=handle_studio_save,
+                    type="primary",
+                    use_container_width=True
+                )
+    
+    # Import at top of file
+    from dashboard.components.list_item import render_list_item
+    
+    # Show selected and new studios
+    if show_form.studios or show_form.new_studios:
+        st.markdown("### Selected Studios")
+        
+        # Show selected existing studios
+        if show_form.studios:
+            for studio_id in show_form.studios:
+                studio = next((s for s in lookups.get('studios', []) if s['id'] == studio_id), None)
+                if studio:
+                    st.write(studio['name'])
+        
+        # Show new studios with remove buttons
+        for studio in show_form.new_studios:
+            col1, col2 = st.columns([10,1])
+            with col1:
+                st.write(f"{studio} (New)")
+            with col2:
+                if st.button("✕", key=f"remove_new_studio_{studio}"):
+                    handle_studio_remove(studio)
+    
+    # Apply Changes button
+    st.button("Apply Changes", on_click=handle_studios_apply, type="primary", use_container_width=True)
+
+
+def handle_team_select(selected):
+    """Handle team role selection"""
+    state = get_data_entry_state()
+    st.session_state.team_member_role_types = selected
+    update_data_entry_state(state)
+
+def handle_team_save():
+    """Handle adding a new team member"""
+    state = get_data_entry_state()
+    show_form = state.show_form
+    name = st.session_state.team_member_name
+    roles = st.session_state.team_member_role_types
+    
+    # Validate
+    if not name:
+        state.form_error = "Name is required"
+        update_data_entry_state(state)
+        return
+    
+    if not roles:
+        state.form_error = "At least one role is required"
+        update_data_entry_state(state)
+        return
+    
+    # Add team member
+    for role in roles:
+        show_form.team_members.append({
+            'name': name,
+            'role_type_id': role[0]  # Extract ID from tuple
+        })
+    
+    # Clear form
+    st.session_state.team_member_name = ""
+    st.session_state.team_member_role_types = []
+    
+    # Update state
+    update_data_entry_state(state)
+
+def handle_team_remove(index: int):
+    """Handle removing a team member"""
+    state = get_data_entry_state()
+    show_form = state.show_form
+    
+    # Remove team member
+    show_form.team_members.pop(index)
+    
+    # Update state
+    update_data_entry_state(state)
+
+def handle_team_apply():
+    """Handle applying team changes"""
+    state = get_data_entry_state()
+    update_data_entry_state(state)
+
+def render_team(show_form: ShowFormState, lookups: Dict, readonly: bool = False):
+    """Render team members tab"""
+    st.subheader("Team Members")
+    
+    # Help text to explain the flow
+    st.info("To add a team member: Enter their name, select their role(s), then click Add Member")
+    
+    # Show error message if any
+    state = get_data_entry_state()
+    if state.form_error:
+        st.error(state.form_error)
+        state.form_error = None
+        update_data_entry_state(state)
+    
+    # Form for adding new team member first
+    if not readonly:
+        with st.form("new_team_member_form"):
+            col1, col2 = st.columns([3,1])
+            with col1:
+                st.text_input(
+                    "Add Team Member",
+                    key="team_member_name",
+                    value=st.session_state.get('team_member_name', ''),
+                    placeholder="Enter team member name"
+                )
+            with col2:
+                st.write("")
+                st.form_submit_button(
+                    "Add Member",
+                    on_click=handle_team_save,
+                    type="primary",
+                    use_container_width=True
+                )
+    
+
+    # Then select roles
+    role_options = [(r['id'], r['name']) for r in lookups.get('role_types', [])]
+    # Convert default IDs to tuples
+    default_roles = []
+    saved_roles = st.session_state.get('team_member_role_types', [])
+    if saved_roles:
+        role_map = {r[0]: r for r in role_options}
+        default_roles = [role_map[role_id] for role_id in saved_roles if role_id in role_map]
+    
+    st.multiselect(
+        "Select Roles",
+        options=role_options,
+        format_func=lambda x: x[1],
+        key="team_member_role_types",
+        default=default_roles,
+        disabled=readonly,
+        on_change=lambda: handle_team_select(st.session_state.team_member_role_types)
+    )
+    
+    # Display existing team members
+    if show_form.team_members:
+        st.markdown("### Team Members")
+        
+        for i, member in enumerate(show_form.team_members):
+            col1, col2 = st.columns([10,1])
+            with col1:
+                # Get role name
+                role_name = next(
+                    (r['name'] for r in lookups.get('role_types', [])
+                     if r['id'] == member['role_type_id']),
+                    'Unknown'
+                )
+                st.write(f"{member['name']} - {role_name}")
+            
+            # Remove button
+            if not readonly:
+                with col2:
+                    if st.button("✕", key=f"remove_team_{i}"):
+                        handle_team_remove(i)
+    
+    # Apply Changes button
+    st.button(
+        "Apply Changes",
+        on_click=handle_team_apply,
+        type="primary",
+        use_container_width=True,
+        key="apply_team_changes"
+    )
+
+def handle_submit(show_form: ShowFormState):
+    """Handle final form submission"""
+    try:
+        # Validate form
+        state = get_data_entry_state()
+        if not validate_show_details(show_form, state.lookups):
+            return
+            
+        # Convert ShowFormState to dict for saving
+        show_data = {
+            'title': show_form.title,
+            'description': show_form.description,
+            'network_id': show_form.network_id,
+            'genre_id': show_form.genre_id,
+            'subgenres': show_form.subgenres,
+            'source_type_id': show_form.source_type_id,
+            'order_type_id': show_form.order_type_id,
+            'status_id': show_form.status_id,
+            'date': show_form.date.isoformat() if show_form.date else None,
+            'episode_count': show_form.episode_count,
+            'studios': show_form.studios,
+            'new_studios': show_form.new_studios,
+            'team_members': show_form.team_members
+        }
+            
+        # Save show data
+        state = get_data_entry_state()
+        save_show(show_data, operation=state.operation)
+        
+        # Set success message and reset form
+        state.success_message = f"Show '{show_form.title}' saved successfully!"
+        state.form_started = False
+        state.show_form = ShowFormState()
+        
+        # Clear search box
+        if 'add_show_search' in st.session_state:
+            del st.session_state.add_show_search
+        
+        update_data_entry_state(state)
+        
+    except Exception as e:
+        st.error(f"Error saving show: {str(e)}")
+
+def render_review(show_form: ShowFormState, lookups: Dict, readonly: bool = False):
+    """Render review tab"""
+    st.subheader("Review")
+    
+    # Show summary of entered data
+    st.write("### Show Details")
+    st.write(f"**Title:** {show_form.title}")
+    
+    # Get readable names for IDs
+    network_name = next((n['name'] for n in lookups.get('networks', []) if n['id'] == show_form.network_id), 'None')
+    genre_name = next((g['name'] for g in lookups.get('genres', []) if g['id'] == show_form.genre_id), 'None')
+    subgenre_names = [s['name'] for s in lookups.get('subgenres', []) if s['id'] in show_form.subgenres]
+    source_type_name = next((s['name'] for s in lookups.get('source_types', []) if s['id'] == show_form.source_type_id), 'None')
+    order_type_name = next((o['name'] for o in lookups.get('order_types', []) if o['id'] == show_form.order_type_id), 'None')
+    status_name = next((s['name'] for s in lookups.get('status_types', []) if s['id'] == show_form.status_id), 'None')
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"**Network:** {network_name}")
+        st.write(f"**Genre:** {genre_name}")
+        st.write(f"**Subgenres:** {', '.join(subgenre_names) or 'None'}")
+        st.write(f"**Source Type:** {source_type_name}")
+    
+    with col2:
+        st.write(f"**Order Type:** {order_type_name}")
+        st.write(f"**Status:** {status_name}")
+        st.write(f"**Episode Count:** {show_form.episode_count}")
+        st.write(f"**Announcement Date:** {show_form.date.strftime('%B %d, %Y') if show_form.date else 'None'}")
+    
+    st.write("")
+    st.write(f"**Description**")
+    st.write(show_form.description or 'None')
+    
+    if show_form.studios or show_form.new_studios:
+        st.write("")
+        st.write("### Studios")
+        
+        # Show selected existing studios
+        if show_form.studios:
+            studio_names = [next((s['name'] for s in lookups.get('studios', []) if s['id'] == studio_id), 'Unknown') 
+                          for studio_id in show_form.studios]
+            for studio in studio_names:
+                st.write(f"- {studio}")
+        
+        # Show new studios
+        for studio in show_form.new_studios:
+            st.write(f"- {studio} (New)")
+    
+    if show_form.team_members:
+        st.write("")
+        st.write("### Team Members")
+        
+        # Group members by name
+        members_by_name = {}
+        for member in show_form.team_members:
+            name = member.get('name')
+            role = next((r['name'] for r in lookups.get('role_types', []) if r['id'] == member.get('role_type_id')), 'Unknown')
+            if name not in members_by_name:
+                members_by_name[name] = []
+            members_by_name[name].append(role)
+        
+        # Display each person with their roles
+        for name, roles in sorted(members_by_name.items()):
+            st.write(f"- **{name}** ({', '.join(roles)})")
+
+    
+    # Review tab just shows the summary, submit button is handled in main flow
+
+def validate_show_details(show_form: ShowFormState, lookups: Dict) -> bool:
+    """Validate show details tab"""
+    if not show_form.title:
+        st.error("Title is required")
+        return False
+    if not show_form.network_id:
+        st.error("Network is required")
+        return False
+        
+    # Check if any subgenre matches the genre
+    if show_form.genre_id and show_form.subgenres:
+        st.write("Debug - Genre ID:", show_form.genre_id)
+        st.write("Debug - Subgenres:", show_form.subgenres)
+        
+        genre_name = next((g['name'] for g in lookups.get('genres', []) if g['id'] == show_form.genre_id), None)
+        subgenre_names = [s['name'] for s in lookups.get('subgenres', []) if s['id'] in show_form.subgenres]
+        
+        st.write("Debug - Genre name:", genre_name)
+        st.write("Debug - Subgenre names:", subgenre_names)
+        
+        if genre_name in subgenre_names:
+            st.error(f"Subgenre cannot be the same as the genre ('{genre_name}')")
+            return False
+            
+    return True
+
+# Main page flow
+if not state.form_started:
+    render_landing_page(state)
+else:
+    # Form tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["Show Details", "Studios", "Team Members", "Review"])
+    
+    with tab1:
+        render_show_details(state.show_form, state.lookups, state.read_only)
+    
+    with tab2:
+        render_studios(state.show_form, state.lookups, state.read_only)
+    
+    with tab3:
+        render_team(state.show_form, state.lookups, state.read_only)
+    
+    with tab4:
+        render_review(state.show_form, state.lookups, state.read_only)
+        
+        # Only show submit button in review tab
+        if not state.read_only:
+            st.divider()
+            submit_label = {
+                "Add Show": "Add Show",
+                "Edit Show": "Update Show",
+                "Remove Show": "Remove Show"
+            }.get(state.operation, 'Submit')
+            
+            if st.button(submit_label, type="primary", use_container_width=True):
+                # Submit form
+                handle_submit(state.show_form)

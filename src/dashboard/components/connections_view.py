@@ -232,7 +232,7 @@ def render_success_stories(connections_analyzer, filters: Dict[str, Optional[str
         for story in stories:
             try:
                 # Validate story has required fields
-                required_fields = {'creator_team', 'networks', 'network_count', 'total_shows', 'roles'}
+                required_fields = {'creator_team', 'networks', 'network_count', 'total_shows', 'role_types'}
                 if not all(field in story for field in required_fields):
                     st.error(f"Invalid story format: {story}")
                     continue

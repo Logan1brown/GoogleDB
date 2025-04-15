@@ -3,6 +3,7 @@ Data entry services for interacting with Supabase.
 """
 
 from typing import Dict, List
+from datetime import datetime
 import streamlit as st
 from supabase.client import create_client, Client
 import difflib
@@ -40,9 +41,9 @@ def load_lookup_data() -> Dict[str, List[Dict]]:
     response = supabase.table('subgenre_list').select('id, subgenre').execute()
     lookups['subgenres'] = [{'id': s['id'], 'name': s['subgenre']} for s in response.data]
     
-    # Load roles
-    response = supabase.table('role_types').select('id, role').execute()
-    lookups['roles'] = [{'id': r['id'], 'name': r['role']} for r in response.data]
+    # Load role types
+    response = supabase.table('role_types').select('id, role, active').execute()
+    lookups['role_types'] = [{'id': r['id'], 'name': r['role']} for r in response.data]
     
     # Load source types
     response = supabase.table('source_types').select('id, type').execute()
@@ -58,7 +59,6 @@ def load_lookup_data() -> Dict[str, List[Dict]]:
     
     return lookups
 
-@st.cache_data(ttl=60)
 def search_shows(title: str) -> List[str]:
     """Search for shows by title using fuzzy matching"""
     if not title or len(title.strip()) < 3:
@@ -99,45 +99,29 @@ def load_show(title: str, lookups: Dict[str, List[Dict]] = None) -> dict:
         .execute()
     print("Team member response:", team_response.data)
     
-    # Get all role types first
-    role_types = {}
-    role_response = supabase.table('role_types').select('id, role').execute()
-    for role in role_response.data:
-        role_types[role['id']] = role['role']
-    
-    # Group team members by name
-    team_members = {}
-    for member in team_response.data:
-        name = member['name']
-        if name not in team_members:
-            team_members[name] = {'name': name, 'roles': []}
-        
-        # Get role from cache
-        role_id = member['role_type_id']
-        if role_id in role_types:
-            # Just store the role ID
-            team_members[name]['roles'].append(role_id)
-    
-    # Convert to list
-    team_members = list(team_members.values())
+    # Load team members
+    team_response = supabase.table('show_team').select('*').eq('show_id', response.data['id']).execute()
+    team_members = [{
+        'name': member['name'],
+        'role_type_id': member['role_type_id']
+    } for member in team_response.data]
     print("Loaded team members:", team_members)
     
-    # Format data for form
     show_data = {
-        'id': response.data['id'],  # Store the ID for updates
+        'id': response.data['id'],
         'title': response.data['title'],
         'network_id': response.data['network_id'],
         'genre_id': response.data['genre_id'],
-        'subgenre_id': response.data.get('subgenres', [None])[0],  # Take first if exists
+        'subgenres': response.data.get('subgenres', []) if response.data.get('subgenres') else [],
         'source_type_id': response.data.get('source_type_id'),
         'order_type_id': response.data.get('order_type_id'),
+        'status_id': response.data.get('status_id'),
+        'date': response.data.get('date'),
         'episode_count': response.data.get('episode_count', 0),
-        'date': response.data.get('date'),  # Date is already a string
         'description': response.data.get('description', ''),
-        'studio_ids': [(s, next((st['name'] for st in lookups['studios'] if st['id'] == s), '')) 
-                      for s in response.data.get('studios', [])],  # Format for multiselect
+        'studios': response.data.get('studios', []) if response.data.get('studios') else [],
         'new_studios': [],
-        'team': team_members
+        'team_members': team_members
     }
     
     return show_data
@@ -150,10 +134,10 @@ def save_show(show_data: dict, operation: str = "Add show"):
     print("\nOperation:", operation)
     print("Show data keys:", list(show_data.keys()))
     print("\nTeam data:")
-    print(show_data.get('team'))
+    print(show_data.get('team_members'))
 
     # Validate required fields
-    required_fields = ['title', 'network_id', 'genre_id']
+    required_fields = ['title', 'network_id']
     for field in required_fields:
         if not show_data.get(field):
             raise ValueError(f"Missing required field: {field}")
@@ -164,8 +148,8 @@ def save_show(show_data: dict, operation: str = "Add show"):
     
     # Handle existing studio IDs
     studio_ids = []
-    print("\nExisting studio_ids:", show_data.get('studio_ids'))
-    for studio in show_data.get('studio_ids', []):
+    print("\nExisting studios:", show_data.get('studios'))
+    for studio in show_data.get('studios', []):
         if isinstance(studio, tuple):
             print(f"- Converting tuple: {studio} -> {studio[0]}")
             studio_ids.append(studio[0])  # Extract ID from tuple
@@ -198,9 +182,10 @@ def save_show(show_data: dict, operation: str = "Add show"):
         'title': show_data['title'],
         'network_id': show_data['network_id'],  # Already an integer
         'genre_id': show_data['genre_id'],  # Already an integer
-        'subgenres': [show_data['subgenre_id']] if show_data.get('subgenre_id') else [],
+        'subgenres': show_data.get('subgenres', []),  # List of subgenre IDs
         'source_type_id': show_data.get('source_type_id'),  # Optional
         'order_type_id': show_data.get('order_type_id'),  # Optional
+        'status_id': show_data.get('status_id'),  # Optional
         'episode_count': show_data.get('episode_count'),  # Optional
         'date': show_data.get('date'),  # Optional
         'description': show_data.get('description', ''),  # Optional with default
@@ -271,7 +256,7 @@ def save_show(show_data: dict, operation: str = "Add show"):
     print("DEBUG: Team Member Save")
     print("="*80)
     
-    if show_data.get('team'):
+    if show_data.get('team_members'):
         try:
             print(f"\nDeleting team members for show_id: {show_id}")
             delete_response = supabase.table('show_team').delete().eq('show_id', show_id).execute()
@@ -279,7 +264,7 @@ def save_show(show_data: dict, operation: str = "Add show"):
             
             # Create one row per role
             team_inserts = []
-            for member in show_data['team']:
+            for member in show_data['team_members']:
                 print(f"\nProcessing member: {member}")
                 
                 name = member['name'].strip()
@@ -287,37 +272,29 @@ def save_show(show_data: dict, operation: str = "Add show"):
                     print("- Skipping: empty name")
                     continue
                 
-                roles = member['roles']
+                role_type_id = member['role_type_id']
                 print(f"- Name: {name}")
-                print(f"- Roles: {roles}")
+                print(f"- Role Type ID: {role_type_id}")
                 
-                for role_id in roles:
-                    if not isinstance(role_id, int):
-                        print(f"- Skipping role: {role_id} (not an integer)")
-                        continue
-                        
-                    print(f"- Adding role: {role_id}")
-                    team_inserts.append({
-                        'show_id': show_id,
-                        'name': name,
-                        'role_type_id': role_id
-                    })
+                if not isinstance(role_type_id, int):
+                    print(f"- Skipping role: {role_type_id} (not an integer)")
+                    continue
+                    
+                print(f"- Adding role: {role_type_id}")
+                team_inserts.append({
+                    'show_id': show_id,
+                    'name': name,
+                    'role_type_id': role_type_id
+                })
             
             if team_inserts:
-                print(f"\nInserting {len(team_inserts)} team members:")
-                print(team_inserts)
-                
-                response = supabase.table('show_team').insert(team_inserts).execute()
-                print(f"\nInsert response: {response.data}")
-                
-                if not response.data:
-                    raise Exception("No data returned from insert")
-                    
+                print(f"\nInserting {len(team_inserts)} team members")
+                insert_response = supabase.table('show_team').insert(team_inserts).execute()
+                print(f"Insert response: {insert_response.data}")
             else:
-                print("\nNo valid team members to insert")
-                
+                print("No team members to insert")
         except Exception as e:
-            print(f"\nError: {str(e)}")
-            raise Exception(f"Failed to save team members: {str(e)}")
+            print("Error saving team members:", str(e))
+            raise        
                 
     return show_id
