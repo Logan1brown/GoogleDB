@@ -2,61 +2,73 @@
 
 ## Overview
 
-The Google Database includes comprehensive audit tracking in a separate `audit` schema, capturing all data changes for security and compliance.
+The Google Database includes comprehensive audit tracking in a separate `audit` schema, capturing all data changes for security and compliance. All changes to the database are automatically logged in a centralized audit table.
 
 ## Audit Schema
 
-### Tables
+### Table Structure
 
-1. **audit.shows_log**
-   - Tracks changes to the shows table
-   - Records old and new values
-   - Maintains complete history
+The audit system uses a single table `audit.logs` with the following structure:
 
-2. **audit.show_team_log**
-   - Captures team member changes
-   - Important for tracking role changes
-   - Links to original show records
+```sql
+                                          Table "audit.logs"
+   Column   |           Type           | Collation | Nullable |                Default                 
+------------+--------------------------+-----------+----------+----------------------------------------
+ id         | bigint                   |           | not null | nextval('audit.logs_id_seq'::regclass)
+ table_name | text                     |           | not null | 
+ operation  | text                     |           | not null | 
+ old_data   | jsonb                    |           |          | 
+ new_data   | jsonb                    |           |          | 
+ changed_by | text                     |           |          | 
+ created_at | timestamp with time zone |           |          | now()
+```
 
-### Common Fields
+### Key Fields
 
-All audit tables include:
 - `id`: Unique audit entry ID
-- `table_name`: Source table
-- `action`: INSERT, UPDATE, or DELETE
-- `old_data`: JSON of previous values
-- `new_data`: JSON of new values
+- `table_name`: Name of the modified table (e.g., 'shows', 'show_team')
+- `operation`: Type of change ('INSERT', 'UPDATE', or 'DELETE')
+- `old_data`: JSON containing previous values (for UPDATE/DELETE)
+- `new_data`: JSON containing new values (for INSERT/UPDATE)
 - `changed_by`: User who made the change
-- `changed_at`: Timestamp of change
-- `client_info`: Application context
+- `created_at`: Timestamp when the change occurred
 
 ## Querying History
 
+### Recent Changes
+```sql
+-- Get most recent changes across all tables
+SELECT created_at, changed_by, operation, table_name, 
+       old_data, new_data
+FROM audit.logs 
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
 ### Show History
 ```sql
-SELECT 
-    changed_at,
-    changed_by,
-    old_data->>'title' as old_title,
-    new_data->>'title' as new_title,
-    action
-FROM audit.shows_log
-WHERE new_data->>'id' = $1
-ORDER BY changed_at DESC;
+-- View changes to a specific show
+SELECT created_at, changed_by, operation,
+       old_data->>'title' as old_title,
+       new_data->>'title' as new_title
+FROM audit.logs
+WHERE table_name = 'shows'
+  AND (old_data->>'id' = $1 OR new_data->>'id' = $1)
+ORDER BY created_at DESC;
 ```
 
 ### Team Changes
 ```sql
-SELECT 
-    changed_at,
-    changed_by,
-    old_data->>'name' as old_name,
-    new_data->>'name' as new_name,
-    old_data->>'role_type_id' as old_role,
-    new_data->>'role_type_id' as new_role
-FROM audit.show_team_log
-WHERE new_data->>'show_id' = $1
-ORDER BY changed_at DESC;
+-- Track team member changes for a show
+SELECT created_at, changed_by, operation,
+       old_data->>'name' as old_name,
+       new_data->>'name' as new_name,
+       old_data->>'role_type_id' as old_role,
+       new_data->>'role_type_id' as new_role
+FROM audit.logs
+WHERE table_name = 'show_team'
+  AND (old_data->>'show_id' = $1 OR new_data->>'show_id' = $1)
+ORDER BY created_at DESC;
 ```
 
 ## Retention Policy
@@ -100,24 +112,41 @@ ORDER BY changed_at DESC;
    - Verify trigger operation
    - Update statistics regularly
 
-## Reports
+## Common Queries
 
-### Standard Reports
-1. Daily modification summary
-2. Weekly user activity
-3. Monthly data quality check
-4. Quarterly security review
-
-### Custom Queries
+### By Time Period
 ```sql
--- Example: Find all changes by user in date range
-SELECT 
-    table_name,
-    action,
-    changed_at,
-    changed_by
-FROM audit.log_view
+-- Find changes in a date range
+SELECT created_at, changed_by, operation, table_name
+FROM audit.logs
+WHERE created_at BETWEEN $1 AND $2
+ORDER BY created_at DESC;
+```
+
+### By User
+```sql
+-- Find all changes by a specific user
+SELECT created_at, operation, table_name, 
+       old_data, new_data
+FROM audit.logs
 WHERE changed_by = $1
-AND changed_at BETWEEN $2 AND $3
-ORDER BY changed_at DESC;
+ORDER BY created_at DESC;
+```
+
+### By Operation Type
+```sql
+-- Find all deletions
+SELECT created_at, changed_by, table_name, old_data
+FROM audit.logs
+WHERE operation = 'DELETE'
+ORDER BY created_at DESC;
+```
+
+### Data Analysis
+```sql
+-- Get operation counts by table
+SELECT table_name, operation, COUNT(*) as count
+FROM audit.logs
+GROUP BY table_name, operation
+ORDER BY table_name, count DESC;
 ```

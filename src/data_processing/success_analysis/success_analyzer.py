@@ -2,11 +2,12 @@
 Success Analyzer Component.
 Calculates success metrics for shows based on reliable data.
 
-=== CRITICAL COLUMN NAME DIFFERENCE ===
-There are two different column names for show titles that must be maintained:
-1. shows sheet: uses 'shows' column
-2. show_team sheet: uses 'show_name' column
-NEVER try to normalize or rename these columns - they must stay different.
+=== STANDARDIZED COLUMN NAMES ===
+All views now use standardized column names:
+- 'title' for show names
+- 'network_name' for networks
+- 'studio_names' for studios
+- 'status_name' for status
 """
 from dataclasses import dataclass
 from typing import Dict, List, Optional
@@ -191,7 +192,7 @@ class SuccessAnalyzer:
             # Do NOT use 'show_name' which is only for the show_team sheet
             scores.append({
                 'show_id': show['tmdb_id'],
-                'name': show['shows'],  # Shows column from shows sheet
+                'name': show['title'],  # Title column from standardized views
                 'score': score
             })
             
@@ -228,7 +229,7 @@ class SuccessAnalyzer:
                 score += self.config.SEASON2_VALUE
                 extra_seasons = seasons - 2
                 if extra_seasons > 0:
-                    score += extra_seasons * self.config.ADDITIONAL_SEASON_VALUE
+                    score += min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 40)  # Cap extra seasons bonus at 40 points
                 
         # Episode volume points (40% of total possible)
         if pd.notna(show['tmdb_avg_eps']):
@@ -248,7 +249,7 @@ class SuccessAnalyzer:
         modifier = self.config.STATUS_MODIFIERS.get(show['tmdb_status'], 1.0)
         score *= modifier
         
-        return max(0, score)  # Don't allow negative scores
+        return min(100, max(0, score))  # Cap at 100, don't allow negative
         
     def _get_tier(self, score: float, max_score: float) -> str:
         """Get success tier based on score relative to max."""

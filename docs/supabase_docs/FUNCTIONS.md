@@ -98,6 +98,36 @@ CREATE INDEX idx_shows_studios ON shows USING gin (studios);
 CREATE INDEX idx_shows_subgenres ON shows USING gin (subgenres);
 ```
 
+## Soft Delete Management
+
+The database uses soft deletes to maintain data history:
+
+### Tables with Soft Delete
+- shows
+- show_team
+- network_list
+- studio_list
+- genre_list
+
+### Implementation
+- `active` boolean field (default true)
+- When "deleting", update `active = false`
+- Cascading soft delete:
+  - When a show is marked inactive, related show_team entries are also marked inactive
+  - This preserves the relationship history while hiding inactive entries
+
+### Query Patterns
+```sql
+-- Get only active records
+SELECT * FROM shows WHERE active = true;
+
+-- Include inactive records
+SELECT * FROM shows; -- returns all records
+
+-- Mark as inactive (soft delete)
+UPDATE shows SET active = false WHERE id = ?;
+```
+
 ### Foreign Key Indexes
 ```sql
 -- B-tree indexes for joins

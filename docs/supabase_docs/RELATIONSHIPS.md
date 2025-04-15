@@ -60,6 +60,7 @@ erDiagram
         bigint show_id FK
         text name
         bigint role_type_id FK
+        boolean active
         timestamptz created_at
         timestamptz updated_at
     }

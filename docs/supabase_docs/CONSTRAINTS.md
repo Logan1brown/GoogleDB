@@ -3,47 +3,61 @@
 ## Foreign Key Constraints
 
 ### shows table
-- `network_id` → `networks.id` (broadcast/streaming network)
-- `studio_id` → `studios.id` (primary production studio)
-- `genre_id` → `genres.id` (primary genre)
-- `subgenres` → `genres.id` (array of additional genres)
-- `status_id` → `status_types.id` (development status)
-- `order_type_id` → `order_types.id` (pilot, series, etc)
-- `source_type_id` → `source_types.id` (original, adaptation, etc)
+- `network_id` → `network_list.id` (required)
+- `genre_id` → `genre_list.id` (optional)
+- `subgenres` → `genre_list.id[]` (array of additional genres)
+- `status_id` → `status_types.id` (optional)
+- `order_type_id` → `order_types.id` (optional)
+- `source_type_id` → `source_types.id` (optional)
+- `studios` → `studio_list.id[]` (array of production companies)
 
 ### show_team table
-- `show_id` → `shows.id` (foreign key reference)
-- `role_type_id` → `role_types.id` (normalized role reference)
+- `show_id` → `shows.id` (required)
+- `role_type_id` → `role_types.id` (required)
 
 ## Required Fields (NOT NULL)
 
 ### shows table
-- `title` (standardized from source columns, preserve formatting)
-- `search_title` (generated column: lowercase title)
+- `id` (auto-generated)
+- `title` (preserve formatting)
+- `network_id` (foreign key)
 - `active` (soft delete flag)
-- `created_at` (creation timestamp)
-- `updated_at` (last modified timestamp)
+- `created_at` (timestamp)
+- `updated_at` (timestamp)
 
 ### show_team table
-- `show_id` (reference to shows)
-- `name` (credited name, preserve formatting)
-- `search_name` (generated column: lowercase name)
-- `role_type_id` (normalized role reference)
-
-### support tables
-- `name` (unique, preserve exact formatting)
-- `search_name` (generated column: lowercase name)
 - `id` (auto-generated)
+- `show_id` (foreign key)
+- `name` (preserve formatting)
+- `role_type_id` (foreign key)
+- `active` (soft delete flag)
+- `created_at` (timestamp)
+- `updated_at` (timestamp)
+
+### studio_list table
+- `id` (auto-generated)
+- `studio` (preserve formatting)
+- `type` (e.g., 'Production Company')
+- `active` (soft delete flag)
+- `created_at` (timestamp)
+- `updated_at` (timestamp)
 
 ## Unique Constraints
 
 ### shows table
-- `title` (case-sensitive, preserve formatting)
-- `search_title` (unique in lowercase form)
-- `tmdb_id` (unique external reference)
+- `title` (case-sensitive)
+- `tmdb_id` (optional external reference)
 
 ### show_team table
-- `(show_id, name, role_type_id)` (person can have multiple roles on a show)
+- `(show_id, name, role_type_id)` (unique combination)
+  - Allows person to have multiple roles on a show
+  - Prevents duplicate role assignments
+
+### studio_list table
+- `studio` (case-sensitive)
+
+### network_list table
+- `network` (case-sensitive)
 
 ## Implementation Notes
 
@@ -78,27 +92,42 @@ Benefits:
 #### Support Tables
 ```sql
 -- Networks
-CREATE INDEX idx_networks_name ON networks(name);
-CREATE INDEX idx_networks_search_name ON networks(search_name);
-CREATE INDEX idx_networks_type ON networks(type);
-CREATE INDEX idx_networks_parent_company ON networks(parent_company);
+CREATE INDEX idx_network_list_network_trgm ON network_list USING gin (network gin_trgm_ops);
+CREATE INDEX idx_network_list_active ON network_list (active);
 
 -- Studios
-CREATE INDEX idx_studios_name ON studios(name);
-CREATE INDEX idx_studios_search_name ON studios(search_name);
-CREATE INDEX idx_studios_parent_company ON studios(parent_company);
-CREATE INDEX idx_studios_platform ON studios(platform);
+CREATE INDEX idx_studio_list_studio_trgm ON studio_list USING gin (studio gin_trgm_ops);
+CREATE INDEX idx_studio_list_active ON studio_list (active);
 
 -- Genres
-CREATE INDEX idx_genres_name ON genres(name);
-CREATE INDEX idx_genres_search_name ON genres(search_name);
-CREATE INDEX idx_genres_category ON genres(category);
+CREATE INDEX idx_genre_list_genre_trgm ON genre_list USING gin (genre gin_trgm_ops);
+CREATE INDEX idx_genre_list_active ON genre_list (active);
+
+-- Role Types
+CREATE INDEX idx_role_types_role_trgm ON role_types USING gin (role gin_trgm_ops);
+CREATE INDEX idx_role_types_active ON role_types (active);
 ```
 
 #### shows table
 ```sql
 -- Title lookups
-CREATE INDEX idx_shows_title ON shows(title);
+CREATE INDEX idx_shows_title_trgm ON shows USING gin (title gin_trgm_ops);
+CREATE INDEX idx_shows_active ON shows (active);
+
+-- Array fields
+CREATE INDEX idx_shows_studios ON shows USING gin (studios);
+CREATE INDEX idx_shows_subgenres ON shows USING gin (subgenres);
+```
+
+#### show_team table
+```sql
+-- Name lookups
+CREATE INDEX idx_show_team_name_trgm ON show_team USING gin (name gin_trgm_ops);
+CREATE INDEX idx_show_team_active ON show_team (active);
+
+-- Foreign key lookups
+CREATE INDEX idx_show_team_show_id ON show_team (show_id);
+CREATE INDEX idx_show_team_role_type_id ON show_team (role_type_id);
 CREATE INDEX idx_shows_search_title ON shows(search_title);
 
 -- Foreign key lookups

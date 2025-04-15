@@ -8,30 +8,34 @@ A Streamlit component that provides a market snapshot view with:
 - Market distribution visualization
 - Performance metrics (4 indicators)
 
-=== CRITICAL COLUMN NAME DIFFERENCES ===
-1. Show IDs: We use 'tmdb_id' as the ID column, not 'id' or 'show_id'
-2. Show Names:
-   - shows sheet: uses 'shows' column
-   - show_team sheet: uses 'show_name' column
-NEVER try to normalize these column names - they must stay different.
+Uses secure Supabase views for data access.
 """
 
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import logging
-from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
+from src.data_processing.market_analysis.market_analyzer_secure import MarketAnalyzer
 from src.dashboard.utils.style_config import COLORS
 
 logger = logging.getLogger(__name__)
 
 
-def render_market_snapshot(market_analyzer):
+def render_market_snapshot(market_analyzer, supabase):
     """Render the market snapshot component.
     
     Args:
         market_analyzer: MarketAnalyzer instance with processed data
+        supabase: Initialized Supabase client for querying data
     """
+    # Initialize filtered DataFrame
+    filtered_df = market_analyzer.shows_df.copy()
+    
+    # Calculate initial insights with ALL networks - used for displaying total numbers 
+    # in the metrics section (total shows, total networks, etc.)
+    # We want these numbers to reflect the entire dataset before filtering
+    initial_insights = market_analyzer.generate_market_insights(filtered_df)
+    
     # Add custom CSS for selectbox
     st.markdown("""
     <style>
@@ -43,28 +47,35 @@ def render_market_snapshot(market_analyzer):
     </style>
     """, unsafe_allow_html=True)
     
-    # Get market insights
-    insights = market_analyzer.generate_market_insights()
-    
-    
     # Display key dataset metrics and filters
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Total Shows", f"{insights['total_shows']:,}")
-        # === CRITICAL: Column Name Difference ===
-        # shows sheet uses 'shows' column, show_team sheet uses 'show_name'
-        shows = sorted(market_analyzer.shows_df['shows'].unique())
+        st.metric("Total Titles", f"{initial_insights['total_shows']:,}")
+        shows = sorted(market_analyzer.shows_df['title'].unique())
         selected_shows = st.multiselect(
-            "Filter Shows", 
+            "Filter Titles", 
             shows,
             max_selections=5,
-            help="Select up to 5 shows to filter the data",
+            help="Select up to 5 titles to filter the data",
             key="market_filter_shows"
         )
     with col2:
-        st.metric("Unique Creatives", f"{insights['total_creatives']:,}")
-        creatives = sorted(market_analyzer.team_df['name'].unique())
+        # Get total unique team members from secure API view
+        unique_members = set()
+        
+        # Get all records with pagination
+        page = 0
+        while True:
+            names = supabase.table('api_show_team').select('name').range(page*1000, (page+1)*1000-1).execute()
+            if not names.data:
+                break
+            # Clean names and ensure no empty values
+            unique_members.update(member['name'].strip() for member in names.data if member.get('name'))
+            page += 1
+        
+        st.metric("Unique Creatives", f"{len(unique_members):,}")
+        creatives = sorted(name for name in unique_members if name)
         selected_creatives = st.multiselect(
             "Filter Creatives", 
             creatives,
@@ -73,8 +84,8 @@ def render_market_snapshot(market_analyzer):
             key="market_filter_creatives"
         )
     with col3:
-        st.metric("Networks", f"{insights['total_networks']:,}")
-        networks = sorted(market_analyzer.shows_df['network'].unique())
+        st.metric("Networks", f"{initial_insights['total_networks']:,}")
+        networks = sorted(market_analyzer.shows_df['network_name'].unique())
         selected_networks = st.multiselect(
             "Filter Networks", 
             networks,
@@ -82,11 +93,11 @@ def render_market_snapshot(market_analyzer):
             key="market_filter_networks"
         )
     with col4:
-        avg_success = insights['avg_success_score']
+        avg_success = initial_insights['avg_success_score']
         st.metric(
             "Success Score", 
             f"{avg_success:.0f}/100",
-            help="Average show success score (0-100) based on:\n" +
+            help="Average title success score (0-100) based on:\n" +
                  "- Number of Seasons (40pts for S2, +20pts each for S3/S4/S5+)\n" +
                  "- Show Status (bonus for planned ending, penalty for cancellation)\n" +
                  "- Episode Volume (penalty for <11 eps)\n\n" +
@@ -140,27 +151,34 @@ def render_market_snapshot(market_analyzer):
     
     # Apply show filters if selected
     if selected_shows:  # Check if any shows are selected
-        # === CRITICAL: Column Name Difference ===
-        # shows sheet uses 'shows' column, show_team sheet uses 'show_name'
-        filtered_df = filtered_df[filtered_df['shows'].isin(selected_shows)]
+        filtered_df = filtered_df[filtered_df['title'].isin(selected_shows)]
     
-    # Apply network filters if selected
-    if selected_networks:
-        filtered_df = filtered_df[filtered_df['network'].isin(selected_networks)]
-    
-    # Apply creative filters if selected - this requires joining with show_team data
+    # Apply creative filters if selected
     if selected_creatives:
-        # === CRITICAL: Column Name Difference ===
-        # team_df uses 'show_name' column, shows_df uses 'shows' column
-        creative_shows = market_analyzer.team_df[
-            market_analyzer.team_df['name'].isin(selected_creatives)
-        ]['show_name'].unique()
+        # Find shows for selected creatives using api_show_team view
+        creative_shows = set()
+        for creative in selected_creatives:
+            # Get show titles for this creative
+            shows = supabase.table('api_show_team').select('title').eq('name', creative).execute()
+            creative_shows.update(show['title'] for show in shows.data if show.get('title'))
         
-        # Filter shows by matching show_name to shows column
-        filtered_df = filtered_df[filtered_df['shows'].isin(creative_shows)]
+        # Filter shows by matching show names
+        filtered_df = filtered_df[filtered_df['title'].isin(creative_shows)]
         
         if len(filtered_df) == 0:
             st.info("No shows found for selected creatives.")
+    
+    # Get networks with more than 1 show
+    network_counts = filtered_df.groupby('network_name').size()
+    multi_show_networks = network_counts[network_counts > 1].index
+    
+    # Filter DataFrame to only include multi-show networks
+    filtered_df = filtered_df[filtered_df['network_name'].isin(multi_show_networks)]
+    
+    # Calculate filtered insights using only networks with multiple shows
+    # This is used for the graph and success metrics to avoid single-show networks
+    # skewing the network performance calculations
+    insights = market_analyzer.generate_market_insights(filtered_df)
     
     # Get success metrics from the filtered data
     success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
@@ -170,7 +188,7 @@ def render_market_snapshot(market_analyzer):
     for show_id, show_data in success_metrics['shows'].items():
         show = filtered_df[filtered_df['tmdb_id'] == show_id].iloc[0] if len(filtered_df[filtered_df['tmdb_id'] == show_id]) > 0 else None
         if show is not None:
-            network = show['network']
+            network = show['network_name']
             if network not in network_scores:
                 network_scores[network] = []
             network_scores[network].append(show_data['score'])
@@ -178,16 +196,18 @@ def render_market_snapshot(market_analyzer):
     # If filtering by success tier, only include networks that have scores
     if success_filter != "All":
         networks_with_scores = set(network_scores.keys())
-        filtered_df = filtered_df[filtered_df['network'].isin(networks_with_scores)]
+        filtered_df = filtered_df[filtered_df['network_name'].isin(networks_with_scores)]
     
     # Get network distribution after filtering
-    shows_by_network = filtered_df.groupby('network').size().sort_values(ascending=False)
+    shows_by_network = filtered_df.groupby('network_name').size()
+    # Filter to only networks with more than 1 show
+    shows_by_network = shows_by_network[shows_by_network > 1].sort_values(ascending=False)
     
     # Calculate average scores and create hover text
     avg_scores = []
     hover_text = []
     for network, count in shows_by_network.items():
-        text = f'{network}<br>Shows: {count}'
+        text = f'{network}<br>Titles: {count}'
         if network in network_scores:
             avg = sum(network_scores[network]) / len(network_scores[network])
             avg_scores.append(avg)
@@ -216,7 +236,7 @@ def render_market_snapshot(market_analyzer):
     fig.add_trace(go.Bar(
         x=list(shows_by_network.index),
         y=list(shows_by_network.values),
-        name="Shows per Network",
+        name="Titles per Network",
         marker_color=colors,
         hovertext=hover_text,
         hoverinfo='text'
@@ -225,7 +245,7 @@ def render_market_snapshot(market_analyzer):
     # Update layout
     fig.update_layout(
         xaxis_title="Network",
-        yaxis_title="Number of Shows",
+        yaxis_title="Number of Titles",
         font_family="Source Sans Pro",
         showlegend=False,
         margin=dict(t=20)
@@ -248,12 +268,12 @@ def render_market_snapshot(market_analyzer):
         st.metric(
             "Network Concentration", 
             f"{insights['network_concentration']:.1f}%",
-            help=f"Share of shows from top 3 networks: {', '.join(insights['top_3_networks'])}"
+            help=f"Share of titles from top 3 networks: {', '.join(insights['top_3_networks'].index)}"
         )
     with col3:
         st.metric(
             "Vertical Integration", 
             f"{insights['vertical_integration']:.0f}%",
-            help="Percentage of shows from vertically integrated studios"
+            help="Percentage of titles from vertically integrated studios"
         )
     

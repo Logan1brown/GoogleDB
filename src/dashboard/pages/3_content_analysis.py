@@ -4,10 +4,13 @@ Content Analysis Page
 Provides detailed analysis of TV series content across acquisition, packaging, and development.
 """
 
+import os
 import streamlit as st
 from dataclasses import asdict, dataclass, field
+import pandas as pd
+from supabase import create_client
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.data_processing.analyze_shows import shows_analyzer
+from src.data_processing.market_analysis.market_analyzer_secure import MarketAnalyzer
 from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
 from src.dashboard.components.unified_view import render_unified_dashboard
 from src.dashboard.state.session import get_page_state, FilterState
@@ -33,27 +36,39 @@ try:
     if "unified" not in state:
         state["unified"] = asdict(UnifiedState())
     
-    # Initialize data and analyzers
-    shows_df, team_df = shows_analyzer.fetch_data()
-    success_analyzer = SuccessAnalyzer()
-    success_analyzer.initialize_data(shows_df)
+    # Initialize Supabase client
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
     
-    # Update state with filter values
-    unified_state = state["unified"]
-    if "analysis_type" in st.session_state:
-        unified_state["analysis_type"] = st.session_state["analysis_type"]
-    if "source_type" in st.session_state:
-        unified_state["source_type"] = st.session_state["source_type"]
-    if "genre" in st.session_state:
-        unified_state["genre"] = st.session_state["genre"]
-    if "network" in st.session_state:
-        unified_state["network"] = st.session_state["network"]
-    if "year_range" in st.session_state:
-        unified_state["year_range"] = st.session_state["year_range"]
-    
-    # Render view with state
-    render_unified_dashboard(success_analyzer)
+    if not supabase_url or not supabase_anon_key:
+        st.error("Missing Supabase configuration. Please check your environment variables.")
+    else:
+        # Initialize Supabase client with anon key
+        supabase = create_client(supabase_url, supabase_anon_key)
+        
+        # Fetch data from secure view
+        response = supabase.table('api_market_analysis').select('*').execute()
+        market_data = pd.DataFrame(response.data)
+        
+        # Initialize analyzer with secure data
+        market_analyzer = MarketAnalyzer(market_data)
+        
+        # Update state with filter values
+        unified_state = state["unified"]
+        if "analysis_type" in st.session_state:
+            unified_state["analysis_type"] = st.session_state["analysis_type"]
+        if "source_type" in st.session_state:
+            unified_state["source_type"] = st.session_state["source_type"]
+        if "genre" in st.session_state:
+            unified_state["genre"] = st.session_state["genre"]
+        if "network" in st.session_state:
+            unified_state["network"] = st.session_state["network"]
+        if "year_range" in st.session_state:
+            unified_state["year_range"] = st.session_state["year_range"]
+        
+        # Render view with state
+        render_unified_dashboard(market_analyzer)
     
 except Exception as e:
     st.error(f"Error displaying unified dashboard: {str(e)}")
-    st.info("Please ensure Google Sheets credentials are properly configured.")
+    st.info("Please ensure Supabase configuration is properly set up.")

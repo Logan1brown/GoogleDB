@@ -40,8 +40,8 @@ class ContentAnalyzer:
         # Merge shows and team data
         combined_df = pd.merge(
             self.team_df,
-            self.shows_df[['show_name', 'genre', 'network', 'source_type']],
-            on='show_name'
+            self.shows_df[['title', 'genre', 'network_name', 'source_type']],
+            on='title'
         )
         
         # Create genre-creator matrix
@@ -72,21 +72,21 @@ class ContentAnalyzer:
         """
         # Genre preferences
         network_genre = pd.crosstab(
-            self.shows_df['network'],
+            self.shows_df['network_name'],
             self.shows_df['genre']
         )
         
         # Source type patterns
         source_patterns = pd.crosstab(
-            self.shows_df['network'],
+            self.shows_df['network_name'],
             self.shows_df['source_type']
         )
         
         # Creator preferences (using merged data)
         combined_df = pd.merge(
             self.team_df,
-            self.shows_df[['show_name', 'network']],
-            on='show_name'
+            self.shows_df[['title', 'network_name']],
+            on='title'
         )
         creator_network = pd.crosstab(
             combined_df['name'],
@@ -132,8 +132,8 @@ class ContentAnalyzer:
         # Merge data for analysis
         combined_df = pd.merge(
             self.team_df,
-            self.shows_df[['show_name', 'genre', 'network']],
-            on='show_name'
+            self.shows_df[['title', 'genre', 'network_name']],
+            on='title'
         )
         
         # Create creator success visualization

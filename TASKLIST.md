@@ -2,6 +2,121 @@
 
 ## Current Sprint 
 
+- [ ] Update Analytics Dashboard
+    - [x] Connect to Supabase
+    - [x] Implement performance optimizations
+        - [x] Add st.cache_data for query results
+        - [x] Use pagination for large datasets
+        - [ ] Implement lazy loading for visualizations
+        - [ ] Add loading states during data fetch
+    - [ ] Port existing visualizations
+        - [x] Use materialized views for complex charts
+        - [ ] Implement incremental updates
+    - [ ] Add user authentication (moved to deployment phase)
+
+### Day 4: Database Optimization & View Updates
+
+- [ ] Authentication Implementation
+    - [ ] Supabase Auth Integration
+        - [ ] Set up auth client in Streamlit
+        - [ ] Add login/signup forms
+        - [ ] Implement session management
+        - [ ] Add role-based access control
+    - [ ] Auth UI Components
+        - [ ] Create login page
+        - [ ] Add user profile page
+        - [ ] Implement password reset
+        - [ ] Add OAuth providers (if needed)
+    - [ ] Testing & Security
+        - [ ] Test auth flows
+        - [ ] Verify RLS policies
+        - [ ] Test role permissions
+        - [ ] Security review
+
+- [ ] Frontend View Updates
+    - [ ] Update Data Processing Layer
+        - [ ] Modify analyze_shows.py to use materialized views
+        - [ ] Update market_analyzer.py for new column names
+        - [ ] Test data processing changes
+    - [ ] Update Components
+        - [ ] Update market_view.py
+            - [ ] Use new column names (network_name, genre_name)
+            - [ ] Update team member handling
+            - [ ] Test filtering and aggregations
+        - [ ] Update other affected components
+            - [ ] genre_view.py
+            - [ ] studio_view.py
+            - [ ] unified_view.py
+    - [ ] Test View Integration
+        - [ ] Test all filters
+        - [ ] Verify data accuracy
+        - [ ] Check performance
+
+### Day 5: Testing & Deployment 🚀
+
+- [ ] Application Testing
+    - [ ] Form Testing
+        - [ ] Input validation
+        - [ ] Error handling
+        - [ ] Success flows
+    - [ ] Integration Testing
+        - [ ] Test all database operations
+        - [ ] Verify materialized view updates
+        - [ ] Load testing with sample data
+
+- [ ] Deployment Preparation
+    - [ ] Supabase Backend
+        - [ ] Set up materialized view refresh schedule
+        - [ ] Configure backup schedule
+        - [ ] Review and optimize RLS policies
+        - [ ] Document connection strings and API keys
+
+    - [ ] Streamlit Frontend
+        - [ ] Create/update requirements.txt
+        - [ ] Document environment variables
+        - [ ] Create deployment guide
+        - [ ] Set up error monitoring
+
+- [ ] Deploy to Production
+    - [ ] Deploy to Streamlit Cloud
+        - [ ] Connect GitHub repository
+        - [ ] Configure environment variables
+        - [ ] Set up custom domain (if needed)
+    - [ ] Post-Deployment
+        - [ ] Verify all features
+        - [ ] Monitor performance
+        - [ ] Document deployment URLs
+        - [ ] Create user guide
+    - [ ] Setup monitoring
+    - [ ] Document usage
+
+
+
+
+### Backlog
+
+### Database Improvements
+- Add soft delete support for show_team table
+  - Add `active` column (boolean, default true)
+  - Update queries to filter by active=true
+  - Update UI to only show active roles
+  - Add audit trail for role changes
+
+### Database Optimization
+- [ ] Implement automated materialized view refresh strategy
+  - [ ] Evaluate pg_cron vs external scheduler
+  - [ ] Set up monitoring for refresh performance
+  - [ ] Implement retry mechanism for failed refreshes
+  - [ ] Document refresh strategy and monitoring
+
+
+2. Role Analysis
+   - [ ] Role distribution charts
+   - [ ] Network role preferences
+   - [ ] Role-based filtering
+
+## Completed ✅
+
 ### Day 1: Setup & Database 
 - [x] Setup Supabase Project
     - [x] Configure auth settings
@@ -100,77 +215,40 @@
         - [x] Verify operation logging
         - [x] Check user attribution
         - [x] Validate JSON payloads
+        - [x] Document audit log queries
+        - [x] Update AUDIT.md with correct table structure
 
 ### Day 3: Streamlit Apps 
-- [ ] Create Data Entry App
-    - [ ] Setup Supabase client
-    - [ ] Create login form
-    - [ ] Build data entry forms with validation
-    - [ ] Implement fuzzy matching for show entry
-    - [ ] Implement merge logic for show updates
-    - [ ] Test CRUD operations
+- [x] Create Data Entry App
+    - [x] Setup Supabase client
+    - [x] Create login form
+    - [x] Build data entry forms with validation
+    - [x] Implement fuzzy matching for show entry
+    - [x] Implement merge logic for show updates
+    - [x] Test CRUD operations
     
-- [ ] Integration Tests (BLOCKED: DB connection issues)
-    - [ ] Complete workflow tests (needs DB access)
-    - [ ] Trigger verification (needs DB access)
-    - [ ] Constraint validation (needs DB access)
+- [x] Integration Tests
+    - [x] Complete workflow tests
+    - [x] Trigger verification
+    - [x] Constraint validation
 
-- [ ] Update Analytics Dashboard
-    - [ ] Connect to Supabase
-    - [ ] Implement performance optimizations
-        - [ ] Add st.cache_data for query results
-        - [ ] Use pagination for large datasets
-        - [ ] Implement lazy loading for visualizations
-        - [ ] Add loading states during data fetch
-    - [ ] Port existing visualizations
-        - [ ] Use materialized views for complex charts
-        - [ ] Implement incremental updates
-    - [ ] Add user authentication
-
-### Day 4: Testing & Deploy 🚀
-
-- [ ] Application Testing
-    - [ ] Form Testing
-        - [ ] Input validation
-        - [ ] Error handling
-        - [ ] Success flows
-    - [ ] Authentication Testing
-        - [ ] Login flows
-        - [ ] Permission checks
-        - [ ] Session handling
-- [ ] Deploy
-    - [ ] Deploy to Streamlit Cloud
-    - [ ] Setup monitoring
-    - [ ] Document usage
-
-
-
-
-### Backlog
-
-### Database Improvements
-- Add soft delete support for show_team table
-  - Add `active` column (boolean, default true)
-  - Update queries to filter by active=true
-  - Update UI to only show active roles
-  - Add audit trail for role changes
-
-### Database Optimization
-- [ ] Implement automated materialized view refresh strategy
-  - [ ] Evaluate pg_cron vs external scheduler
-  - [ ] Set up monitoring for refresh performance
-  - [ ] Implement retry mechanism for failed refreshes
-  - [ ] Document refresh strategy and monitoring
-
-
-2. Role Analysis
-   - [ ] Role distribution charts
-   - [ ] Network role preferences
-   - [ ] Role-based filtering
-
-## Completed ✅
-
-
+    - [x] Database Optimization
+    - [x] Add foreign key constraints
+        - [x] network_id → network_list(id)
+        - [x] genre_id → genre_list(id)
+        - [x] status_id → status_types(id)
+    - [x] Create materialized views
+        - [x] show_details view
+        - [x] network_stats view
+        - [x] team_summary view
+    - [x] Update analytics service
+        - [x] Use materialized views
+        - [x] Update column names
+        - [x] Test changes
+    - [x] Update documentation
+        - [x] Document foreign keys
+        - [x] Document materialized views
+        - [x] Document refresh process
 
 ### Must Have 
 - Reliable data sync with Google Sheets

@@ -2,12 +2,11 @@
 
 This module provides market overview analytics including network distribution and key metrics.
 
-=== CRITICAL COLUMN NAME DIFFERENCES ===
-1. Show IDs: We use 'tmdb_id' as the ID column, not 'id' or 'show_id'
-2. Show Names:
-   - shows sheet: uses 'shows' column
-   - show_team sheet: uses 'show_name' column
-NEVER try to normalize these column names - they must stay different.
+=== CRITICAL COLUMN NAMES ===
+1. Show IDs: We use 'tmdb_id' as the ID column
+2. Show Names: We use 'title' column everywhere
+3. Network Names: We use 'network_name' column
+4. Studio Names: We use 'studio_names' column
 """
 
 import logging
@@ -51,14 +50,14 @@ class MarketAnalyzer:
         # Initialize success analyzer
         self.success_analyzer = SuccessAnalyzer(success_config)
         
-        # === CRITICAL: Column Name Differences ===
-        # 1. Show IDs: We use 'tmdb_id' as the ID column, not 'id' or 'show_id'
-        # 2. Show Names:
-        #    - shows sheet: uses 'shows' column
-        #    - show_team sheet: uses 'show_name' column
+        # === CRITICAL: Column Names ===
+        # 1. Show IDs: We use 'tmdb_id' as the ID column
+        # 2. Show Names: We use 'title' column everywhere
+        # 3. Network Names: We use 'network_name' column
+        # 4. Studio Names: We use 'studio_names' column
         
         # Validate shows_df required columns
-        required_shows_cols = ['network', 'studio', 'tmdb_id', 'shows']
+        required_shows_cols = ['network_name', 'studio_names', 'tmdb_id', 'title']
         missing_shows_cols = [col for col in required_shows_cols if col not in self.shows_df.columns]
         if missing_shows_cols:
             raise ValueError(f"Missing required columns in shows_df: {missing_shows_cols}")
@@ -68,7 +67,7 @@ class MarketAnalyzer:
             
         # Validate team_df required columns if provided
         if not self.team_df.empty:
-            required_team_cols = ['show_name', 'name']
+            required_team_cols = ['title', 'name']
             missing_team_cols = [col for col in required_team_cols if col not in self.team_df.columns]
             if missing_team_cols:
                 raise ValueError(f"Missing required columns in team_df: {missing_team_cols}")
@@ -76,7 +75,7 @@ class MarketAnalyzer:
         # Log initial state
         logger.info("Market overview:")
         logger.info(f"Total shows: {len(self.shows_df)}")
-        logger.info(f"Total networks: {len(self.shows_df['network'].unique())}")
+        logger.info(f"Total networks: {len(self.shows_df['network_name'].unique())}")
         if not self.team_df.empty and 'name' in self.team_df.columns:
             logger.info(f"Total creatives: {len(self.team_df['name'].unique())}")
     
@@ -86,7 +85,7 @@ class MarketAnalyzer:
         Returns:
             Series with network counts, sorted by count descending
         """
-        return self.shows_df['network'].value_counts()
+        return self.shows_df['network_name'].value_counts()
     
     def get_success_by_network(self) -> pd.Series:
         """Get average success score by network.
@@ -94,7 +93,7 @@ class MarketAnalyzer:
         Returns:
             Series with average success scores by network, sorted by score descending
         """
-        return self.shows_df.groupby('network')['success_score'].mean().sort_values(ascending=False)
+        return self.shows_df.groupby('network_name')['success_score'].mean().sort_values(ascending=False)
     
 
     
@@ -187,7 +186,7 @@ class MarketAnalyzer:
             logger.info(f"Vertically integrated shows: {vertically_integrated_count}")
             
             # Get unique studios for debugging
-            unique_studios = lookup_studio_shows['studio'].unique()
+            unique_studios = lookup_studio_shows['studio_names'].unique()
             logger.info(f"Unique studios found: {unique_studios}")
             
             vertical_integration = (vertically_integrated_count / len(lookup_studio_shows)) * 100

@@ -72,7 +72,10 @@ CREATE TABLE shows (
     active boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
-    studios bigint[] DEFAULT '{}'
+    studios bigint[] DEFAULT '{}',
+    FOREIGN KEY (network_id) REFERENCES network_list(id),
+    FOREIGN KEY (genre_id) REFERENCES genre_list(id),
+    FOREIGN KEY (status_id) REFERENCES status_types(id)
 );
 ```
 
@@ -83,6 +86,7 @@ CREATE TABLE show_team (
     show_id bigint REFERENCES shows(id),
     name text NOT NULL,
     role_type_id bigint REFERENCES role_types(id),
+    active boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -187,6 +191,95 @@ CREATE TABLE status_types (
 );
 ```
 
+## Materialized Views
+
+### show_details
+Denormalized view of shows with all related lookup data:
+```sql
+CREATE MATERIALIZED VIEW show_details AS
+SELECT s.id,
+       s.title,
+       s.description,
+       nl.network AS network_name,
+       gl.genre AS genre_name,
+       array_agg(DISTINCT sgl.genre) AS subgenre_names,
+       array_agg(DISTINCT stl.studio) AS studio_names,
+       st.status AS status_name,
+       ot.type AS order_type_name,
+       srt.type AS source_type_name,
+       s.date,
+       s.episode_count,
+       s.tmdb_id,
+       tsm.seasons AS tmdb_seasons,
+       tsm.total_episodes AS tmdb_total_episodes,
+       tsm.status AS tmdb_status,
+       tsm.last_air_date AS tmdb_last_air_date
+FROM shows s
+  LEFT JOIN network_list nl ON s.network_id = nl.id
+  LEFT JOIN genre_list gl ON s.genre_id = gl.id
+  LEFT JOIN genre_list sgl ON sgl.id = ANY(s.subgenres)
+  LEFT JOIN studio_list stl ON stl.id = ANY(s.studios)
+  LEFT JOIN status_types st ON s.status_id = st.id
+  LEFT JOIN order_types ot ON s.order_type_id = ot.id
+  LEFT JOIN source_types srt ON s.source_type_id = srt.id
+  LEFT JOIN tmdb_success_metrics tsm ON s.tmdb_id = tsm.tmdb_id
+WHERE s.active = true
+GROUP BY s.id, s.title, s.description, nl.network, gl.genre,
+         st.status, ot.type, srt.type, s.date, s.episode_count,
+         s.tmdb_id, tsm.seasons, tsm.total_episodes, tsm.status,
+         tsm.last_air_date;
+```
+
+### network_stats
+Pre-computed network performance metrics:
+```sql
+CREATE MATERIALIZED VIEW network_stats AS
+SELECT nl.id AS network_id,
+       nl.network AS network_name,
+       count(s.id) AS total_shows,
+       count(s.id) FILTER (WHERE st.status = 'Active') AS active_shows,
+       count(s.id) FILTER (WHERE st.status = 'Ended') AS ended_shows,
+       array_agg(DISTINCT gl.genre) AS genres,
+       array_agg(DISTINCT srt.type) AS source_types
+FROM network_list nl
+  LEFT JOIN shows s ON nl.id = s.network_id AND s.active = true
+  LEFT JOIN status_types st ON s.status_id = st.id
+  LEFT JOIN genre_list gl ON s.genre_id = gl.id
+  LEFT JOIN source_types srt ON s.source_type_id = srt.id
+WHERE nl.active = true
+GROUP BY nl.id, nl.network;
+```
+
+### team_summary
+Aggregated team member roles by show:
+```sql
+CREATE MATERIALIZED VIEW team_summary AS
+SELECT st.show_id,
+       s.title AS show_title,
+       array_agg(DISTINCT st.name) FILTER (WHERE rt.role = 'Writer') AS writers,
+       array_agg(DISTINCT st.name) FILTER (WHERE rt.role = 'Producer') AS producers,
+       array_agg(DISTINCT st.name) FILTER (WHERE rt.role = 'Director') AS directors,
+       array_agg(DISTINCT st.name) FILTER (WHERE rt.role = 'Creator') AS creators
+FROM show_team st
+  JOIN shows s ON st.show_id = s.id
+  JOIN role_types rt ON st.role_type_id = rt.id
+WHERE st.active = true AND s.active = true
+GROUP BY st.show_id, s.title;
+```
+
+### Materialized Views Maintenance
+
+Materialized views need to be refreshed when their underlying data changes. The refresh order is important due to dependencies:
+
+```sql
+-- Refresh materialized views (in dependency order)
+REFRESH MATERIALIZED VIEW network_stats;
+REFRESH MATERIALIZED VIEW team_summary;
+REFRESH MATERIALIZED VIEW show_details;
+```
+
+Consider setting up a periodic refresh job or triggering refreshes after bulk data updates.
+
 ## Indexes and Constraints
 
 ### Primary Tables
@@ -195,6 +288,10 @@ CREATE TABLE status_types (
 - Primary Key: `shows_pkey` on `id`
 - Unique Constraints:
   - `shows_title_unique` on `title`
+- Foreign Key Constraints:
+  - `shows_network_id_fkey` on `network_id` → `network_list(id)`
+  - `shows_genre_id_fkey` on `genre_id` → `genre_list(id)`
+  - `shows_status_id_fkey` on `status_id` → `status_types(id)`
   - `shows_search_title_unique` on `search_title`
   - `shows_tmdb_id_key` on `tmdb_id`
 - Foreign Key Indexes:
