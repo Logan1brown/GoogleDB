@@ -29,7 +29,7 @@ def analyze_source_patterns(shows_df: pd.DataFrame) -> Dict:
     logger.info("Analyzing source type patterns")
     
     # Get overall source type distribution and key metrics
-    source_counts = shows_df['source_type'].value_counts()
+    source_counts = shows_df['source_type_name'].value_counts()
     total_shows = len(shows_df)
     
     # Calculate top source metrics
@@ -44,7 +44,7 @@ def analyze_source_patterns(shows_df: pd.DataFrame) -> Dict:
     # Network source type focus
     network_source = pd.crosstab(
         shows_df['network'],
-        shows_df['source_type']
+        shows_df['source_type_name']
     )
     
     # Calculate percentages

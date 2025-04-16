@@ -16,6 +16,23 @@
 
 ### Day 4: Database Optimization & View Updates
 
+- [ ] Market Analyzer Migration
+    1. [ ] Update market_analyzer.py to use shows_analyzer as data source
+        - [ ] Remove direct Supabase calls
+        - [ ] Update constructor to accept shows_analyzer data
+        - [ ] Test market snapshot view with new data source
+    2. [ ] Migrate improvements from market_analyzer_secure.py
+        - [ ] Port improved network filtering logic
+        - [ ] Port vertically integrated studio detection
+        - [ ] Port enhanced team member handling
+        - [ ] Test all migrated functionality
+    3. [ ] Clean up
+        - [ ] Remove market_analyzer_secure.py
+        - [ ] Remove market_analyzer_old.py
+        - [ ] Update all imports to use market_analyzer.py
+
+### Day 4: Database Optimization & View Updates
+
 - [ ] Authentication Implementation
     - [ ] Supabase Auth Integration
         - [ ] Set up auth client in Streamlit

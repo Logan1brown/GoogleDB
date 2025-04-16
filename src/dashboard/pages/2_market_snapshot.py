@@ -4,13 +4,14 @@ Displays market analysis and insights for TV series data using secure Supabase v
 """
 
 import os
+import traceback
 import streamlit as st
 from dataclasses import asdict, dataclass, field
 import pandas as pd
 from supabase import create_client
 
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.data_processing.market_analysis.market_analyzer_secure import MarketAnalyzer
+from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.components.market_view import render_market_snapshot
 from src.dashboard.state.session import get_page_state, FilterState
 
@@ -41,12 +42,12 @@ try:
         # Initialize Supabase client with anon key
         supabase = create_client(supabase_url, supabase_anon_key)
         
-        # Fetch data from secure view
-        response = supabase.table('api_market_analysis').select('*').execute()
-        market_data = pd.DataFrame(response.data)
-        
-        # Initialize analyzer with secure data
-        market_analyzer = MarketAnalyzer(market_data)
+        # Initialize analyzer (it will fetch data from shows_analyzer)
+        try:
+            market_analyzer = MarketAnalyzer()
+        except Exception as e:
+            st.error(f"Error initializing MarketAnalyzer: {str(e)}\n\nTraceback: {traceback.format_exc()}")
+            st.stop()
         
         # Update state with filter values
         market_state = state["market"]

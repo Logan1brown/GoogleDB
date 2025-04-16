@@ -51,6 +51,7 @@ class MarketAnalyzer:
         
         # Initialize success analyzer
         self.success_analyzer = SuccessAnalyzer(success_config)
+        self.success_analyzer.initialize_data(self.shows_df)
         
         # Validate required columns
         required_shows_cols = ['network_name', 'studio_names', 'tmdb_id', 'title']

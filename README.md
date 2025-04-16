@@ -33,8 +33,13 @@ A three-layer system that separates:
    - Normalized schema and proper indexing
    - Comprehensive audit logging in `audit.logs`
    - Full change history for all tables
+   - Consistent naming convention for ID->name transformations:
+     - Base tables use `_id` suffix for foreign keys (e.g., `network_id`)
+     - Views use `_name` suffix to signal ID->name conversion (e.g., `network_name`)
 2. Services: Python service layer for data access and business logic
 3. Presentation: Streamlit dashboard with modern UI components
+   - Components use view column names directly (e.g., `network_name`)
+   - No additional ID->name transformations needed in frontend
 
 ### External Data Sources
 1. **TMDB Integration**

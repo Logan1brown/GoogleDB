@@ -26,10 +26,10 @@ class MarketAnalyzer:
         self.team_df = team_df
         
         # Log basic stats
-        logger.info("Market overview:")
-        logger.info(f"  Total shows: {len(shows_df)}")
-        logger.info(f"  Total networks: {len(shows_df['network'].unique())}")
-        logger.info(f"  Total creatives: {len(team_df['name'].unique())}")
+        # Calculate market overview metrics
+        total_shows = len(shows_df)
+        total_networks = len(shows_df['network'].unique())
+        total_creatives = len(team_df['name'].unique())
     
     def create_network_chart(self) -> go.Figure:
         """Create a bar chart showing the distribution of shows across networks.

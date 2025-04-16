@@ -79,7 +79,7 @@ class ContentAnalyzer:
         # Source type patterns
         source_patterns = pd.crosstab(
             self.shows_df['network_name'],
-            self.shows_df['source_type']
+            self.shows_df['source_type_name']
         )
         
         # Creator preferences (using merged data)

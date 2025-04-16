@@ -6,13 +6,34 @@
 - Use lowercase with underscores (snake_case)
 - Be consistent with column names across tables
 - Use clear, descriptive names
-- Standardize common fields:
+
+### ID to Name Transformations
+When a view transforms an ID field to its human-readable name, append `_name` to the column name:
+
+1. Base Tables (normalized with IDs):
+   - `network_id`: Foreign key to network_list
+   - `studios`: Array of foreign keys to studio_list
+   - `status_id`: Foreign key to status_types
+
+2. Views (denormalized with names):
+   - `network_name`: Transformed from network_id
+   - `studio_names`: Transformed from studios array
+   - `status_name`: Transformed from status_id
+
+Columns that don't undergo ID->name transformation (like `title`) keep their original names.
+
+### Standardized Fields:
   - `id`: Primary key (bigint)
   - Primary Name Fields:
-    - `title`: For shows table
-    - `network`: For network_list
-    - `studio`: For studio_list
-    - `genre`: For genre_list
+    - Base Tables:
+      - `title`: For shows table
+      - `network`: For network_list
+      - `studio`: For studio_list
+      - `genre`: For genre_list
+    - Views (Standardized):
+      - `title`: For show names
+      - `network_name`: For network names
+      - `studio_names`: For arrays of studio names
   - Search Fields (GENERATED ALWAYS AS STORED):
     - `search_title`: Generated lowercase version of title
     - `search_network`: Generated lowercase version of network

@@ -18,6 +18,21 @@
 3. Always ensure code explicitly matches sheet structure
 4. Sheet operations like adding/removing columns can invalidate cache
 
+### Database Reset Suggestion (2025-04-16)
+
+**Issue**: AI suggested using `supabase db reset` to apply new migrations
+
+**Context**:
+- Needed to modify database views
+- AI suggested using `db reset` which would wipe all data
+- Caught before execution
+
+**Learning**:
+1. Always verify impact of database operations
+2. Consider data preservation first
+3. Look for alternatives that don't affect existing data
+4. When modifying schema, prefer ALTER over DROP/CREATE
+
 ### Code Maintenance Issues (2025-04)
 
 **Issue**: Problematic coding habits in maintenance and cleanup

@@ -23,9 +23,14 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import os
 
+import streamlit
+
 import pandas as pd
 from ydata_profiling import ProfileReport
 from supabase import create_client
+
+# Create singleton instance
+shows_analyzer = None
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +49,9 @@ class ShowsAnalyzer:
     
     # View names (using secure API views)
     VIEWS = {
-        'titles': 'api_show_details',
-        'team': 'api_team_summary',
-        'networks': 'api_network_stats'
+        'titles': 'api_market_analysis',  # Use market_analysis view for market snapshot
+        'networks': 'api_network_stats',
+        'teams': 'api_show_team'  # Use show_team view for all team data
     }
 
     def __init__(self, cache_dir: Optional[str] = None):
@@ -76,21 +81,52 @@ class ShowsAnalyzer:
             return self.shows_df, self.team_df, self.network_df
 
         try:
-            # Fetch from secure API view using anon key
-            market_data = supabase.table(self.VIEWS['shows']).select('*').execute()
-            logger.info(f"Successfully fetched data from {self.VIEWS['shows']} using anon key")
-            market_df = pd.DataFrame(market_data.data)
-
-            # Use the same data for all three dataframes since they're consolidated
-            self.shows_df = market_df
-            self.team_df = market_df
-            self.network_df = market_df
-
-            logger.info(f"Loaded {len(market_df)} shows from {self.VIEWS['shows']}")
+            # Fetch from secure API views using anon key
+            logger.info("Fetching data from api_market_analysis and api_show_team")
+            titles_data = supabase.table(self.VIEWS['titles']).select('*').execute()
+            network_data = supabase.table(self.VIEWS['networks']).select('*').execute()
+            
+            # Fetch team data with pagination
+            team_data_list = []
+            start = 0
+            page_size = 1000
+            while True:
+                page = supabase.table(self.VIEWS['teams']).select('*').range(start, start + page_size - 1).execute()
+                if not page.data:
+                    break
+                team_data_list.extend(page.data)
+                if len(page.data) < page_size:
+                    break
+                start += page_size
+                logger.info(f"Fetched {len(team_data_list)} team members so far...")
+            
+            if titles_data.data:
+                logger.info("Converting to DataFrames")
+                df = pd.DataFrame(titles_data.data)
+                logger.info(f"Shows DataFrame shape: {df.shape}")
+                logger.info(f"Shows DataFrame columns: {df.columns.tolist()}")
+            # Convert to pandas DataFrames
+            self.shows_df = pd.DataFrame(titles_data.data)
+            self.network_df = pd.DataFrame(network_data.data)
+            self.team_df = pd.DataFrame(team_data_list)
+            
+            # Log team data info
+            if not self.team_df.empty:
+                logger.info(f"Team DataFrame shape: {self.team_df.shape}")
+                logger.info(f"Unique team members: {len(self.team_df['name'].unique())}")
+            
+            logger.debug(f"Network DataFrame columns: {self.network_df.columns.tolist()}")
+            logger.debug(f"First row of network data: {self.network_df.iloc[0].to_dict() if not self.network_df.empty else 'Empty'}")
+            logger.debug(f"Shows DataFrame columns: {self.shows_df.columns.tolist()}")
+            
+            logger.info(f"Loaded {len(self.shows_df)} titles, {len(self.team_df)} team records, and {len(self.network_df)} networks")
             
             self.last_fetch = datetime.now()
             logger.info("Data fetch completed successfully")
             
+            # No indexing for now - will add when we need performance optimization
+                
+            # Return the indexed DataFrames (shows, team, network)
             return self.shows_df, self.team_df, self.network_df
             
         except Exception as e:
@@ -101,7 +137,11 @@ class ShowsAnalyzer:
         """Convert a value to a list.
         
         Args:
-            x: Value to convert
+            x: Value to convert. Could be:
+            - Python list
+            - JSON array string
+            - PostgreSQL array string
+            - Single value
             
         Returns:
             List version of the value
@@ -110,6 +150,12 @@ class ShowsAnalyzer:
             if isinstance(x, list):
                 return x
             if isinstance(x, str):
+                # Handle PostgreSQL array format: {"item1","item2"}
+                if x.startswith('{') and x.endswith('}'):
+                    # Remove {} and split on commas, handling escaped quotes
+                    items = x[1:-1].split(',')
+                    return [item.strip('"') for item in items if item.strip()]
+                # Handle JSON array format
                 if x.startswith('[') and x.endswith(']'):
                     import ast
                     return ast.literal_eval(x)
@@ -117,10 +163,11 @@ class ShowsAnalyzer:
             if pd.isna(x) or x is None:
                 return []
             return [str(x)]  # Convert other types to string
-        except:
+        except Exception as e:
+            logger.warning(f"Error converting {x} to list: {e}")
             return []
 
-    def clean_data(self) -> None:
+    def clean_shows_data(self) -> None:
         """Apply any final transformations to the fetched data.
         
         Since we're using materialized views, most cleaning is handled at the database level.
@@ -131,62 +178,6 @@ class ShowsAnalyzer:
         """
         try:
             # Convert date fields
-            date_columns = ['created_at', 'updated_at', 'announced_date']
-            for col in date_columns:
-                if col in self.titles_df.columns:
-                    self.titles_df[col] = pd.to_datetime(self.titles_df[col])
-            
-            # Handle array fields
-            array_fields = ['studio_names', 'subgenre_names']
-            for col in array_fields:
-                if col not in self.titles_df.columns:
-                    continue
-                self.titles_df[col] = self.titles_df[col].apply(self.convert_to_list)
-            
-            # Clean team data
-            if self.team_df is not None and len(self.team_df) > 0:
-                # Convert role arrays to lists
-                for role_col in ['writers', 'producers', 'directors', 'creators']:
-                    if role_col in self.team_df.columns:
-                        self.team_df[role_col] = self.team_df[role_col].apply(self.convert_to_list)
-                
-                # Create a flattened version for role analysis
-                roles_list = []
-                for _, row in self.team_df.iterrows():
-                    for role_type in ['writers', 'producers', 'directors', 'creators']:
-                        if row[role_type] and isinstance(row[role_type], list):
-                            for name in row[role_type]:
-                                roles_list.append({
-                                    'show_id': row['show_id'],
-                                    'show_title': row['show_title'],
-                                    'name': name,
-                                    'role_type': role_type[:-1]  # Remove 's' to get singular form
-                                })
-                self.team_roles_df = pd.DataFrame(roles_list) if roles_list else None
-            
-            # Handle team roles if available
-            if self.team_df is not None and len(self.team_df) > 0:
-                # Ensure required columns exist
-                required_cols = ['title', 'name', 'role_name', 'team_order']
-                if all(col in self.team_df.columns for col in required_cols):
-                    # Group roles by person and show
-                    team_roles = self.team_df.groupby(['title', 'name']).agg({
-                        'role_name': lambda x: list(set(x)),  # Unique roles per person per show
-                        'team_order': 'min'  # Use earliest order if multiple roles
-                    }).reset_index()
-                    
-                    # Sort team members by show and order
-                    self.team_df = team_roles.sort_values(['title', 'team_order', 'name'])
-                    
-                    # Convert role arrays to lists if they aren't already
-                    self.team_df['role_name'] = self.team_df['role_name'].apply(lambda x: [] if pd.isna(x) else list(x))
-                else:
-                    logger.warning("Team data missing required columns, skipping team data processing")
-                    self.team_df = None
-            else:
-                logger.info("No team data available")
-                self.team_df = None
-            
             logger.info("Data cleaning completed successfully")
             
         except Exception as e:
@@ -209,7 +200,7 @@ class ShowsAnalyzer:
             self.fetch_data()
             
         # Clean data before generating stats
-        self.clean_data()
+        # Data is already clean from the view
         
         try:
             # Basic show statistics from market analysis view
@@ -218,7 +209,7 @@ class ShowsAnalyzer:
                 'active_shows': len(self.shows_df[self.shows_df['status'].str.lower() == 'active']),
                 'genres': self.shows_df['genre'].value_counts().to_dict(),
                 'status_breakdown': self.shows_df['status'].value_counts().to_dict(),
-                'source_types': self.shows_df['source_type'].value_counts().to_dict(),
+                'source_types': self.shows_df['source_type'].value_counts().to_dict(),  # Using source_type from view
                 'avg_episodes': self.shows_df['tmdb_total_episodes'].mean() if 'tmdb_total_episodes' in self.shows_df.columns else 0
             }
             
@@ -240,7 +231,7 @@ class ShowsAnalyzer:
                         'active_shows': status_counts.get('Active', 0),
                         'ended_shows': status_counts.get('Ended', 0),
                         'genres': row['genre'],
-                        'source_types': row['source_type']
+                        'source_types': row['source_type']  # Using source_type from view
                     }
                 # For backward compatibility, provide simple network counts
                 stats['network_counts'] = {net: data['total_shows'] 
@@ -348,7 +339,7 @@ class ShowsAnalyzer:
         """
         if self.shows_df is None or self.team_df is None:
             self.fetch_data()
-            self.clean_data()
+            # Data is already clean from the view
             
         # Default output paths
         if output_file is None:

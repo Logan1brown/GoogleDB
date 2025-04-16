@@ -52,11 +52,11 @@ class SuccessAnalyzer:
     """
     def __init__(self, config: Optional[SuccessConfig] = None):
         self.config = config or SuccessConfig()
-        self.shows_df = None
+        self.titles_df = None
         
-    def initialize_data(self, shows_df: pd.DataFrame):
+    def initialize_data(self, titles_df: pd.DataFrame):
         """Initialize analyzer with show data."""
-        self.shows_df = shows_df.copy()
+        self.titles_df = titles_df.copy()
         
     def calculate_network_success(self, network: str) -> float:
         """Calculate success score for a specific network.
@@ -67,20 +67,20 @@ class SuccessAnalyzer:
         Returns:
             Success score as percentage (0-100)
         """
-        if self.shows_df is None:
+        if self.titles_df is None:
             return 85.0  # Default if no data
             
-        network_shows = self.shows_df[self.shows_df['network'] == network]
-        if len(network_shows) == 0:
+        network_titles = self.titles_df[self.titles_df['network_name'] == network]
+        if len(network_titles) == 0:
             return 85.0
             
         # Calculate success based on renewal status and episode count
         success_scores = []
-        for _, show in network_shows.iterrows():
+        for _, title in network_titles.iterrows():
             score = 0
             
             # Season achievements (40%)
-            seasons = pd.to_numeric(show.get('tmdb_seasons', 0), errors='coerce')
+            seasons = pd.to_numeric(title.get('tmdb_seasons', 0), errors='coerce')
             if pd.notna(seasons) and seasons >= 2:
                 score += self.config.SEASON2_VALUE
                 extra_seasons = seasons - 2
@@ -88,16 +88,17 @@ class SuccessAnalyzer:
                     score += min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 40)
                     
             # Episode volume (40%)
-            episodes = pd.to_numeric(show.get('tmdb_total_eps', 0), errors='coerce')
+            episodes = pd.to_numeric(title.get('tmdb_total_eps', 0), errors='coerce')
             if pd.notna(episodes) and episodes >= self.config.EPISODE_MIN_THRESHOLD:
                 score += self.config.EPISODE_BASE_POINTS
                 if episodes >= self.config.EPISODE_BONUS_THRESHOLD:
                     score += self.config.EPISODE_BONUS_POINTS
                     
             # Status modifier
-            status = show.get('status', 'Unknown')
+            status = title.get('status', 'Unknown')
             score *= self.config.STATUS_MODIFIERS.get(status, 1.0)
             
+            # Calculate score for each show
             success_scores.append(min(score, 100))
             
         return np.mean(success_scores) if success_scores else 85.0
@@ -109,43 +110,24 @@ class SuccessAnalyzer:
             df: Optional DataFrame to calculate success for. If None, uses all shows.
             
         Returns:
-            Success score as percentage (0-100)
+            Average success score (0-100)
         """
         if df is None:
-            if self.shows_df is None:
-                return 85.0  # Default if no data
-            df = self.shows_df
+            df = self.titles_df
             
-        if len(df) == 0:
-            return 85.0
-            
-        # Calculate success based on renewal status and episode count
-        success_scores = []
-        for _, show in df.iterrows():
-            score = 0
-            
-            # Season achievements (40%)
-            seasons = pd.to_numeric(show.get('tmdb_seasons', 0), errors='coerce')
-            if pd.notna(seasons) and seasons >= 2:
-                score += self.config.SEASON2_VALUE
-                extra_seasons = seasons - 2
-                if extra_seasons > 0:
-                    score += min(extra_seasons * self.config.ADDITIONAL_SEASON_VALUE, 40)
-                    
-            # Episode volume (40%)
-            episodes = pd.to_numeric(show.get('tmdb_total_eps', 0), errors='coerce')
-            if pd.notna(episodes) and episodes >= self.config.EPISODE_MIN_THRESHOLD:
-                score += self.config.EPISODE_BASE_POINTS
-                if episodes >= self.config.EPISODE_BONUS_THRESHOLD:
-                    score += self.config.EPISODE_BONUS_POINTS
-                    
-            # Status modifier
-            status = show.get('status', 'Unknown')
-            score *= self.config.STATUS_MODIFIERS.get(status, 1.0)
-            
-            success_scores.append(min(score, 100))
-            
-        return np.mean(success_scores) if success_scores else 85.0
+        # Calculate success for each show
+        success_metrics = self.analyze_market(df)
+        
+        # Get average success score
+        total_score = 0
+        num_shows = 0
+        for show_id, show_data in success_metrics['titles'].items():
+            if 'score' in show_data:
+                total_score += show_data['score']
+                num_shows += 1
+                
+        avg_score = total_score / num_shows if num_shows > 0 else 0
+        return avg_score
 
     def calculate_renewal_rate(self, network: str) -> float:
         """Calculate renewal rate for a specific network.
@@ -156,43 +138,44 @@ class SuccessAnalyzer:
         Returns:
             Renewal rate as percentage (0-100)
         """
-        if self.shows_df is None:
+        if self.titles_df is None:
             return 90.0  # Default if no data
             
-        network_shows = self.shows_df[self.shows_df['network'] == network]
-        if len(network_shows) == 0:
+        network_titles = self.titles_df[self.titles_df['network_name'] == network]
+        if len(network_titles) == 0:
             return 90.0
             
         # Count shows that got renewed (2+ seasons)
-        network_shows['seasons'] = pd.to_numeric(network_shows['tmdb_seasons'], errors='coerce')
-        renewed = network_shows[network_shows['seasons'] >= 2]
-        return (len(renewed) / len(network_shows)) * 100
+        network_titles['seasons'] = pd.to_numeric(network_titles['tmdb_seasons'], errors='coerce')
+        renewed = network_titles[network_titles['seasons'] >= 2]
+        return (len(renewed) / len(network_titles)) * 100
         
-    def analyze_market(self, shows_df: pd.DataFrame) -> Dict:
+    def analyze_market(self, titles_df: pd.DataFrame) -> Dict:
         """
         Calculate success metrics for all reliable shows in the market.
         Returns thresholds and tiers based on the highest scores.
         """
         # Filter to reliable shows only
-        reliable_shows = shows_df[shows_df['tmdb_status'].isin(ShowStatus.RELIABLE)]
-        if reliable_shows.empty:
+        reliable_titles = titles_df[titles_df['tmdb_status'].isin(ShowStatus.RELIABLE)]
+        if reliable_titles.empty:
             return {
                 'max_score': 0,
                 'high_threshold': 0,
                 'medium_threshold': 0,
-                'shows': {}
+                'titles': {}
             }
             
         # Calculate scores for all reliable shows
         scores = []
-        for _, show in reliable_shows.iterrows():
-            score = self.calculate_success(show)
+        for _, title in reliable_titles.iterrows():
+            score = self.calculate_success(title)
             # === CRITICAL: Column Name Difference ===
-            # We're working with the shows sheet here, which uses 'shows' column
+            # We're working with the titles sheet here, which uses 'title' column
             # Do NOT use 'show_name' which is only for the show_team sheet
+            # Convert tmdb_id to string for dictionary keys
             scores.append({
-                'show_id': show['tmdb_id'],
-                'name': show['title'],  # Title column from standardized views
+                'title_id': str(title['tmdb_id']),
+                'name': title['title'],  # Title column from standardized views
                 'score': score
             })
             
@@ -202,8 +185,8 @@ class SuccessAnalyzer:
             'max_score': max_score,
             'high_threshold': max_score * 0.8,  # High: Top 20%
             'medium_threshold': max_score * 0.5,  # Medium: Top 50%
-            'shows': {
-                s['show_id']: {
+            'titles': {
+                s['title_id']: {
                     'name': s['name'],
                     'score': s['score'],
                     'tier': self._get_tier(s['score'], max_score)
@@ -243,7 +226,8 @@ class SuccessAnalyzer:
                     score += self.config.EPISODE_BASE_POINTS
                 # No points if below minimum
             except (ValueError, TypeError):
-                logger.warning(f"Invalid episode count value: {show['tmdb_avg_eps']}")
+                # Skip invalid episode count
+                pass
             
         # Apply status modifier
         modifier = self.config.STATUS_MODIFIERS.get(show['tmdb_status'], 1.0)
