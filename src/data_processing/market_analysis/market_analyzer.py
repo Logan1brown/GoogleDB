@@ -151,9 +151,16 @@ class MarketAnalyzer:
 
         # Build set of vertically integrated studios
         vertically_integrated_studios = set()
-        if not studio_list_df.empty and 'name' in studio_list_df.columns and 'category' in studio_list_df.columns:
+        if not studio_list_df.empty and 'studio' in studio_list_df.columns and 'category' in studio_list_df.columns:
+            def is_vertically_integrated_cat(cat):
+                if isinstance(cat, list):
+                    return any(str(x).lower().strip() == 'vertically integrated' for x in cat)
+                elif isinstance(cat, str):
+                    return cat.lower().strip() == 'vertically integrated'
+                return False
+            mask = studio_list_df['category'].apply(is_vertically_integrated_cat)
             vertically_integrated_studios = set(
-                studio_list_df.loc[studio_list_df['category'].str.lower() == 'vertically integrated', 'name'].str.lower()
+                studio_list_df.loc[mask, 'studio'].str.lower()
             )
 
         def is_vertically_integrated(row):
