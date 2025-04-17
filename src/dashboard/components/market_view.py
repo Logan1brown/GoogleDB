@@ -41,8 +41,8 @@ def render_market_snapshot(market_analyzer):
         st.write("DEBUG: network_df type:", type(network_df))
         st.write("DEBUG: network_df is None?", network_df is None)
         total_creatives = market_analyzer.get_unique_creatives() if hasattr(market_analyzer, 'get_unique_creatives') else 0
-        if network_df is not None and 'total_titles' in network_df.columns:
-            total_titles = network_df['total_titles'].sum()
+        if hasattr(market_analyzer, 'titles_df') and 'title' in market_analyzer.titles_df.columns:
+            total_titles = market_analyzer.titles_df['title'].nunique()
         else:
             total_titles = 0
         if network_df is not None:
