@@ -9,8 +9,11 @@ Analyzes studio performance metrics including:
 from typing import Dict, List
 import pandas as pd
 import networkx as nx
-from src.dashboard.utils.sheets_client import sheets_client
-from src.data_processing.analyze_shows import shows_analyzer
+import logging
+logger = logging.getLogger(__name__)
+# No longer using Google Sheets
+# from src.dashboard.utils.sheets_client import sheets_client
+
 
 def get_all_studios(shows_df: pd.DataFrame) -> pd.Series:
     """Extract all unique studios from the shows dataframe.
@@ -24,7 +27,12 @@ def get_all_studios(shows_df: pd.DataFrame) -> pd.Series:
         Series of unique studios with their show counts
     """
     # Split multiple studios and create a new series with one studio per row
-    all_studios = shows_df['studio'].str.split(',').explode()
+    # Explode studio_names list into individual studios
+    if 'studio_names' in shows_df.columns:
+        all_studios = shows_df['studio_names'].explode()
+    else:
+        # Fallback for legacy data
+        all_studios = shows_df['studio'].str.split(',').explode()
     
     # Clean up whitespace and remove empty studios
     all_studios = all_studios.str.strip()
@@ -47,7 +55,10 @@ def get_shows_for_studio(shows_df: pd.DataFrame, studio: str) -> pd.DataFrame:
         DataFrame containing only shows that include this studio
     """
     # Create a series where each row is a studio-show pair
-    studio_show_pairs = shows_df['studio'].str.split(',').explode().str.strip()
+    if 'studio_names' in shows_df.columns:
+        studio_show_pairs = shows_df['studio_names'].explode().astype(str).str.strip()
+    else:
+        studio_show_pairs = shows_df['studio'].str.split(',').explode().str.strip()
     
     # Don't match empty studio names
     if not studio or not studio.strip():
@@ -101,6 +112,7 @@ def analyze_studio_relationships(shows_df: pd.DataFrame) -> Dict:
     # Load studio categories from live sheet
     try:
         # Get studio list data from the lookup table
+        from src.data_processing.analyze_shows import shows_analyzer
         studio_list_data = sheets_client.get_all_values(shows_analyzer.LOOKUP_TABLES['studio'])
         if not studio_list_data:
             raise ValueError('No data found in studio_list sheet')

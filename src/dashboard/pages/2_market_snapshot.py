@@ -5,13 +5,49 @@ Displays market analysis and insights for TV series data using secure Supabase v
 
 import os
 import traceback
-import streamlit as st
+from pathlib import Path
 from dataclasses import asdict, dataclass, field
-import pandas as pd
-from supabase import create_client
+
+import streamlit as st
+from dotenv import load_dotenv
 
 from src.dashboard.utils.style_config import COLORS, FONTS
+from src.data_processing.analyze_shows import ShowsAnalyzer
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
+from src.dashboard.components.market_view import render_market_snapshot
+from src.dashboard.state.session import get_page_state
+
+# Set page config must be first Streamlit command
+st.set_page_config(
+    page_title="Market Snapshot",
+    page_icon="📊",
+    layout="wide"
+)
+
+# Load environment variables
+env_path = Path(__file__).parents[3] / '.env'
+load_dotenv(env_path)
+
+# Verify required environment variables
+required_vars = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY']
+for var in required_vars:
+    if not os.getenv(var):
+        st.error(f"Missing required environment variable: {var}")
+        st.stop()
+
+# Initialize ShowsAnalyzer and fetch data
+try:
+    shows_analyzer = ShowsAnalyzer()
+    titles_df, team_df, network_df = shows_analyzer.fetch_data(force=True)
+    
+    # Verify DataFrames
+    if titles_df.empty or team_df.empty or network_df.empty:
+        st.error("No data available from Supabase. Please check your connection and try again.")
+        st.stop()
+except Exception as e:
+    st.error(f"Error initializing data: {str(e)}\n\nDetails: {traceback.format_exc()}")
+    st.stop()
+
 from src.dashboard.components.market_view import render_market_snapshot
 from src.dashboard.state.session import get_page_state, FilterState
 
@@ -24,43 +60,32 @@ class MarketState:
     success_filter: str = "All"
 
 # Page title using style from style_config
-st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Market Snapshot</p>', unsafe_allow_html=True)
+st.markdown(
+    f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; '
+    f'text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">'
+    f'Market Snapshot</p>', 
+    unsafe_allow_html=True
+)
 
+# Initialize page state
+state = get_page_state("market_snapshot")
+if "market" not in state:
+    state["market"] = asdict(MarketState())
+
+# Initialize MarketAnalyzer and render view
 try:
-    # Get page state
-    state = get_page_state("market_snapshot")
-    if "market" not in state:
-        state["market"] = asdict(MarketState())
+    render_market_snapshot(MarketAnalyzer(
+        titles_df=titles_df,
+        team_df=team_df,
+        network_df=network_df
+    ))
     
-    # Initialize Supabase client
-    supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
-    
-    if not supabase_url or not supabase_anon_key:
-        st.error("Missing Supabase configuration. Please check your environment variables.")
-    else:
-        # Initialize Supabase client with anon key
-        supabase = create_client(supabase_url, supabase_anon_key)
-        
-        # Initialize analyzer (it will fetch data from shows_analyzer)
-        try:
-            market_analyzer = MarketAnalyzer()
-        except Exception as e:
-            st.error(f"Error initializing MarketAnalyzer: {str(e)}\n\nTraceback: {traceback.format_exc()}")
-            st.stop()
-        
-        # Update state with filter values
-        market_state = state["market"]
-        if "market_filter_shows" in st.session_state:
-            market_state["selected_shows"] = st.session_state["market_filter_shows"]
-        if "market_filter_creatives" in st.session_state:
-            market_state["selected_creatives"] = st.session_state["market_filter_creatives"]
-        if "market_filter_networks" in st.session_state:
-            market_state["selected_networks"] = st.session_state["market_filter_networks"]
-        
-        # Render view with state and supabase client
-        render_market_snapshot(market_analyzer, supabase)
-        
+    # Update state with filter values
+    market_state = state["market"]
+    for filter_type in ["shows", "creatives", "networks"]:
+        key = f"market_filter_{filter_type}"
+        if key in st.session_state:
+            market_state[f"selected_{filter_type}"] = st.session_state[key]
 except Exception as e:
-    st.error(f"Error displaying market snapshot: {str(e)}")
-    st.info("Please ensure Supabase configuration is properly set up.")
+    st.error(f"Error initializing market analysis: {str(e)}")
+    st.stop()

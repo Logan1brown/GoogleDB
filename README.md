@@ -189,19 +189,28 @@ See [Database Security](./docs/supabase_docs/DATABASE_SECURITY.md) for detailed 
 
 ### Local Setup
 
-1. **Clone and Install**
+1. **Clone and Setup Python Environment**
    ```bash
    git clone <repository-url>
    cd GoogleDB
-   poetry install
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -e .
    ```
 
-2. **Configuration**
+2. **Install Development Tools** (Optional)
+   ```bash
+   xcode-select --install  # For better file watching
+   pip install watchdog    # For better file watching
+   ```
+
+3. **Configuration**
    ```bash
    cp .env.example .env
+   # Edit .env with your credentials
    ```
 
-3. **Configure Environment**
+4. **Configure Environment**
    
    Add the following to your `.env` file:
    ```bash
@@ -213,10 +222,15 @@ See [Database Security](./docs/supabase_docs/DATABASE_SECURITY.md) for detailed 
 
    **Security Note**: The anon key is safe to use in frontend code as it can only access secure API views. The service key should NEVER be exposed in frontend code or public repositories.
 
-4. **Run Development Server**
+5. **Run Development Server**
    ```bash
-   poetry run streamlit run src/dashboard/app.py
+   # Make sure your virtual environment is activated
+   source venv/bin/activate
+
+   # Start the Streamlit dashboard
+   streamlit run src/dashboard/app.py
    ```
+   The dashboard will be available at http://localhost:8501
 
 ### Development Workflow
 

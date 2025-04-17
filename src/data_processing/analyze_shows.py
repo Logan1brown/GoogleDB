@@ -17,28 +17,25 @@ Standardized column names used across all views:
 4. Status Names: 'status_name' column
 """
 
+__all__ = ['ShowsAnalyzer']
+
 import logging
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import os
 
-import streamlit
+import streamlit as st
 
 import pandas as pd
 from ydata_profiling import ProfileReport
 from supabase import create_client
 
-# Create singleton instance
-shows_analyzer = None
-
 logger = logging.getLogger(__name__)
 
-# Initialize Supabase client with anon key
-supabase = create_client(
-    os.getenv('SUPABASE_URL'),
-    os.getenv('SUPABASE_ANON_KEY')  # Use anon key since we have proper view security
-)
+# Import the centralized Supabase client
+from src.config.supabase_client import get_client
 
 class ShowsAnalyzer:
     """Analyzer for TV titles data.
@@ -47,91 +44,81 @@ class ShowsAnalyzer:
     Results are cached to avoid unnecessary recomputation.
     """
     
-    # View names (using secure API views)
+    # View names
     VIEWS = {
-        'titles': 'api_market_analysis',  # Use market_analysis view for market snapshot
+        'titles': 'api_market_analysis',  # Use market analysis view for market snapshot
         'networks': 'api_network_stats',
-        'teams': 'api_show_team'  # Use show_team view for all team data
+        'team': 'api_show_team'  # Team member data (correct key)
     }
-
+    
     def __init__(self, cache_dir: Optional[str] = None):
         """Initialize the analyzer.
         
         Args:
             cache_dir: Directory to store cached results. Defaults to 'cache' in current dir.
         """
-        self.cache_dir = Path(cache_dir) if cache_dir else Path.cwd() / 'cache'
-        self.cache_dir.mkdir(exist_ok=True)
-        
-        self.shows_df: Optional[pd.DataFrame] = None
-        self.team_df: Optional[pd.DataFrame] = None
-        self.network_df: Optional[pd.DataFrame] = None
-        self.last_fetch: Optional[datetime] = None
+        try:
+            self.cache_dir = Path(cache_dir) if cache_dir else Path.cwd() / 'cache'
+            self.cache_dir.mkdir(exist_ok=True)
+            
+            self.titles_df: Optional[pd.DataFrame] = None
+            self.team_df: Optional[pd.DataFrame] = None
+            self.network_df: Optional[pd.DataFrame] = None
+            self.last_fetch: Optional[datetime] = None
+        except Exception as e:
+            logger.error(f"Error during initialization: {str(e)}")
+            raise
 
     def fetch_data(self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Fetch title data from Supabase secure API views.
-
+        
         Args:
             force (bool): If True, bypass cache and fetch fresh data
 
         Returns:
             Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: titles_df, team_df, network_df
         """
-        if not force and all(df is not None for df in [self.shows_df, self.team_df, self.network_df]):
-            return self.shows_df, self.team_df, self.network_df
+        import streamlit as st
+        if not force and self.titles_df is not None and self.team_df is not None and self.network_df is not None:
+            return self.titles_df, self.team_df, self.network_df
 
         try:
-            # Fetch from secure API views using anon key
-            logger.info("Fetching data from api_market_analysis and api_show_team")
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            
+            if supabase is None:
+                raise ValueError("Supabase client not initialized. Check your environment variables.")
+                
+            # Fetch from secure API views
             titles_data = supabase.table(self.VIEWS['titles']).select('*').execute()
             network_data = supabase.table(self.VIEWS['networks']).select('*').execute()
-            
-            # Fetch team data with pagination
-            team_data_list = []
+            # Fetch all pages for team data (pagination)
+            all_team_rows = []
             start = 0
             page_size = 1000
+            page_num = 1
             while True:
-                page = supabase.table(self.VIEWS['teams']).select('*').range(start, start + page_size - 1).execute()
+                page = supabase.table(self.VIEWS['team']).select('*').range(start, start + page_size - 1).execute()
                 if not page.data:
                     break
-                team_data_list.extend(page.data)
+                all_team_rows.extend(page.data)
                 if len(page.data) < page_size:
                     break
                 start += page_size
-                logger.info(f"Fetched {len(team_data_list)} team members so far...")
+                page_num += 1
+            self.team_df = pd.DataFrame(all_team_rows)
+
+            # Create DataFrames from the other data
+            self.titles_df = pd.DataFrame(titles_data.data if titles_data and hasattr(titles_data, 'data') else [])
+            self.network_df = pd.DataFrame(network_data.data if network_data and hasattr(network_data, 'data') else [])
             
-            if titles_data.data:
-                logger.info("Converting to DataFrames")
-                df = pd.DataFrame(titles_data.data)
-                logger.info(f"Shows DataFrame shape: {df.shape}")
-                logger.info(f"Shows DataFrame columns: {df.columns.tolist()}")
-            # Convert to pandas DataFrames
-            self.shows_df = pd.DataFrame(titles_data.data)
-            self.network_df = pd.DataFrame(network_data.data)
-            self.team_df = pd.DataFrame(team_data_list)
-            
-            # Log team data info
-            if not self.team_df.empty:
-                logger.info(f"Team DataFrame shape: {self.team_df.shape}")
-                logger.info(f"Unique team members: {len(self.team_df['name'].unique())}")
-            
-            logger.debug(f"Network DataFrame columns: {self.network_df.columns.tolist()}")
-            logger.debug(f"First row of network data: {self.network_df.iloc[0].to_dict() if not self.network_df.empty else 'Empty'}")
-            logger.debug(f"Shows DataFrame columns: {self.shows_df.columns.tolist()}")
-            
-            logger.info(f"Loaded {len(self.shows_df)} titles, {len(self.team_df)} team records, and {len(self.network_df)} networks")
-            
+            # Store fetch time
             self.last_fetch = datetime.now()
-            logger.info("Data fetch completed successfully")
             
-            # No indexing for now - will add when we need performance optimization
-                
-            # Return the indexed DataFrames (shows, team, network)
-            return self.shows_df, self.team_df, self.network_df
-            
+            return self.titles_df, self.team_df, self.network_df
         except Exception as e:
             logger.error(f"Error fetching data: {str(e)}")
-            raise
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
     def convert_to_list(self, x):
         """Convert a value to a list.
@@ -196,7 +183,7 @@ class ShowsAnalyzer:
             - Average team size
             etc.
         """
-        if self.shows_df is None:
+        if self.titles_df is None:
             self.fetch_data()
             
         # Clean data before generating stats
@@ -205,61 +192,70 @@ class ShowsAnalyzer:
         try:
             # Basic show statistics from market analysis view
             stats = {
-                'total_shows': len(self.shows_df),
-                'active_shows': len(self.shows_df[self.shows_df['status'].str.lower() == 'active']),
-                'genres': self.shows_df['genre'].value_counts().to_dict(),
-                'status_breakdown': self.shows_df['status'].value_counts().to_dict(),
-                'source_types': self.shows_df['source_type'].value_counts().to_dict(),  # Using source_type from view
-                'avg_episodes': self.shows_df['tmdb_total_episodes'].mean() if 'tmdb_total_episodes' in self.shows_df.columns else 0
+                'total_shows': len(self.titles_df),
+                'active_shows': len(self.titles_df[self.titles_df['status_name'].str.lower() == 'active']),
+                'genres': self.titles_df['genre'].value_counts().to_dict() if 'genre' in self.titles_df.columns else {},
+                'status_breakdown': self.titles_df['status_name'].value_counts().to_dict(),
+                'source_types': self.titles_df['source_type'].value_counts().to_dict() if 'source_type' in self.titles_df.columns else {},
+                'avg_episodes': self.titles_df['tmdb_total_episodes'].mean() if 'tmdb_total_episodes' in self.titles_df.columns else 0
             }
             
             # Add network statistics
+            # Get network statistics from network_df
             if self.network_df is not None and len(self.network_df) > 0:
-                # Group by network to get statistics
-                network_stats = self.network_df.groupby('network').agg({
-                    'title': 'count',
-                    'status': lambda x: x.value_counts().to_dict(),
-                    'genre': lambda x: x.value_counts().to_dict(),
-                    'source_type': lambda x: x.value_counts().to_dict()
-                }).reset_index()
-                
+                # Get unique networks from network_df since it has the complete list
+                unique_networks = self.network_df['network_name'].unique()
                 stats['networks'] = {}
-                for _, row in network_stats.iterrows():
-                    status_counts = row['status']
-                    stats['networks'][row['network']] = {
-                        'total_shows': row['title'],
-                        'active_shows': status_counts.get('Active', 0),
-                        'ended_shows': status_counts.get('Ended', 0),
-                        'genres': row['genre'],
-                        'source_types': row['source_type']  # Using source_type from view
-                    }
+                
+                # For each unique network, calculate stats from titles_df
+                for network in unique_networks:
+                    network_titles = self.titles_df[self.titles_df['network_name'] == network]
+                    
+                    if len(network_titles) > 0:
+                        status_counts = network_titles['status_name'].value_counts().to_dict()
+                        genre_counts = network_titles['genre'].value_counts().to_dict() if 'genre' in network_titles.columns else {}
+                        source_type_counts = network_titles['source_type'].value_counts().to_dict() if 'source_type' in network_titles.columns else {}
+                        
+                        stats['networks'][network] = {
+                            'total_shows': len(network_titles),
+                            'active_shows': status_counts.get('Active', 0),
+                            'ended_shows': status_counts.get('Ended', 0),
+                            'genres': genre_counts,
+                            'source_types': source_type_counts
+                        }
+                    else:
+                        # Network exists but has no shows in current filter
+                        stats['networks'][network] = {
+                            'total_shows': 0,
+                            'active_shows': 0,
+                            'ended_shows': 0,
+                            'genres': {},
+                            'source_types': {}
+                        }
+                        
                 # For backward compatibility, provide simple network counts
                 stats['network_counts'] = {net: data['total_shows'] 
                                          for net, data in stats['networks'].items()}
             
             # Add studio stats if available
-            if 'studio' in self.shows_df.columns:
-                studio_counts = self.shows_df['studio'].explode().value_counts()
+            if 'studio_names' in self.titles_df.columns:
+                studio_counts = self.titles_df['studio_names'].explode().value_counts()
                 stats['studios'] = studio_counts.to_dict() if not studio_counts.empty else {}
             
             # Add team stats if available
-            team_cols = ['writers', 'producers', 'directors', 'creators']
-            if all(col in self.shows_df.columns for col in team_cols):
-                # Count unique team members across all roles
-                all_members = set()
-                for role in team_cols:
-                    members = self.shows_df[role].dropna().explode().unique()
-                    all_members.update(members)
+            if not self.team_df.empty:
+                # Get unique team members and their networks
+                team_networks = self.team_df.groupby('name')['network_name'].unique().to_dict()
+                all_members = self.team_df['name'].unique()
                 
-                # Calculate role counts
-                role_counts = {}
-                for role in team_cols:
-                    count = self.shows_df[role].dropna().explode().nunique()
-                    role_counts[role[:-1]] = count  # Remove 's' to get singular form
+                stats['team_stats'] = {
+                    'total_members': len(team_networks),
+                    'team_networks': team_networks  # Map of team member -> list of networks they work with
+                }
                 
-                stats['avg_team_size'] = len(all_members) / len(self.shows_df) if len(self.shows_df) > 0 else 0
+                # Calculate team size metrics
+                stats['avg_team_size'] = len(all_members) / len(self.titles_df) if len(self.titles_df) > 0 else 0
                 stats['total_team_members'] = len(all_members)
-                stats['roles'] = role_counts
             else:
                 stats['avg_team_size'] = 0
                 stats['total_team_members'] = 0
@@ -281,7 +277,7 @@ class ShowsAnalyzer:
         # Add team role statistics
         if self.team_roles_df is not None and len(self.team_roles_df) > 0:
             stats['roles'] = self.team_roles_df['role_type'].value_counts().to_dict()
-            stats['avg_team_size'] = len(self.team_roles_df) / len(self.shows_df) if len(self.shows_df) > 0 else 0
+            stats['avg_team_size'] = len(self.team_roles_df) / len(self.titles_df) if len(self.titles_df) > 0 else 0
             stats['total_team_members'] = len(self.team_roles_df['name'].unique())
         else:
             stats['roles'] = {}
@@ -289,20 +285,20 @@ class ShowsAnalyzer:
             stats['total_team_members'] = 0
             
         # Add date-based statistics
-        if 'announced_date' in self.shows_df.columns:
+        if 'announced_date' in self.titles_df.columns:
             try:
                 last_month = pd.Timestamp.now() - pd.DateOffset(months=1)
-                stats['new_shows_last_month'] = len(self.shows_df[self.shows_df['announced_date'] >= last_month])
+                stats['new_shows_last_month'] = len(self.titles_df[self.titles_df['announced_date'] >= last_month])
                 
                 # Titles by year
-                stats['shows_by_year'] = self.shows_df['announced_date'].dt.year.value_counts().sort_index().to_dict()
+                stats['shows_by_year'] = self.titles_df['announced_date'].dt.year.value_counts().sort_index().to_dict()
                 
                 # Recent trends (last 12 months)
                 last_year = datetime.now() - pd.DateOffset(months=12)
-                recent_shows = self.shows_df[self.shows_df['announced_date'] >= last_year]
+                recent_shows = self.titles_df[self.titles_df['announced_date'] >= last_year]
                 stats['recent_trends'] = {
                     'total_shows': len(recent_shows),
-                    'top_networks': recent_shows['network'].value_counts().head(5).to_dict(),
+                    'top_networks': recent_shows['network_name'].value_counts().head(5).to_dict(),
                     'top_genres': recent_shows['genre'].value_counts().head(5).to_dict()
                 }
             except Exception as e:
@@ -337,7 +333,7 @@ class ShowsAnalyzer:
         Args:
             output_file: Path to save the HTML report. If None, uses default path in cache_dir.
         """
-        if self.shows_df is None or self.team_df is None:
+        if self.titles_df is None or self.team_df is None:
             self.fetch_data()
             # Data is already clean from the view
             
@@ -354,7 +350,7 @@ class ShowsAnalyzer:
         
         try:
             # Prepare data for profile report
-            shows_with_team = self.shows_df.copy()
+            shows_with_team = self.titles_df.copy()
             
             # Add team metrics if team data is available
             if self.team_df is not None and len(self.team_df) > 0:
@@ -389,5 +385,4 @@ class ShowsAnalyzer:
             logger.error(f'Error generating profile reports: {str(e)}')
             raise
 
-# Create singleton instance for global use
-shows_analyzer = ShowsAnalyzer()
+

@@ -27,3 +27,14 @@ config/token.json
 Thumbs.db
 logs/
 output/
+src/data_processing/tests/reports/
+
+# Python build
+dist/
+build/
+*.egg-info/
+
+# Legacy code
+legacy/config/sheets_config.json
+legacy/src/config/credentials.json
+legacy/src/config/token.json

@@ -9,6 +9,10 @@ setup(
         "requests>=2.31.0",
         "pydantic>=2.0.0",
         "python-dotenv>=1.0.0",
+        "streamlit>=1.44.0",
+        "plotly>=5.0.0",
+        "numpy>=1.23.0",
+        "pandas>=1.4.0",
     ],
     python_requires=">=3.9",
 )

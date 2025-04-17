@@ -19,37 +19,47 @@ import streamlit as st
 from ..success_analysis.success_analyzer import SuccessAnalyzer, SuccessConfig
 from ..studio_performance.studio_analyzer import analyze_studio_relationships
 from ..external.tmdb.tmdb_models import ShowStatus
-from ..analyze_shows import shows_analyzer
+
 
 logger = logging.getLogger(__name__)
 
 class MarketAnalyzer:
     """Analyzer for market overview and network patterns."""
     
-    def __init__(self, success_config: SuccessConfig = None):
+    def __init__(self, titles_df: pd.DataFrame = None, team_df: pd.DataFrame = None, network_df: pd.DataFrame = None, success_config: SuccessConfig = None):
         """Initialize the analyzer.
         
         Args:
+            titles_df: Optional DataFrame for titles data
+            team_df: Optional DataFrame for team data
+            network_df: Optional DataFrame for network data
             success_config: Optional custom config for success calculation
-            
+        
         Raises:
-            ValueError: If required columns are missing from shows_df
+            ValueError: If required columns are missing from titles_df
         """
-        # Get data from shows_analyzer
-        self.shows_df, self.team_df, self.network_df = shows_analyzer.fetch_data()
+        if titles_df is not None and team_df is not None and network_df is not None:
+            self.titles_df = titles_df.copy(deep=True)
+            self.team_df = team_df.copy(deep=True)
+            self.network_df = network_df.copy(deep=True)
+        else:
+            from ..analyze_shows import ShowsAnalyzer
+            shows_analyzer = ShowsAnalyzer()
+            self.titles_df, self.team_df, self.network_df = shows_analyzer.fetch_data(force=True)
         
         # Create deep copies to avoid modifying original data
         # Only select columns we need, keeping studio_names for vertical integration
         needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
                       'tmdb_status', 'status_name', 'studio_names',
                       'writers', 'producers', 'directors', 'creators']
-        self.shows_df = self.shows_df[needed_cols].copy(deep=True)
+        available_cols = [col for col in needed_cols if col in self.titles_df.columns]
+        self.titles_df = self.titles_df[available_cols].copy(deep=True)
         
         # Reset index to ensure clean data
-        self.shows_df = self.shows_df.reset_index(drop=True)
+        self.titles_df = self.titles_df.reset_index(drop=True)
         
         # Calculate average episodes per season for success scoring
-        self.shows_df['tmdb_avg_eps'] = self.shows_df.apply(
+        self.titles_df['tmdb_avg_eps'] = self.titles_df.apply(
             lambda x: x['tmdb_total_episodes'] / x['tmdb_seasons'] 
             if pd.notna(x['tmdb_total_episodes']) and pd.notna(x['tmdb_seasons']) and x['tmdb_seasons'] > 0 
             else None,
@@ -58,29 +68,29 @@ class MarketAnalyzer:
         
         # Initialize success analyzer
         self.success_analyzer = SuccessAnalyzer(success_config)
-        self.success_analyzer.initialize_data(self.shows_df)
+        self.success_analyzer.initialize_data(self.titles_df)
         
-        # Validate shows_df required columns
+        # Validate titles_df required columns
         required_shows_cols = ['network_name', 'tmdb_id', 'title', 'studio_names']
-        missing_shows_cols = [col for col in required_shows_cols if col not in self.shows_df.columns]
+        missing_shows_cols = [col for col in required_shows_cols if col not in self.titles_df.columns]
         if missing_shows_cols:
-            raise ValueError(f"Missing required columns in shows_df: {missing_shows_cols}")
+            raise ValueError(f"Missing required columns in titles_df: {missing_shows_cols}")
         
         # Calculate success scores for all shows
-        self.shows_df['success_score'] = self.shows_df.apply(self.success_analyzer.calculate_success, axis=1)
+        self.titles_df['success_score'] = self.titles_df.apply(self.success_analyzer.calculate_success, axis=1)
         
         # Log initial state
         logger.info("Market overview:")
-        logger.info(f"Total shows: {len(self.shows_df)}")
-        logger.info(f"Total networks: {len(self.shows_df['network_name'].unique())}")
+        logger.info(f"Total shows: {len(self.titles_df)}")
+        logger.info(f"Total networks: {len(self.titles_df['network_name'].unique())}")
         
         # Log team stats if available
         team_cols = ['writers', 'producers', 'directors', 'creators']
-        if all(col in self.shows_df.columns for col in team_cols):
+        if all(col in self.titles_df.columns for col in team_cols):
             total_creatives = set()
             for col in team_cols:
                 total_creatives.update([
-                    name for names in self.shows_df[col].dropna() 
+                    name for names in self.titles_df[col].dropna() 
                     for name in names if name
                 ])
             logger.info(f"Total creatives: {len(total_creatives)}")
@@ -92,7 +102,7 @@ class MarketAnalyzer:
             Series with show counts by network
         """
         # Create a DataFrame with only scalar columns needed for this operation
-        df = self.shows_df[['network_name']].copy()
+        df = self.titles_df[['network_name']].copy()
         return df['network_name'].value_counts()
     
     def get_network_success_scores(self) -> pd.Series:
@@ -102,7 +112,7 @@ class MarketAnalyzer:
             Series of success scores indexed by network
         """
         # Create a DataFrame with only scalar columns needed for this operation
-        df = self.shows_df[['network_name', 'success_score']].copy()
+        df = self.titles_df[['network_name', 'success_score']].copy()
         return df.groupby('network_name')['success_score'].mean().sort_values(ascending=False)
     
 
@@ -111,7 +121,7 @@ class MarketAnalyzer:
         """Generate insights about market patterns.
         
         Args:
-            df: Optional DataFrame to use instead of self.shows_df
+            df: Optional DataFrame to use instead of self.titles_df
             
         Returns:
             Dictionary containing market insights
@@ -120,7 +130,7 @@ class MarketAnalyzer:
         needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'tmdb_avg_eps']
         df = df[needed_cols].copy()
         if df is None:
-            df = self.shows_df
+            df = self.titles_df
         
         # Validate DataFrame
         if len(df) == 0:
@@ -238,7 +248,7 @@ class MarketAnalyzer:
         high_success_networks = 0
         
         # Get success metrics for all shows
-        success_metrics = self.success_analyzer.analyze_market(self.shows_df)
+        success_metrics = self.success_analyzer.analyze_market(self.titles_df)
         if not success_metrics or 'titles' not in success_metrics:
             return {
                 'vertical_integration': 0,

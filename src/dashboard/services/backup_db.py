@@ -2,7 +2,7 @@
 import json
 from datetime import datetime
 import os
-from analytics_service import supabase  # Use our existing client
+from src.config.supabase_client import get_client  # Use centralized client
 
 def backup_database():
     """Backup all tables to a JSON file"""
@@ -22,6 +22,11 @@ def backup_database():
     ]
     
     backup = {}
+    
+    # Get Supabase client
+    supabase = get_client(use_service_key=True)
+    if not supabase:
+        raise ValueError("Could not initialize Supabase client")
     
     # Backup each table
     for table_name in tables:

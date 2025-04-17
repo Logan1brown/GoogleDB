@@ -457,6 +457,121 @@ Notes:
 ### Many-to-Many
 - Shows -> Subgenres (through subgenre_ids array)
 
+## API Views
+
+### Market Analysis (api_market_analysis)
+```sql
+CREATE VIEW api_market_analysis AS
+SELECT 
+    s.tmdb_id,
+    s.title,
+    n.network AS network_name,
+    array_agg(DISTINCT st.studio) AS studio_names,
+    st2.status AS status_name,
+    s.episode_count,
+    tm.seasons AS tmdb_seasons,
+    tm.total_episodes AS tmdb_total_episodes,
+    tm.status AS tmdb_status,
+    tm.last_air_date AS tmdb_last_air_date,
+    s.date AS announced_date
+FROM shows s
+    LEFT JOIN network_list n ON s.network_id = n.id
+    LEFT JOIN studio_list st ON st.id = ANY (s.studios)
+    LEFT JOIN status_types st2 ON s.status_id = st2.id
+    LEFT JOIN tmdb_success_metrics tm ON s.tmdb_id = tm.tmdb_id
+GROUP BY s.tmdb_id, s.title, n.network, st2.status, s.episode_count, 
+         tm.seasons, tm.total_episodes, tm.status, tm.last_air_date, s.date;
+```
+
+### Network Stats (api_network_stats)
+```sql
+CREATE VIEW api_network_stats AS
+SELECT 
+    network_id,
+    network_name,
+    total_shows,
+    active_shows,
+    ended_shows,
+    genres,
+    source_types
+FROM get_network_stats();
+```
+
+### Show Details (api_show_details)
+```sql
+CREATE VIEW api_show_details AS
+SELECT 
+    id,
+    title,
+    description,
+    network_name,
+    genre_name,
+    subgenre_names,
+    studio_names,
+    status_name,
+    order_type_name,
+    source_type_name,
+    date,
+    episode_count,
+    tmdb_id,
+    tmdb_seasons,
+    tmdb_total_episodes,
+    tmdb_status,
+    tmdb_last_air_date
+FROM get_show_details();
+```
+
+### Show Team (api_show_team)
+```sql
+CREATE VIEW api_show_team AS
+SELECT 
+    st.id,
+    st.show_id,
+    st.name,
+    st.search_name,
+    st.role_type_id,
+    st.team_order,
+    st.notes,
+    st.active,
+    st.created_at,
+    st.updated_at,
+    s.title,
+    n.network AS network_name
+FROM show_team st
+    JOIN shows s ON st.show_id = s.id
+    LEFT JOIN network_list n ON s.network_id = n.id;
+```
+
+### Team Summary (api_team_summary)
+```sql
+CREATE VIEW api_team_summary AS
+SELECT 
+    show_id,
+    title,
+    writers,
+    producers,
+    directors,
+    creators
+FROM team_summary;
+```
+
+### Team Summary (Materialized)
+```sql
+CREATE MATERIALIZED VIEW team_summary AS
+SELECT 
+    st.show_id,
+    s.title AS show_title,
+    array_agg(DISTINCT st.name) FILTER (WHERE rt.role = 'Writer') AS writers,
+    array_agg(DISTINCT st.name) FILTER (WHERE rt.role = 'Producer') AS producers,
+    array_agg(DISTINCT st.name) FILTER (WHERE rt.role = 'Director') AS directors,
+    array_agg(DISTINCT st.name) FILTER (WHERE rt.role = 'Creator') AS creators
+FROM show_team st
+    JOIN shows s ON st.show_id = s.id
+    JOIN role_types rt ON st.role_type_id = rt.id
+WHERE st.active = true AND s.active = true
+GROUP BY st.show_id, s.title;
+```
+
 ## Indexes
 
 ### Shows Table

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 10px;
+        color: #333;
+      }
+      
+      .search-container {
+        margin-bottom: 20px;
+      }
+      
+      .search-input {
+        width: 100%;
+        padding: 8px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      
+      .search-input:focus {
+        outline: none;
+        border-color: #4285f4;
+        box-shadow: 0 0 0 2px rgba(66,133,244,0.1);
+      }
+      
+      .results-container {
+        margin-top: 10px;
+      }
+      
+      .result-card {
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        background: white;
+        position: relative;
+      }
+      
+      .result-card:hover {
+        border-color: #4285f4;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+      
+      .show-name {
+        font-weight: bold;
+        margin-bottom: 4px;
+        padding-right: 80px; /* Make room for button */
+      }
+      
+      .show-details {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+      }
+      
+      .edit-button {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: #4285f4;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      
+      .edit-button:hover {
+        background: #3367d6;
+      }
+      
+      .no-results {
+        color: #666;
+        text-align: center;
+        padding: 20px;
+        font-style: italic;
+      }
+      
+      .loading {
+        text-align: center;
+        color: #666;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="search-container">
+      <input type="text" 
+             class="search-input" 
+             placeholder="Search shows by name, network, or studio..."
+             id="searchInput">
+    </div>
+    
+    <div id="resultsContainer" class="results-container">
+      <!-- Results will be inserted here -->
+    </div>
+
+    <script>
+      // Debounce function to limit API calls
+      function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+      }
+      
+      // Search handler
+      function handleSearch(query) {
+        const resultsContainer = document.getElementById('resultsContainer');
+        
+        if (!query.trim()) {
+          resultsContainer.innerHTML = '';
+          return;
+        }
+        
+        resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
+        
+        google.script.run
+          .withSuccessHandler(displayResults)
+          .withFailureHandler(handleError)
+          .searchShows(query);
+      }
+      
+      // Escape special characters for HTML and JavaScript
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function escapeJs(text) {
+        return text.replace(/[\\"']/g, '\\$&');
+      }
+
+      // Display search results
+      function displayResults(results) {
+        const resultsContainer = document.getElementById('resultsContainer');
+        
+        if (!results || results.length === 0) {
+          resultsContainer.innerHTML = `
+            <div class="no-results">
+              No shows found matching your search
+            </div>
+          `;
+          return;
+        }
+        
+        resultsContainer.innerHTML = results.map(show => `
+          <div class="result-card">
+            <div class="show-name">${escapeHtml(show.showName)}</div>
+            <div class="show-details">
+              ${escapeHtml(show.network)} • ${escapeHtml(show.studio)}
+            </div>
+            <button class="edit-button" 
+                    onclick="editShow('${escapeJs(show.showName)}', ${show.rowIndex})">
+              Edit
+            </button>
+          </div>
+        `).join('');
+      }
+      
+      // Handle search errors
+      function handleError(error) {
+        const resultsContainer = document.getElementById('resultsContainer');
+        resultsContainer.innerHTML = `
+          <div class="no-results">
+            Error performing search: ${error.message}
+          </div>
+        `;
+      }
+      
+      // Edit show handler
+      function editShow(showName, rowIndex) {
+        console.log('editShow called with showName:', showName, 'rowIndex:', rowIndex);
+        google.script.run
+          .withSuccessHandler(() => {
+            console.log('initiateEdit success');
+          })
+          .withFailureHandler((error) => {
+            console.error('initiateEdit failed:', error);
+            handleError(error);
+          })
+          .initiateEdit(showName, rowIndex);
+      }
+      
+      // Set up search input with debouncing
+      document.getElementById('searchInput').addEventListener('input', 
+        debounce(e => handleSearch(e.target.value), 300)
+      );
+    </script>
+  </body>
+</html>

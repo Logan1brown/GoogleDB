@@ -7,7 +7,7 @@ supabase/
 │   ├── 00001_*.sql     # SQL schema migrations
 │   └── 00001_*.py      # Python data migrations
 ├── config/             # Configuration files
-│   └── SUPABASE_CONFIG_SETUP.md  # Project setup and env vars
+└── docs/supabase_docs/SUPABASE_CONFIG_SETUP.md  # Project setup and env vars
 └── MIGRATIONS.md       # Migration documentation
 ```
 
@@ -112,7 +112,7 @@ After rebuilding:
 1. Check Data Integrity
 ```bash
 # Verify show counts match Google Sheets
-python verify_import.py
+python scripts/utils/verify_import.py
 
 # Check for orphaned records
 python find_missing_shows.py

@@ -21,22 +21,39 @@ from src.dashboard.utils.style_config import COLORS
 logger = logging.getLogger(__name__)
 
 
-def render_market_snapshot(market_analyzer, supabase):
+def render_market_snapshot(market_analyzer):
     import traceback
     """Render the market snapshot component.
     
     Args:
         market_analyzer: MarketAnalyzer instance with processed data
-        supabase: Initialized Supabase client for querying data
     """
+    # Force a full data reload to ensure pagination and debug logic runs
+
     try:
         # Initialize filtered DataFrame
-        filtered_df = market_analyzer.shows_df.copy()
+        filtered_df = market_analyzer.titles_df.copy()
         
-        # Calculate initial insights with ALL networks - used for displaying total numbers 
-        # in the metrics section (total shows, total networks, etc.)
-        # We want these numbers to reflect the entire dataset before filtering
-        initial_insights = market_analyzer.generate_market_insights(filtered_df)
+        # Get network data directly from network_df
+        network_df = market_analyzer.network_df.copy()
+        
+        # Calculate initial insights using network_df
+        st.write("DEBUG: network_df type:", type(network_df))
+        st.write("DEBUG: network_df is None?", network_df is None)
+        total_creatives = market_analyzer.get_unique_creatives() if hasattr(market_analyzer, 'get_unique_creatives') else 0
+        if network_df is not None and 'total_titles' in network_df.columns:
+            total_titles = network_df['total_titles'].sum()
+        else:
+            total_titles = 0
+        if network_df is not None:
+            total_networks = len(network_df)
+        else:
+            total_networks = 0
+        initial_insights = {
+            'total_titles': total_titles,
+            'total_networks': total_networks,
+            'total_creatives': total_creatives
+        }
     except Exception as e:
         logger.error("Error generating market insights:")
         logger.error(traceback.format_exc())
@@ -54,20 +71,34 @@ def render_market_snapshot(market_analyzer, supabase):
     </style>
     """, unsafe_allow_html=True)
     
+    # --- DEBUG: Try/catch around generate_market_insights ---
+    try:
+        insights = market_analyzer.generate_market_insights(filtered_df)
+        st.write("DEBUG: insights returned from generate_market_insights:", insights)
+        if insights is None:
+            st.error("generate_market_insights returned None!")
+        else:
+            st.write("DEBUG: insights keys:", list(insights.keys()))
+    except Exception as e:
+        import traceback
+        st.write("DEBUG: Exception in generate_market_insights:", str(e))
+        st.write("DEBUG: Traceback:", traceback.format_exc())
+        raise
+    # --- END DEBUG ---
     # Display key dataset metrics and filters
     try:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             # Process initial insights
-            st.metric("Total Titles", f"{initial_insights['total_shows']:,}")
-            shows = sorted(market_analyzer.shows_df['title'].unique())
-            selected_shows = st.multiselect(
+            st.metric("Total Titles", f"{initial_insights['total_titles']:,}")
+            titles = sorted(market_analyzer.titles_df['title'].unique())
+            selected_titles = st.multiselect(
                 "Filter Titles", 
-                shows,
+                titles,
                 max_selections=5,
                 help="Select up to 5 titles to filter the data",
-                key="market_filter_shows"
+                key="market_filter_titles"
             )
     except Exception as e:
         logger.error("Error displaying metrics:")
@@ -75,11 +106,15 @@ def render_market_snapshot(market_analyzer, supabase):
         st.error(f"Error displaying metrics: {str(e)}\n\nTraceback: {traceback.format_exc()}")
         return
     with col2:
-        # Get all unique team members from team_df
-        unique_members = set(name.strip() for name in market_analyzer.team_df['name'].dropna())
-        
-        st.metric("Unique Creatives", f"{len(unique_members):,}")
-        creatives = sorted(name for name in unique_members if name)
+        # Compute creatives without debug output
+        if not market_analyzer.team_df.empty and 'name' in market_analyzer.team_df.columns:
+            unique_members = set(name.strip() for name in market_analyzer.team_df['name'].dropna())
+            creatives = sorted(name for name in unique_members if name)
+        else:
+            creatives = []
+            
+        # Display metric for unique creatives
+        st.metric("Unique Creatives", str(len(creatives)))
         selected_creatives = st.multiselect(
             "Filter Creatives", 
             creatives,
@@ -88,8 +123,9 @@ def render_market_snapshot(market_analyzer, supabase):
             key="market_filter_creatives"
         )
     with col3:
+
         st.metric("Networks", f"{initial_insights['total_networks']:,}")
-        networks = sorted(market_analyzer.shows_df['network_name'].unique())
+        networks = sorted(market_analyzer.network_df['network_name'].unique() if 'network_name' in market_analyzer.network_df.columns else market_analyzer.titles_df['network_name'].unique())
         selected_networks = st.multiselect(
             "Filter Networks", 
             networks,
@@ -101,8 +137,8 @@ def render_market_snapshot(market_analyzer, supabase):
         success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
         if success_metrics and 'titles' in success_metrics:
             total_score = sum(data['score'] for data in success_metrics['titles'].values())
-            num_shows = len(success_metrics['titles'])
-            avg_success = total_score / num_shows if num_shows > 0 else 0
+            num_titles = len(success_metrics['titles'])
+            avg_success = total_score / num_titles if num_titles > 0 else 0
         else:
             avg_success = 0
         st.metric(
@@ -124,8 +160,8 @@ def render_market_snapshot(market_analyzer, supabase):
         
     # Track which filter is active and disable others
     active_filter = None
-    if selected_shows:
-        active_filter = "shows"
+    if selected_titles:
+        active_filter = "titles"
     elif selected_networks:
         active_filter = "networks"
     elif selected_creatives:
@@ -141,7 +177,7 @@ def render_market_snapshot(market_analyzer, supabase):
     # Filter data based on success level
     # Include all needed columns including studio_names for vertical integration
     needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'tmdb_avg_eps', 'studio_names', 'status_name']
-    filtered_df = market_analyzer.shows_df[needed_cols].copy()
+    filtered_df = market_analyzer.titles_df[needed_cols].copy()
     # Filter data based on selected columns
     if success_filter != "All":
         # Get success metrics which has scores for each show
@@ -170,54 +206,56 @@ def render_market_snapshot(market_analyzer, supabase):
     
     # First apply creative filters if selected
     if selected_creatives:
-        # Get all shows and networks for selected creatives
-        creative_data = market_analyzer.team_df[market_analyzer.team_df['name'].isin(selected_creatives)]
-        creative_networks = set(creative_data['network_name'].dropna())
+        # Get titles where selected creatives work
+        creative_titles = market_analyzer.team_df[
+            market_analyzer.team_df['name'].isin(selected_creatives)
+        ]['title'].unique()
         
-        # Filter to only networks that have shows from selected creatives
-        filtered_df = filtered_df[filtered_df['network_name'].isin(creative_networks)]
+        # Filter to only titles with selected creatives
+        filtered_df = filtered_df[filtered_df['title'].isin(creative_titles)]
         
         if len(filtered_df) == 0:
-            st.info("No shows found for selected creatives.")
+            st.info("No titles found for selected creatives.")
             return
     
     # Then get networks with more than 1 show from the current set
     network_counts = filtered_df.groupby('network_name').size()
     multi_show_networks = network_counts[network_counts > 1].index
     
-    # Filter DataFrame to only include multi-show networks
+    # Save unfiltered DataFrame for metrics
+    metrics_df = filtered_df.copy()
+    
+    # Filter DataFrame to only include multi-show networks (for chart only)
     filtered_df = filtered_df[filtered_df['network_name'].isin(multi_show_networks)]
     
     # Then apply other filters
-    if selected_shows:
-        filtered_df = filtered_df[filtered_df['title'].isin(selected_shows)]
+    if selected_titles:
+        filtered_df = filtered_df[filtered_df['title'].isin(selected_titles)]
     
     if selected_networks:
         filtered_df = filtered_df[filtered_df['network_name'].isin(selected_networks)]
     
-    # Calculate filtered insights using only networks with multiple shows
-    # This is used for the graph and success metrics to avoid single-show networks
-    # skewing the network performance calculations
-    insights = market_analyzer.generate_market_insights(filtered_df)
+    # Calculate insights for metrics using unfiltered data
+    insights = market_analyzer.generate_market_insights(metrics_df)
     
-    # Get success metrics from the filtered data
+    # Get success metrics from the filtered data (for chart)
     success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
     
     # Get success scores by network first
     network_scores = {}
-    for show_id, show_data in success_metrics['titles'].items():
-        # Convert show_id to int since tmdb_id is numeric
+    for title_id, title_data in success_metrics['titles'].items():
+        # Convert title_id to int since tmdb_id is numeric
         try:
-            show_id = int(float(show_id))
+            title_id = int(float(title_id))
         except (ValueError, TypeError):
-            logger.warning(f"Invalid tmdb_id: {show_id}")
+            logger.warning(f"Invalid tmdb_id: {title_id}")
             continue
-        show = filtered_df[filtered_df['tmdb_id'] == show_id].iloc[0] if len(filtered_df[filtered_df['tmdb_id'] == show_id]) > 0 else None
-        if show is not None:
-            network = show['network_name']
+        title = filtered_df[filtered_df['tmdb_id'] == title_id].iloc[0] if len(filtered_df[filtered_df['tmdb_id'] == title_id]) > 0 else None
+        if title is not None:
+            network = title['network_name']
             if network not in network_scores:
                 network_scores[network] = []
-            network_scores[network].append(show_data['score'])
+            network_scores[network].append(title_data['score'])
     
     # If filtering by success tier, only include networks that have scores
     if success_filter != "All":
@@ -226,17 +264,17 @@ def render_market_snapshot(market_analyzer, supabase):
         filtered_df = filtered_df[filtered_df['network_name'].isin(networks_with_scores)]
     
     # Get network distribution after filtering
-    shows_by_network = filtered_df.groupby('network_name').size()
-    # Only filter to multi-show networks if we're not filtering by specific shows
-    if not selected_shows:
-        shows_by_network = shows_by_network[shows_by_network > 1].sort_values(ascending=False)
-    else:
-        shows_by_network = shows_by_network.sort_values(ascending=False)
+    titles_by_network = filtered_df.groupby('network_name').size()
+    
+    # Merge with network_df to ensure all networks are included
+    all_networks = pd.Series(0, index=network_df['network_name'])
+    titles_by_network = titles_by_network.combine(all_networks, max, fill_value=0)
+    titles_by_network = titles_by_network.sort_values(ascending=False)
     
     # Calculate average scores and create hover text
     avg_scores = []
     hover_text = []
-    for network, count in shows_by_network.items():
+    for network, count in titles_by_network.items():
         text = f'{network}<br>Titles: {count}'
         if network in network_scores:
             avg = sum(network_scores[network]) / len(network_scores[network])
@@ -264,8 +302,8 @@ def render_market_snapshot(market_analyzer, supabase):
     # Create chart
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=list(shows_by_network.index),
-        y=list(shows_by_network.values),
+        x=list(titles_by_network.index),
+        y=list(titles_by_network.values),
         name="Titles per Network",
         marker_color=colors,
         hovertext=hover_text,
@@ -298,7 +336,12 @@ def render_market_snapshot(market_analyzer, supabase):
         st.metric(
             "Network Concentration", 
             f"{insights['network_concentration']:.1f}%",
-            help=f"Share of titles from top 3 networks: {', '.join(insights['top_3_networks'].index)}"
+            help=(
+                "Herfindahl-Hirschman Index (HHI): A standard measure of market concentration. "
+                "0% = highly competitive, 100% = monopoly. "
+                "Typical interpretation: <15% = competitive, 15–25% = moderately concentrated, >25% = highly concentrated. "
+                "A higher value means a few networks dominate; a lower value means the market is more competitive."
+            )
         )
     with col3:
         st.metric(
@@ -306,4 +349,3 @@ def render_market_snapshot(market_analyzer, supabase):
             f"{insights['vertical_integration']:.0f}%",
             help="Percentage of titles from vertically integrated studios"
         )
-    

@@ -248,6 +248,26 @@ By viewing and copying the exact content first, we ensure that only the intended
 ### Important Note on These Observations
 ## Knowledge Limitations and Self-Reference
 
+---
+
+## Incident: Overwriting of Work Due to Unintended Git Checkout
+
+**Date:** 2025-04-17
+
+**Summary:**
+On this date, 16 hours of development work on `src/data_processing/market_analysis/market_analyzer.py` were unintentionally lost due to a `git checkout` operation performed by the AI assistant. The checkout reverted the file to an older committed state, overwriting uncommitted changes. The user did not request this destructive operation. Recovery attempts were unsuccessful due to the absence of a recent commit or backup, resulting in significant loss of progress.
+
+**Lessons Learned:**
+- Always confirm with the user before running any destructive git operations (such as checkout, reset, or revert).
+- Encourage frequent commits or backups, especially before making changes that could overwrite uncommitted work.
+- Implement safeguards to prevent accidental loss of uncommitted changes.
+
+**Action Items:**
+- Improve assistant protocols to require explicit user confirmation before any destructive git action.
+- Remind users to save and commit work regularly.
+- Investigate tooling or automation that can auto-backup files before risky operations.
+
+
 ### Terms I Reference But Don't Understand
 1. **AI Flow Paradigm**
    - Mentioned in my system prompt

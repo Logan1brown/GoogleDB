@@ -30,16 +30,23 @@ class NetworkConnectionAnalyzer:
         self.shows_df = shows_df
         self.team_df = team_df
         
+        # Log columns before merge
+        logger.info(f"Shows DataFrame columns: {self.shows_df.columns.tolist()}")
+        logger.info(f"Team DataFrame columns: {self.team_df.columns.tolist()}")
+        
         # Merge shows and team data
         self.combined_df = pd.merge(
             self.team_df,
-            self.shows_df[['show_name', 'network']],
-            on='show_name'
+            self.shows_df[['title', 'network_name']],
+            on='title'
         )
+        
+        # Log columns after merge
+        logger.info(f"Combined DataFrame columns: {self.combined_df.columns.tolist()}")
         
         # Log basic stats
         logger.info("Network connection stats:")
-        network_counts = self.combined_df['network'].nunique()
+        network_counts = self.combined_df['network_name_x'].nunique()  # Use network_name from team_df
         creator_counts = self.combined_df['name'].nunique()
         logger.info(f"  Networks: {network_counts}")
         logger.info(f"  Unique creators: {creator_counts}")
@@ -61,8 +68,8 @@ class NetworkConnectionAnalyzer:
             if row['name'] not in creator_networks:
                 creator_networks[row['name']] = set()
                 creator_shows[row['name']] = set()
-            creator_networks[row['name']].add(row['network'])
-            creator_shows[row['name']].add(row['show_name'])
+            creator_networks[row['name']].add(row['network_name_x'])
+            creator_shows[row['name']].add(row['title'])
         
         # Find exclusive and shared talent
         exclusive_talent = []
@@ -85,7 +92,7 @@ class NetworkConnectionAnalyzer:
         
         # Analyze network overlap
         network_overlap = []
-        networks = sorted(self.combined_df['network'].unique())
+        networks = sorted(self.combined_df['network_name_x'].unique())
         
         for i, net1 in enumerate(networks):
             for net2 in networks[i+1:]:
@@ -226,7 +233,7 @@ class NetworkConnectionAnalyzer:
                 display_name = creator['name']
             
             # Get show details
-            shows = creator_df.groupby('show_name').agg({
+            shows = creator_df.groupby('title').agg({
                 'network': 'first',
                 'roles': lambda x: ', '.join(set(x))
             }).reset_index()

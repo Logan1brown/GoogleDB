@@ -9,7 +9,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.data_processing.market_analysis.market_analyzer_secure import MarketAnalyzer
+from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.components.connections_view import render_network_connections_dashboard
 from src.data_processing.creative_networks.connections_analyzer import analyze_network_connections
 from src.dashboard.state.session import get_page_state, FilterState
