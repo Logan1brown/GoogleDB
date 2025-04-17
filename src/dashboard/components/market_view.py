@@ -219,15 +219,11 @@ def render_market_snapshot(market_analyzer):
             return
     
     # Then get networks with more than 1 show from the current set
-    network_counts = filtered_df.groupby('network_name').size()
-    multi_show_networks = network_counts[network_counts > 1].index
-    
     # Save unfiltered DataFrame for metrics
     metrics_df = filtered_df.copy()
     
-    # Filter DataFrame to only include multi-show networks (for chart only)
-    filtered_df = filtered_df[filtered_df['network_name'].isin(multi_show_networks)]
-    
+    # Do NOT filter DataFrame to only include multi-show networks for the chart or filters
+    # The multi-show filter will only be used in the top network metric in insights
     # Then apply other filters
     if selected_titles:
         filtered_df = filtered_df[filtered_df['title'].isin(selected_titles)]

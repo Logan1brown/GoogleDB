@@ -55,6 +55,10 @@ class MarketAnalyzer:
                       'writers', 'producers', 'directors', 'creators']
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
+
+        # Filter to only active shows using the 'active' column if present. Do NOT filter by status_name at all.
+        if 'active' in self.titles_df.columns:
+            self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
         
         # Reset index to ensure clean data
         self.titles_df = self.titles_df.reset_index(drop=True)
