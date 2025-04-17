@@ -261,6 +261,15 @@ class MarketAnalyzer:
                 'show_count': None  # If needed, can be refined
             })
         
+        # Calculate network concentration (percentage of shows from the largest network)
+        network_concentration = 0
+        top_3_networks = []
+        if df is not None and 'network_name' in df.columns:
+            network_counts = df['network_name'].value_counts(normalize=True)
+            if not network_counts.empty:
+                network_concentration = network_counts.iloc[0] * 100
+            top_3_networks = network_counts.head(3).index.tolist()
+
         # If no top_success_network was found in the loop, pick the network with the highest score if any exist
         if (top_success_network == 'None' or not top_success_network) and network_success:
             sorted_networks = sorted(network_success.items(), key=lambda x: x[1], reverse=True)
@@ -272,5 +281,12 @@ class MarketAnalyzer:
             'top_networks': top_networks,
             'high_success_networks': high_success_networks,
             'top_success_network': top_success_network,
-            'top_success_score': top_success_score
+            'top_success_score': top_success_score,
+            'network_concentration': network_concentration,
+            'top_3_networks': top_3_networks,
+            'network_success': network_success,
+            'total_shows': len(df) if df is not None else 0,
+            'total_networks': df['network_name'].nunique() if df is not None and 'network_name' in df.columns else 0,
+            'total_creatives': total_creatives if 'total_creatives' in locals() else 0,
+            'studio_insights': studio_insights if 'studio_insights' in locals() else {},
         }
