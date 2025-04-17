@@ -38,8 +38,8 @@ def render_market_snapshot(market_analyzer):
         network_df = market_analyzer.network_df.copy()
         
         # Calculate initial insights using network_df
-        st.write("DEBUG: network_df type:", type(network_df))
-        st.write("DEBUG: network_df is None?", network_df is None)
+        
+        
         total_creatives = market_analyzer.get_unique_creatives() if hasattr(market_analyzer, 'get_unique_creatives') else 0
         if hasattr(market_analyzer, 'titles_df') and 'title' in market_analyzer.titles_df.columns:
             total_titles = market_analyzer.titles_df['title'].nunique()
@@ -74,16 +74,16 @@ def render_market_snapshot(market_analyzer):
     # --- DEBUG: Try/catch around generate_market_insights ---
     try:
         insights = market_analyzer.generate_market_insights(filtered_df)
-        st.write("DEBUG: insights returned from generate_market_insights:", insights)
+        
         if insights is None:
             st.error("generate_market_insights returned None!")
-        else:
-            st.write("DEBUG: insights keys:", list(insights.keys()))
+
     except Exception as e:
         import traceback
-        st.write("DEBUG: Exception in generate_market_insights:", str(e))
-        st.write("DEBUG: Traceback:", traceback.format_exc())
-        raise
+        logger.error("Error generating market insights:")
+        logger.error(traceback.format_exc())
+        st.error(f"Error generating market insights: {str(e)}\n\nTraceback: {traceback.format_exc()}")
+        return
     # --- END DEBUG ---
     # Display key dataset metrics and filters
     try:

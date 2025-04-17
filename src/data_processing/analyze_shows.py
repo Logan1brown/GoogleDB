@@ -154,23 +154,6 @@ class ShowsAnalyzer:
             logger.warning(f"Error converting {x} to list: {e}")
             return []
 
-    def clean_shows_data(self) -> None:
-        """Apply any final transformations to the fetched data.
-        
-        Since we're using materialized views, most cleaning is handled at the database level.
-        This method only handles any final transformations needed for analysis, such as:
-        - Converting data types
-        - Creating derived features
-        - Handling array fields (studios, subgenres)
-        """
-        try:
-            # Convert date fields
-            logger.info("Data cleaning completed successfully")
-            
-        except Exception as e:
-            logger.error(f"Error during data cleaning: {str(e)}")
-            raise
-
     def generate_basic_stats(self) -> Dict[str, Any]:
         """Generate basic statistics about the shows.
         

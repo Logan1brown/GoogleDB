@@ -51,8 +51,7 @@ class MarketAnalyzer:
         # Create deep copies to avoid modifying original data
         # Only select columns we need, keeping studio_names for vertical integration
         needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
-                      'tmdb_status', 'status_name', 'studio_names',
-                      'writers', 'producers', 'directors', 'creators']
+                      'tmdb_status', 'status_name', 'studio_names']
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
 
@@ -89,16 +88,6 @@ class MarketAnalyzer:
         logger.info(f"Total shows: {len(self.titles_df)}")
         logger.info(f"Total networks: {len(self.titles_df['network_name'].unique())}")
         
-        # Log team stats if available
-        team_cols = ['writers', 'producers', 'directors', 'creators']
-        if all(col in self.titles_df.columns for col in team_cols):
-            total_creatives = set()
-            for col in team_cols:
-                total_creatives.update([
-                    name for names in self.titles_df[col].dropna() 
-                    for name in names if name
-                ])
-            logger.info(f"Total creatives: {len(total_creatives)}")
     
     def get_network_distribution(self) -> pd.Series:
         """Get distribution of shows across networks.
@@ -158,9 +147,14 @@ class MarketAnalyzer:
         if not studio_list_df.empty and 'studio' in studio_list_df.columns and 'category' in studio_list_df.columns:
             def is_vertically_integrated_cat(cat):
                 if isinstance(cat, list):
-                    return any(str(x).lower().strip() == 'vertically integrated' for x in cat)
+                    # Check each element, splitting by comma if needed
+                    for x in cat:
+                        if any(part.strip().lower() == 'vertically integrated' for part in str(x).split(',')):
+                            return True
+                    return False
                 elif isinstance(cat, str):
-                    return cat.lower().strip() == 'vertically integrated'
+                    # Split by comma and check each part
+                    return any(part.strip().lower() == 'vertically integrated' for part in cat.split(','))
                 return False
             mask = studio_list_df['category'].apply(is_vertically_integrated_cat)
             vertically_integrated_studios = set(
@@ -212,8 +206,7 @@ class MarketAnalyzer:
 
         # Minimal debug output for DataFrame shape and head
         import streamlit as st
-        st.write('DEBUG: df.shape =', df.shape)
-        st.write('DEBUG: df.head() =', df.head())
+
         
         # Filter to networks with enough shows
         min_shows = 3
