@@ -163,10 +163,17 @@ def analyze_studio_relationships(shows_df: pd.DataFrame, studio_categories_df: p
         # Get shows for this studio
         studio_shows = get_shows_for_studio(shows_df, studio, studio_categories_df)
         if len(studio_shows) >= 2:  # Only include if they have 2+ shows
+            # Get genres for each show
+            genres = []
+            for _, show in studio_shows.iterrows():
+                if 'genre_name' in show and show['genre_name']:
+                    genres.extend([g.strip() for g in str(show['genre_name']).split(',')])
+            
             indie_studios[studio] = {
                 'show_count': len(studio_shows),
                 'shows': studio_shows['title'].tolist(),
-                'networks': studio_shows['network_name'].value_counts().to_dict()
+                'networks': studio_shows['network_name'].value_counts().to_dict(),
+                'genres': list(set(genres))
             }
     
     # Convert studio_sizes to dict and get sorted studios
@@ -190,7 +197,8 @@ def analyze_studio_relationships(shows_df: pd.DataFrame, studio_categories_df: p
         'top_studios': sorted([studio for studio, _ in studio_sizes_dict.items()], 
                             key=lambda x: studio_sizes_dict[x], 
                             reverse=True),
-        'indie_studios': indie_studios
+        'indie_studios': indie_studios,
+        'top_indies': indie_studios  # Add top_indies for success stories
     }
 
 def get_studio_insights(shows_df: pd.DataFrame, studio: str, studio_categories_df: pd.DataFrame) -> Dict:
