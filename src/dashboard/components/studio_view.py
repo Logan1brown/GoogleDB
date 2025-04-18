@@ -78,7 +78,12 @@ def create_studio_graph(shows_df: pd.DataFrame, studio_categories_df: pd.DataFra
     
     for studio in top_studios.index:
         # Get show counts by network for this studio
-        studio_shows = shows_df[shows_df['studio_names'].apply(lambda x: studio in x if isinstance(x, list) else False)]
+        # Explode studio_names to get one row per show-studio combination
+        studio_shows = shows_df.explode('studio_names')
+        # Filter for this studio
+        studio_shows = studio_shows[studio_shows['studio_names'] == studio]
+        # Drop duplicates to count each show once
+        studio_shows = studio_shows.drop_duplicates(subset=['title'])
         # Filter out null/empty networks
         studio_shows = studio_shows[studio_shows['network_name'].notna() & (studio_shows['network_name'] != '')]
         network_counts = studio_shows['network_name'].value_counts()
@@ -127,20 +132,20 @@ def create_studio_graph(shows_df: pd.DataFrame, studio_categories_df: pd.DataFra
     indie_studios = get_studio_data(use_indies=True)
     indie_data = []
     networks = set()
-    studio_network_counts = {}
     
+    # Use network relationships from analysis
     for studio in indie_studios.index:
-        studio_shows = shows_df[shows_df['studio_names'].apply(lambda x: studio in x if isinstance(x, list) else False)]
-        network_counts = studio_shows['network_name'].value_counts()
-        studio_network_counts[studio] = network_counts
-        networks.update(network_counts.index)
+        if studio in analysis['indie_studios']:
+            network_counts = analysis['indie_studios'][studio]['networks']
+            networks.update(network_counts.keys())
     
+    # Create bar data for each studio
     for studio in indie_studios.index:
-        # Sort networks by count for this studio
-        studio_nets = studio_network_counts[studio]
-        sorted_nets = sorted([(net, studio_nets.get(net, 0)) 
-                            for net in networks],
-                           key=lambda x: x[1], reverse=True)
+        if studio in analysis['indie_studios']:
+            studio_nets = analysis['indie_studios'][studio]['networks']
+            sorted_nets = sorted([(net, studio_nets.get(net, 0)) 
+                                for net in networks],
+                               key=lambda x: x[1], reverse=True)
         
         for network, count in sorted_nets:
             indie_data.append(go.Bar(
@@ -254,7 +259,7 @@ def render_studio_metrics(analysis_results: Dict) -> None:
             help="Average number of different networks each studio works with"
         )
 
-def render_studio_filter(shows_df: pd.DataFrame, analysis_results: Dict) -> None:
+def render_studio_filter(shows_df: pd.DataFrame, studio_categories_df: pd.DataFrame, analysis_results: Dict) -> None:
     """Render studio filtering and analysis interface.
     
     Args:
@@ -295,7 +300,7 @@ def render_studio_filter(shows_df: pd.DataFrame, analysis_results: Dict) -> None
     
     if selected_studio:
         # Get insights for selected studio
-        insights = get_studio_insights(shows_df, selected_studio)
+        insights = get_studio_insights(shows_df, selected_studio, studio_categories_df)
         
         # Cache insights in session state
         if 'studio_insights' not in st.session_state:
@@ -382,17 +387,15 @@ def render_studio_success_stories(analysis_results: Dict) -> None:
                     st.write("**Genres:**")
                     st.write(", ".join(sorted(data['genres'])))
 
-def render_studio_performance_dashboard(shows_df: pd.DataFrame) -> None:
+def render_studio_performance_dashboard(shows_df: pd.DataFrame, studio_categories_df: pd.DataFrame) -> None:
     """Render the complete studio performance dashboard.
     
     Args:
         shows_df: DataFrame with show information
+        studio_categories_df: DataFrame with studio categories
     """
     
     try:
-        # Get studio categories from ShowsAnalyzer
-        shows_analyzer = ShowsAnalyzer()
-        _, studio_categories_df = shows_analyzer.fetch_studio_data()
         
         # Get analysis results once for all components
         analysis_results = analyze_studio_relationships(shows_df, studio_categories_df)
@@ -435,7 +438,7 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame) -> None:
                         selected_studio = selected_studio[7:].strip()
                         
                     # Get insights for selected studio
-                    insights = get_studio_insights(shows_df, selected_studio)
+                    insights = get_studio_insights(shows_df, selected_studio, studio_categories_df)
                     
                     # Cache insights in session state
                     if 'studio_insights' not in st.session_state:

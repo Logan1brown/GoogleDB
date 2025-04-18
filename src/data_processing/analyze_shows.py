@@ -242,7 +242,8 @@ class ShowsAnalyzer:
                 'network_name',
                 'studio_names',
                 'status_name',
-                'tmdb_id'
+                'tmdb_id',
+                'genre_name'
             ).execute()
             
             # Fetch studio categories
@@ -315,8 +316,27 @@ class ShowsAnalyzer:
             # Default to False for shows not in shows table
             result_df['active'] = result_df['active'].fillna(False)
             
-            # Ensure studio_names is a list
-            result_df['studio_names'] = result_df['studio_names'].apply(self.convert_to_list)
+            # Create alias mapping
+            alias_to_studio = {}
+            for _, row in studio_list_df.iterrows():
+                studio = row['studio']
+                aliases = self.convert_to_list(row.get('aliases', []))
+                for alias in aliases:
+                    if alias:  # Skip empty aliases
+                        alias_to_studio[alias] = studio
+            
+            # Helper function to normalize studio names
+            def normalize_studio_names(studios):
+                if not isinstance(studios, list):
+                    return []
+                normalized = []
+                for studio in studios:
+                    # Use the primary studio name if this is an alias
+                    normalized.append(alias_to_studio.get(studio, studio))
+                return normalized
+            
+            # Ensure studio_names is a list and normalize using aliases
+            result_df['studio_names'] = result_df['studio_names'].apply(self.convert_to_list).apply(normalize_studio_names)
             
             return result_df, studio_list_df
         except Exception as e:

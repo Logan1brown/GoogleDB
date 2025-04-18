@@ -19,10 +19,10 @@ try:
     
     # Initialize analyzer and fetch data
     analyzer = ShowsAnalyzer()
-    titles_df, _, _ = analyzer.fetch_market_data()
+    shows_df, studio_categories_df = analyzer.fetch_studio_data()
     
     # Render studio performance dashboard
-    render_studio_performance_dashboard(titles_df)
+    render_studio_performance_dashboard(shows_df, studio_categories_df)
     
 except Exception as e:
     st.error(f"Error analyzing studio performance: {str(e)}")
