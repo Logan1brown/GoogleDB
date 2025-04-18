@@ -48,8 +48,8 @@ def create_studio_graph(shows_df: pd.DataFrame, studio_categories_df: pd.DataFra
     Returns:
         Plotly figure with studio-network distribution
     """
-    # Get studio relationship data
-    analysis = analyze_studio_relationships(shows_df, studio_categories_df)
+    # Get cached analysis results
+    analysis = get_cached_analysis(shows_df, studio_categories_df)
     
     def get_studio_data(use_indies=False):
         if use_indies:
@@ -266,11 +266,11 @@ def render_studio_filter(shows_df: pd.DataFrame, studio_categories_df: pd.DataFr
         shows_df: DataFrame with show information
         analysis_results: Results from analyze_studio_relationships
     """
-    # Get all studios and their show counts
-    studio_counts = pd.Series(analysis_results['studio_sizes'])
+    # Get indie studios and their show counts
+    indie_counts = {studio: data['show_count'] for studio, data in analysis_results['indie_studios'].items()}
     
     # Filter out empty/whitespace studios and sort by count
-    valid_studios = pd.Series({k: v for k, v in studio_counts.items() 
+    valid_studios = pd.Series({k: v for k, v in indie_counts.items() 
                               if k and not str(k).isspace()})
     valid_studios = valid_studios.sort_values(ascending=False)
     
@@ -341,27 +341,43 @@ def render_studio_success_stories(analysis_results: Dict) -> None:
     """
     # Show indie studio success stories
     st.subheader("Independent Studio Performance")
-    top_indies = analysis_results.get('top_indies', {})
+    indie_studios = analysis_results.get('indie_studios', {})
     
-    if top_indies:
+    if indie_studios:
         # Show top indie studios table
         indie_data = []
         all_genres = set()
         
-        for studio, data in top_indies.items():
-            # Clean up studio name - remove category prefix
-            studio_name = studio.split(' - ')[0] if ' - ' in studio else studio
+        # Get indie studios with at least 2 shows (same as chart)
+        studio_data = {}
+        for studio, data in indie_studios.items():
+            if data['show_count'] >= 2:
+                # Clean studio name
+                studio_name = studio.split(' - ')[0] if ' - ' in studio else studio
+                studio_data[studio_name] = data['show_count']
+        
+        # Use pd.Series to combine studios with same name and sort
+        studio_series = pd.Series(studio_data).sort_values(ascending=False)
+        
+        # Now create indie_data
+        for studio_name, show_count in studio_series.items():
+            # Get all data for this studio name
+            networks = set()
+            genres = set()
+            for studio, data in indie_studios.items():
+                if data['show_count'] >= 2:
+                    clean_name = studio.split(' - ')[0] if ' - ' in studio else studio
+                    if clean_name == studio_name:
+                        networks.update(data['networks'].keys())
+                        genres.update(data['genres'])
             
             indie_data.append({
                 'Studio': studio_name,
-                'Shows': data['show_count'],
-                'Networks': len(data['networks']),
-                'Genres': len(data['genres'])
+                'Shows': show_count,
+                'Networks': len(networks),
+                'Genres': len(genres)
             })
-            all_genres.update(data['genres'])
-        
-        # Filter to studios with at least 2 shows
-        indie_data = [d for d in indie_data if d['Shows'] >= 2]
+            all_genres.update(genres)
         
         if indie_data:
             # Sort by show count descending
@@ -369,23 +385,35 @@ def render_studio_success_stories(analysis_results: Dict) -> None:
             df = df.sort_values('Shows', ascending=False)
             st.dataframe(df, hide_index=True)
             
-            # Show studio details
-            st.write("\n**Studio Details**")
-            # Filter and sort top_indies to match the filtered indie_data
-            filtered_indies = {studio: data for studio, data in top_indies.items() 
-                             if data['show_count'] >= 2}
-            # Sort by show count
-            sorted_indies = dict(sorted(filtered_indies.items(), 
-                                      key=lambda x: x[1]['show_count'], 
-                                      reverse=True))
-            for studio, data in sorted_indies.items():
-                studio_name = studio.split(' - ')[0] if ' - ' in studio else studio
+            # Use the already sorted studio_series
+            sorted_indies = studio_series.to_dict()
+            for studio_name, show_count in sorted_indies.items():
                 with st.expander(studio_name):
-                    st.write(f"**Shows:** {data['show_count']}")
-                    st.write("**Networks:**")
-                    st.write(", ".join(sorted(data['networks'])))
-                    st.write("**Genres:**")
-                    st.write(", ".join(sorted(data['genres'])))
+                    st.write(f"**Shows:** {show_count}")
+                    
+                    # Get all data for this studio name
+                    networks = set()
+                    genres = set()
+                    for studio, data in indie_studios.items():
+                        if data['show_count'] >= 2:
+                            clean_name = studio.split(' - ')[0] if ' - ' in studio else studio
+                            if clean_name == studio_name:
+                                networks.update(data['networks'].keys())
+                                genres.update(data['genres'])
+                    
+                    # Format networks nicely
+                    if networks:
+                        st.write("**Networks:**")
+                        st.write(", ".join(sorted(networks)))
+                    
+                    # Format genres nicely
+                    if genres:
+                        st.write("**Genres:**")
+                        st.write(", ".join(sorted(genres)))
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_cached_analysis(df, cat_df):
+    return analyze_studio_relationships(df, cat_df)
 
 def render_studio_performance_dashboard(shows_df: pd.DataFrame, studio_categories_df: pd.DataFrame) -> None:
     """Render the complete studio performance dashboard.
@@ -396,11 +424,6 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame, studio_categorie
     """
     
     try:
-        
-        @st.cache_data(ttl=3600)
-        def get_cached_analysis(df, cat_df):
-            return analyze_studio_relationships(df, cat_df)
-            
         # Get analysis results once for all components
         analysis_results = get_cached_analysis(shows_df, studio_categories_df)
         

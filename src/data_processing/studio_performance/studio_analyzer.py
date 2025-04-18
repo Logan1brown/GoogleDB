@@ -66,9 +66,6 @@ def get_shows_for_studio(shows_df: pd.DataFrame, studio: str, studio_categories_
     Returns:
         DataFrame containing only shows that include this studio
     """
-    # Filter for active shows if column exists
-    shows_df = filter_active_shows(shows_df)
-    
     # Get active studios from categories
     active_studios = set(studio_categories_df[studio_categories_df['active']]['studio'].unique())
     
@@ -79,11 +76,8 @@ def get_shows_for_studio(shows_df: pd.DataFrame, studio: str, studio_categories_
     # Explode studio_names to get one row per show-studio combination
     studio_shows = shows_df.explode('studio_names')
     
-    # Filter for this studio and active shows
-    studio_shows = studio_shows[
-        (studio_shows['studio_names'] == studio) &
-        studio_shows['active']
-    ]
+    # Filter for this studio
+    studio_shows = studio_shows[studio_shows['studio_names'] == studio]
     
     # Drop duplicates to count each show once
     matching_shows = studio_shows.drop_duplicates(subset=['title'])
@@ -119,6 +113,7 @@ def analyze_studio_relationships(shows_df: pd.DataFrame, studio_categories_df: p
     # Get studio sizes by show count
     studio_sizes = {}
     for studio in active_studios:
+        # Use get_shows_for_studio which handles filtering correctly
         studio_shows = get_shows_for_studio(shows_df, studio, studio_categories_df)
         if not studio_shows.empty:
             studio_sizes[studio] = len(studio_shows)
@@ -142,6 +137,14 @@ def analyze_studio_relationships(shows_df: pd.DataFrame, studio_categories_df: p
             # Get show status distribution
     # Get indie studios from active studios
     indie_studios = {}
+    
+    # Cache all studio shows with 2+ shows
+    all_studio_shows = {}
+    for studio in active_studios:
+        studio_shows = get_shows_for_studio(shows_df, studio, studio_categories_df)
+        if len(studio_shows) >= 2:
+            all_studio_shows[studio] = studio_shows
+    
     def is_indie_cat(cat):
         if isinstance(cat, list):
             # Check each element, splitting by comma if needed
@@ -154,17 +157,18 @@ def analyze_studio_relationships(shows_df: pd.DataFrame, studio_categories_df: p
             return any(part.strip().lower() == 'independent' for part in cat.split(','))
         return False
     
+    # Then filter to active indie studios
     active_indies = set(studio_categories_df[
         studio_categories_df['active'] & 
         studio_categories_df['category'].apply(is_indie_cat)
     ]['studio'].unique())
     
-    # Get show counts for indie studios
+    # Process only active indie studios that have 2+ shows
     for studio in active_indies:
-        # Get shows for this studio
-        studio_shows = get_shows_for_studio(shows_df, studio, studio_categories_df)
-        if len(studio_shows) >= 2:  # Only include if they have 2+ shows
-            # Get genres for each show
+        # Check if we have cached shows for this studio
+        if studio in all_studio_shows:
+            studio_shows = all_studio_shows[studio]
+            # Get genres from filtered shows
             genres = []
             for _, show in studio_shows.iterrows():
                 if 'genre_name' in show and show['genre_name']:
