@@ -108,23 +108,26 @@ def render_market_snapshot(market_analyzer):
     with col2:
         # Compute creatives without debug output
         if not market_analyzer.team_df.empty and 'name' in market_analyzer.team_df.columns:
-            # Get all unique members first to show total count
-            unique_members = set(name.strip() for name in market_analyzer.team_df['name'].dropna())
-            total_creatives = len([name for name in unique_members if name])
-            
-            # For selection, only show first 100 sorted by name
-            creatives = sorted(name for name in unique_members if name)[:100]
+            # Clean and dedupe names
+            unique_members = set()
+            for name in market_analyzer.team_df['name'].dropna():
+                # Remove role prefixes like 'ep)', 'dir)', etc
+                cleaned = name.strip()
+                if ')' in cleaned:
+                    cleaned = cleaned.split(')', 1)[1].strip()
+                if cleaned:  # Only add non-empty names
+                    unique_members.add(cleaned)
+            creatives = sorted(unique_members)
         else:
-            total_creatives = 0
             creatives = []
             
         # Display metric for unique creatives
-        st.metric("Unique Creatives", str(total_creatives))
+        st.metric("Unique Creatives", str(len(creatives)))
         selected_creatives = st.multiselect(
-            "Filter Creatives (Top 100)", 
+            "Filter Creatives", 
             creatives,
             max_selections=5,
-            help="Select up to 5 creatives to filter the data. Only showing top 100 creatives by name.",
+            help="Select up to 5 creatives to filter the data",
             key="market_filter_creatives"
         )
     with col3:
@@ -183,31 +186,27 @@ def render_market_snapshot(market_analyzer):
     # Include all needed columns including studio_names for vertical integration
     needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 'tmdb_status', 'tmdb_avg_eps', 'studio_names', 'status_name']
     filtered_df = market_analyzer.titles_df[needed_cols].copy()
-    # Filter data based on selected columns
+    
+    # Get success metrics for all shows
+    success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
+    if not success_metrics or 'titles' not in success_metrics:
+        return
+        
+    # Filter data based on success level
     if success_filter != "All":
-        # Get success metrics which has scores for each show
-        success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
-        
-        # Create a mapping of show ID to success score
-        success_scores = {}
-        for show_id, data in success_metrics['titles'].items():
-            # Convert show_id to int since tmdb_id is numeric
-            try:
-                success_scores[int(float(show_id))] = data['score']
-            except (ValueError, TypeError):
-                # Skip invalid tmdb_id
-                continue
-        
         # Filter based on success tier
         if success_filter == "High (>80)":
-            high_success_ids = [id for id, score in success_scores.items() if score > 80]
-            filtered_df = filtered_df[filtered_df['tmdb_id'].isin(high_success_ids)]
+            filtered_df = filtered_df[filtered_df['tmdb_id'].astype(str).isin(
+                [id for id, data in success_metrics['titles'].items() if data['score'] > 80]
+            )]
         elif success_filter == "Medium (50-80)":
-            med_success_ids = [id for id, score in success_scores.items() if 50 <= score <= 80]
-            filtered_df = filtered_df[filtered_df['tmdb_id'].isin(med_success_ids)]
+            filtered_df = filtered_df[filtered_df['tmdb_id'].astype(str).isin(
+                [id for id, data in success_metrics['titles'].items() if 50 <= data['score'] <= 80]
+            )]
         elif success_filter == "Low (<50)":
-            low_success_ids = [id for id, score in success_scores.items() if score < 50]
-            filtered_df = filtered_df[filtered_df['tmdb_id'].isin(low_success_ids)]
+            filtered_df = filtered_df[filtered_df['tmdb_id'].astype(str).isin(
+                [id for id, data in success_metrics['titles'].items() if data['score'] < 50]
+            )]
     
     # First apply creative filters if selected
     if selected_creatives:
@@ -239,8 +238,7 @@ def render_market_snapshot(market_analyzer):
     # Calculate insights for metrics using unfiltered data
     insights = market_analyzer.generate_market_insights(metrics_df)
     
-    # Get success metrics from the filtered data (for chart)
-    success_metrics = market_analyzer.success_analyzer.analyze_market(filtered_df)
+    # Already have success metrics from earlier
     
     # Get success scores by network first
     network_scores = {}

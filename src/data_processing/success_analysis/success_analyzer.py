@@ -176,8 +176,8 @@ class SuccessAnalyzer:
         
     def calculate_success(self, show: pd.Series) -> float:
         """Calculate success score for a single show."""
-        # Shows must be active and have reliable status to get a score
-        if not show.get('active', False) or show['tmdb_status'] not in ShowStatus.RELIABLE:
+        # Shows must have reliable status to get a score
+        if show['tmdb_status'] not in ShowStatus.RELIABLE:
             return 0
             
         score = 0

@@ -66,13 +66,9 @@ class MarketAnalyzer:
         # Create deep copies to avoid modifying original data
         # Only select columns we need, keeping studio_names for vertical integration
         needed_cols = ['title', 'network_name', 'tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes', 
-                      'tmdb_status', 'status_name', 'studio_names']
+                      'tmdb_status', 'status_name', 'studio_names', 'active']
         available_cols = [col for col in needed_cols if col in self.titles_df.columns]
         self.titles_df = self.titles_df[available_cols].copy(deep=True)
-
-        # Filter to only active shows using the 'active' column if present. Do NOT filter by status_name at all.
-        if 'active' in self.titles_df.columns:
-            self.titles_df = self.titles_df[self.titles_df['active'] == True].copy()
         
         # Reset index to ensure clean data
         self.titles_df = self.titles_df.reset_index(drop=True)
