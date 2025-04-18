@@ -55,10 +55,10 @@ def render_acquisition_view(unified_analyzer: UnifiedAnalyzer, source_type: str,
         
         for network, metrics in network_metrics.items():
             with st.expander(f"{network} ({metrics['title_count']} titles)"):
-                st.markdown(f"**Success Score: {metrics['success_score']:.0f}%**")
+                st.markdown(f"**Network Average Success: {metrics['success_score']:.0f} pts**")
                 st.markdown("**Titles:**")
-                for title in metrics['titles']:
-                    st.markdown(f"- {title}")
+                for title_info in metrics['titles']:
+                    st.markdown(f"- {title_info['title']} ({title_info['success_score']:.0f} pts)")
     
     with tabs[1]:  # Market Insights
         # Get market metrics
@@ -127,8 +127,8 @@ def render_packaging_view(unified_analyzer: UnifiedAnalyzer, source_type: str, g
             valid_genre
         )
         
-        for creator, metrics in creator_metrics.items():
-            with st.expander(f"{creator} ({metrics['total_titles']} titles | {metrics['success_score']:.0f} pts)"):
+        for creator, metrics in creator_metrics['creators'].items():
+            with st.expander(f"{creator} ({metrics['title_count']} titles | {metrics['success_score']:.0f} pts)"): 
                 st.markdown("**Titles:**")
                 for title in metrics['titles']:
                     st.markdown(f"- {title}")
@@ -338,19 +338,14 @@ def render_development_view(unified_analyzer: UnifiedAnalyzer, source_type: str,
         )
 
 def render_unified_dashboard(success_analyzer: Optional['SuccessAnalyzer'] = None):
-    st.write("=== DEBUG START ===")
     """Main entry point for the unified dashboard view.
     
     Args:
         success_analyzer: Optional SuccessAnalyzer instance for success metrics
     """
     try:
-        st.write("Starting unified dashboard render")
-        
         # Initialize analyzer with normalized data
-        st.write("About to initialize UnifiedAnalyzer")
         unified_analyzer = UnifiedAnalyzer(success_analyzer)
-        st.write("Successfully initialized UnifiedAnalyzer")
         
         # Create analysis type selector at the top
         analysis_type = st.radio(

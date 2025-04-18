@@ -38,7 +38,7 @@ for var in required_vars:
 # Initialize ShowsAnalyzer and fetch data
 try:
     shows_analyzer = ShowsAnalyzer()
-    titles_df, team_df, network_df = shows_analyzer.fetch_data(force=True)
+    titles_df, team_df, network_df = shows_analyzer.fetch_market_data(force=True)
     
     # Verify DataFrames
     if titles_df.empty or team_df.empty or network_df.empty:

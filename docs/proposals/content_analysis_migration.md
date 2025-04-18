@@ -35,6 +35,10 @@
   - title
   - episode_count
   - order_type_name
+  - writers (array of names)
+  - producers (array of names)
+  - directors (array of names)
+  - creators (array of names)
 
 ### 3. View Layer (`unified_view.py`)
 - **Components**:

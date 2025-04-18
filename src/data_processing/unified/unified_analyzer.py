@@ -21,7 +21,7 @@ import pandas as pd
 import logging
 import streamlit as st
 from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
-from src.data_processing.analyze_shows import shows_analyzer
+from src.data_processing.analyze_shows import ShowsAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -30,47 +30,97 @@ class UnifiedAnalyzer:
     
     def __init__(self, success_analyzer: Optional[SuccessAnalyzer] = None):
         try:
-            st.write("Inside UnifiedAnalyzer __init__")
             """Initialize the analyzer.
             
             Args:
                 success_analyzer: Optional SuccessAnalyzer instance
             """
-            # Get normalized data from shows_analyzer
-            st.write("Fetching data from shows_analyzer")
+            # Create our own shows_analyzer instance
+            self.shows_analyzer = ShowsAnalyzer()
+            
             try:
-                self.titles_df, self.team_df, self.network_df = shows_analyzer.fetch_data()
-                st.write(f"Data fetch successful - got {len(self.titles_df)} titles")
-                st.write("Titles DataFrame columns:")
-                st.write(self.titles_df.columns.tolist())
+                # Get role types mapping first
+                from src.config.supabase_client import get_client
+                role_types = get_client().table('role_types').select('*').execute().data
+                self.role_map = {rt['id']: {
+                    'role': rt['role'],
+                    'category': rt['category'],
+                    'search_role': rt['search_role']
+                } for rt in role_types}
+                
+                # Get content data and filter to active shows only
+                self.details_df = self.shows_analyzer.fetch_content_data()
+                self.details_df = self.details_df[self.details_df['active'] == True]
+
+                
+                # Transform team data with role names
+                if 'team' in self.details_df.columns:
+                    def transform_team(team):
+                        if isinstance(team, float) and pd.isna(team):
+                            return []
+                        if not team:
+                            return []
+                        return [{
+                            **member,
+                            'role': self.role_map[member['role_type_id']]['role'],
+                            'category': self.role_map[member['role_type_id']]['category']
+                        } for member in team]
+                    
+                    self.details_df['team'] = self.details_df['team'].apply(transform_team)
+                    
+                    # Create helper columns for quick filtering
+                    def get_team_members(team, roles):
+                        if isinstance(team, float) and pd.isna(team):
+                            return []
+                        if not team:
+                            return []
+                        return [m['name'] for m in team if m['role'] in (roles if isinstance(roles, list) else [roles])]
+                    
+                    self.details_df['writers'] = self.details_df['team'].apply(
+                        lambda team: get_team_members(team, 'Writer'))
+                    self.details_df['directors'] = self.details_df['team'].apply(
+                        lambda team: get_team_members(team, 'Director'))
+                    self.details_df['producers'] = self.details_df['team'].apply(
+                        lambda team: get_team_members(team, ['Producer', 'Executive Producer']))
+                    self.details_df['creators'] = self.details_df['team'].apply(
+                        lambda team: get_team_members(team, 'Creator'))
+                    self.details_df['showrunners'] = self.details_df['team'].apply(
+                        lambda team: get_team_members(team, ['Showrunner', 'Co-Showrunner']))
             except Exception as e:
                 st.error(f"Error fetching data: {str(e)}")
                 raise
             
-            st.write("Converting episode_count")
+
             # Convert episode_count to float since it comes as strings
-            self.titles_df['episode_count'] = pd.to_numeric(self.titles_df['episode_count'], errors='coerce')
+            self.details_df['episode_count'] = pd.to_numeric(self.details_df['episode_count'], errors='coerce')
             
-            st.write("Setting up success analyzer")
+            # Calculate average episodes per season
+            self.details_df['tmdb_avg_eps'] = self.details_df.apply(
+                lambda row: row['tmdb_total_episodes'] / row['tmdb_seasons'] 
+                if pd.notna(row['tmdb_total_episodes']) and pd.notna(row['tmdb_seasons']) and row['tmdb_seasons'] > 0 
+                else None, axis=1)
+            
+
+            
             # Initialize success analyzer if not provided
             self.success_analyzer = success_analyzer or SuccessAnalyzer()
             # Initialize analyzer with title data
-            self.success_analyzer.initialize_data(self.titles_df)
+            self.success_analyzer.initialize_data(self.details_df)
             
-            st.write("Verifying columns")
+
             # Verify required columns exist after data cleaning
             required_columns = ['source_type_name', 'genre_name', 'network_name', 'title', 'episode_count', 'order_type_name']
-            missing_columns = [col for col in required_columns if col not in self.titles_df.columns]
+            missing_columns = [col for col in required_columns if col not in self.details_df.columns]
             if missing_columns:
-                error_msg = f"Missing required columns in titles_df: {missing_columns}"
+                error_msg = f"Missing required columns in details_df: {missing_columns}"
                 st.error(error_msg)
                 raise ValueError(error_msg)
             
-            st.write("Getting network list")
+
             # Get filter options from titles data
-            self._networks = sorted([n for n in self.titles_df['network_name'].dropna().unique() if n.strip()])
+            self._networks = sorted([n for n in self.details_df['network_name'].dropna().unique() if n.strip()])
             
-            st.write(f"Initialized UnifiedAnalyzer with {len(self.titles_df)} titles and {len(self.team_df)} team members")
+
         except Exception as e:
             st.error(f"Error in UnifiedAnalyzer init: {str(e)}")
             st.write("Type of error:", type(e))
@@ -88,7 +138,7 @@ class UnifiedAnalyzer:
         Returns:
             DataFrame with titles matching the episode count
         """
-        df = self.titles_df.copy(deep=True)
+        df = self.details_df.copy(deep=True)
         
         # Verify required columns exist
         required_columns = ['source_type_name', 'genre_name', 'network_name', 'title', 'episode_count', 'order_type_name']
@@ -131,7 +181,7 @@ class UnifiedAnalyzer:
             - Limited vs ongoing success rates
         """
         # Start with filtered data - use copy(deep=True) to preserve numeric types
-        df = self.titles_df.copy(deep=True)
+        df = self.details_df.copy(deep=True)
         
         # Verify required columns exist
         required_columns = ['source_type_name', 'genre_name', 'network_name', 'title', 'episode_count', 'order_type_name']
@@ -275,7 +325,7 @@ class UnifiedAnalyzer:
             Dictionary mapping network names to their metrics
         """
         # Start with filtered data
-        df = self.titles_df.copy(deep=True)
+        df = self.details_df.copy(deep=True)
         
         if source_type:
             df = df[df['source_type_name'] == source_type]
@@ -294,20 +344,23 @@ class UnifiedAnalyzer:
             success_score = self.success_analyzer.calculate_network_success(network)
             renewal_rate = self.success_analyzer.calculate_renewal_rate(network)
             
-            # Get list of titles for this network
-            title_list = network_titles['title'].tolist()
+            # Get list of titles with their success scores
+            title_scores = []
+            for _, show in network_titles.iterrows():
+                score = self.success_analyzer.calculate_success(show)
+                title_scores.append({'title': show['title'], 'success_score': score})
             
             network_metrics[network] = {
                 'title_count': len(network_titles),
-                'titles': title_list,
+                'titles': title_scores,
                 'success_score': success_score
             }
             
         return network_metrics
-        self.titles_df = self.titles_df.reset_index(drop=True)
-        self.team_df = self.team_df.reset_index(drop=True)
+        self.details_df = self.details_df.reset_index(drop=True)
+        self.details_df = self.details_df.reset_index(drop=True)
         
-        logger.info(f"Initialized UnifiedAnalyzer with {len(self.titles_df)} titles and {len(self.team_df)} team members")
+        logger.info(f"Initialized UnifiedAnalyzer with {len(self.details_df)} titles")
         
     def get_filter_options(self) -> Dict[str, List[str]]:
         """Get available filter options from normalized data.
@@ -317,8 +370,8 @@ class UnifiedAnalyzer:
             that are currently in use by shows in the database.
         """
         return {
-            'source_types': sorted([s for s in self.titles_df['source_type_name'].dropna().unique() if s.strip()]),
-            'genres': sorted([g for g in self.titles_df['genre_name'].dropna().unique() if g.strip()]),
+            'source_types': sorted([s for s in self.details_df['source_type_name'].dropna().unique() if s.strip()]),
+            'genres': sorted([g for g in self.details_df['genre_name'].dropna().unique() if g.strip()]),
             'networks': self._networks
         }
         
@@ -333,7 +386,7 @@ class UnifiedAnalyzer:
             Dictionary with market metrics
         """
         # Start with filtered data
-        df = self.titles_df.copy(deep=True)
+        df = self.details_df.copy(deep=True)
         if source_type:
             df = df[df['source_type_name'] == source_type]
         if genre:
@@ -374,7 +427,7 @@ class UnifiedAnalyzer:
             List of suggestions with creator metrics and network breadth
         """
         # Start with all titles but track which ones match filters
-        df = self.titles_df.copy(deep=True)
+        df = self.details_df.copy(deep=True)
         filtered_titles = set()
         if source_type:
             filtered_titles.update(df[df['source_type_name'] == source_type]['title'].tolist())
@@ -387,11 +440,33 @@ class UnifiedAnalyzer:
             if not filtered_titles:
                 return []
             
-        # Get creators who have at least one title matching the filters
-        creators_with_filtered = set(self.team_df[self.team_df['title'].isin(filtered_titles)]['name']) if filtered_titles else set()
+        # Explode team data to get one row per team member
+        team_rows = []
+        for _, row in df.iterrows():
+            team = row['team']
+            if isinstance(team, list) and len(team) > 0:
+                for member in team:
+                    # Copy all fields from original row
+                    row_data = row.to_dict()
+                    # Add team member specific fields
+                    row_data.update({
+                        'name': member['name'],
+                        'role': member['role']
+                    })
+                    team_rows.append(row_data)
+        
+        if not team_rows:
+            return []
             
-        # Get all titles by these creators (or all creators if no filters)
-        merged_df = df.merge(self.team_df, left_on='title', right_on='title', how='inner')
+        merged_df = pd.DataFrame(team_rows)
+        
+        # Get creators who have at least one title matching the filters
+        creators_with_filtered = set()
+        if filtered_titles:
+            filtered_df = merged_df[merged_df['title'].isin(filtered_titles)]
+            creators_with_filtered.update(filtered_df['name'].unique())
+            
+        # Filter to just those creators if we have filters
         if creators_with_filtered:
             merged_df = merged_df[merged_df['name'].isin(creators_with_filtered)]
             
@@ -499,14 +574,31 @@ class UnifiedAnalyzer:
             Dictionary with creator metrics
         """
         # Start with filtered data
-        df = self.titles_df.copy(deep=True)
+        df = self.details_df.copy(deep=True)
         if source_type:
             df = df[df['source_type_name'] == source_type]
         if genre:
             df = df[df['genre_name'] == genre]
             
-        # Merge with team data
-        merged_df = df.merge(self.team_df, left_on='title', right_on='title', how='inner')
+        # Explode team data to get one row per team member
+        team_rows = []
+        for _, row in df.iterrows():
+            team = row['team']
+            if isinstance(team, list) and len(team) > 0:
+                for member in row['team']:
+                    # Copy all fields from original row
+                    row_data = row.to_dict()
+                    # Add team member specific fields
+                    row_data.update({
+                        'name': member['name'],
+                        'role': member['role']
+                    })
+                    team_rows.append(row_data)
+        
+        if not team_rows:
+            return {'creators': []}
+            
+        merged_df = pd.DataFrame(team_rows)
         
         # Calculate metrics for each creator
         creator_metrics = {}
@@ -519,32 +611,41 @@ class UnifiedAnalyzer:
             # Calculate success score for creator's titles
             success_score = self.success_analyzer.calculate_overall_success(creator_titles)
             
-            # Get list of titles
-            title_list = creator_titles['title'].tolist()
+            # Get unique list of titles
+            title_list = creator_titles['title'].unique().tolist()
             
             # Get preferred networks (where they've had most success)
             network_success = {}
             for network in creator_titles['network_name'].unique():
                 network_titles = creator_titles[creator_titles['network_name'] == network]
                 network_success[network] = {
-                    'title_count': len(network_titles),
-                    'success_score': self.success_analyzer.calculate_overall_success(network_titles),
-                    'titles': network_titles['title'].tolist()
+                    'title_count': len(network_titles['title'].unique()),
+                    'success_score': self.success_analyzer.calculate_overall_success(network_titles.drop_duplicates('tmdb_id')),
+                    'titles': network_titles['title'].unique().tolist()
                 }
             
             creator_metrics[creator] = {
-                'total_titles': len(creator_titles),
-                'success_score': success_score,
+                'roles': creator_titles['role'].unique().tolist(),
+                'title_count': len(title_list),
                 'titles': title_list,
+                'success_score': success_score,
                 'network_success': network_success
             }
         
-        # Sort creators by success score
+        # Sort using weighted score that considers both success and volume
+        def get_weighted_score(metrics):
+            success_score = metrics['success_score']
+            title_count = metrics['title_count']
+            # Weight volume 60%, success 40%
+            # Normalize title_count to 0-100 scale (assuming max 10 titles is 100)
+            title_score = min(100, title_count * 10)
+            return (title_score * 0.6) + (success_score * 0.4)
+
         sorted_creators = dict(sorted(creator_metrics.items(),
-                                    key=lambda x: (x[1]['success_score'], x[1]['total_titles']),
+                                    key=lambda x: get_weighted_score(x[1]),
                                     reverse=True))
         
-        return sorted_creators
+        return {'creators': sorted_creators}
 
     def get_success_patterns(self, source_type: Optional[str] = None, genre: Optional[str] = None) -> Dict[str, Any]:
         """Get success patterns in the market.
@@ -557,7 +658,7 @@ class UnifiedAnalyzer:
             Dictionary with success pattern metrics
         """
         # Start with filtered data
-        df = self.titles_df.copy(deep=True)
+        df = self.details_df.copy(deep=True)
         
         # Verify required columns exist
         required_columns = ['source_type_name', 'genre_name', 'title']
@@ -610,7 +711,10 @@ class UnifiedAnalyzer:
         Returns:
             Filtered DataFrame with normalized values
         """
-        filtered_df = self.titles_df.copy(deep=True)
+        filtered_df = self.details_df.copy(deep=True)
+        
+        # Filter by active shows
+        filtered_df = filtered_df[filtered_df['active'] == True]
         
         # Apply filters if not None or 'All'
         if source_type and source_type != 'All':
@@ -664,7 +768,11 @@ class UnifiedAnalyzer:
         title_names = set(filtered_df['title'].tolist())
         
         # Filter team data to only include matching titles
-        filtered_team = self.team_df[self.team_df['title'].isin(title_names)]
+        # Get team data from details_df
+        filtered_team = []
+        for title in title_names:
+            title_team = self.details_df[self.details_df['title'] == title].iloc[0].team
+            filtered_team.extend(title_team)
         
         # Group by creator name
         creator_stats = []

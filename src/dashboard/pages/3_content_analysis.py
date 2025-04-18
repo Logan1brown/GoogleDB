@@ -7,7 +7,7 @@ Provides detailed analysis of TV series content across acquisition, packaging, a
 import streamlit as st
 from dataclasses import asdict, dataclass, field
 from src.dashboard.utils.style_config import COLORS, FONTS
-from src.data_processing.analyze_shows import shows_analyzer
+from src.data_processing.analyze_shows import ShowsAnalyzer
 from src.data_processing.success_analysis.success_analyzer import SuccessAnalyzer
 from src.dashboard.components.unified_view import render_unified_dashboard
 from src.dashboard.state.session import get_page_state, FilterState
@@ -34,9 +34,7 @@ try:
         state["unified"] = asdict(UnifiedState())
     
     # Initialize data and analyzers
-    shows_df, team_df = shows_analyzer.fetch_data()
     success_analyzer = SuccessAnalyzer()
-    success_analyzer.initialize_data(shows_df)
     
     # Update state with filter values
     unified_state = state["unified"]

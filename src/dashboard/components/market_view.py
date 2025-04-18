@@ -108,18 +108,23 @@ def render_market_snapshot(market_analyzer):
     with col2:
         # Compute creatives without debug output
         if not market_analyzer.team_df.empty and 'name' in market_analyzer.team_df.columns:
+            # Get all unique members first to show total count
             unique_members = set(name.strip() for name in market_analyzer.team_df['name'].dropna())
-            creatives = sorted(name for name in unique_members if name)
+            total_creatives = len([name for name in unique_members if name])
+            
+            # For selection, only show first 100 sorted by name
+            creatives = sorted(name for name in unique_members if name)[:100]
         else:
+            total_creatives = 0
             creatives = []
             
         # Display metric for unique creatives
-        st.metric("Unique Creatives", str(len(creatives)))
+        st.metric("Unique Creatives", str(total_creatives))
         selected_creatives = st.multiselect(
-            "Filter Creatives", 
+            "Filter Creatives (Top 100)", 
             creatives,
             max_selections=5,
-            help="Select up to 5 creatives to filter the data",
+            help="Select up to 5 creatives to filter the data. Only showing top 100 creatives by name.",
             key="market_filter_creatives"
         )
     with col3:
