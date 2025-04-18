@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 import streamlit as st
 import pandas as pd
 import networkx as nx
+from src.data_processing.analyze_shows import ShowsAnalyzer
 from src.data_processing.studio_performance.studio_analyzer import (
     analyze_studio_relationships,
     get_studio_insights
@@ -38,7 +39,7 @@ NETWORK_COLORS = {
     'Adult Swim': '#000000'  # Adult Swim black
 }
 
-def create_studio_graph(shows_df: pd.DataFrame) -> go.Figure:
+def create_studio_graph(shows_df: pd.DataFrame, studio_categories_df: pd.DataFrame) -> go.Figure:
     """Create grouped bar chart showing studio-network distribution.
     
     Args:
@@ -48,18 +49,19 @@ def create_studio_graph(shows_df: pd.DataFrame) -> go.Figure:
         Plotly figure with studio-network distribution
     """
     # Get studio relationship data
-    analysis = analyze_studio_relationships(shows_df)
+    analysis = analyze_studio_relationships(shows_df, studio_categories_df)
     
     def get_studio_data(use_indies=False):
         if use_indies:
             # Get indie studios with at least 2 shows
             studio_data = {}
-            for studio, data in analysis['top_indies'].items():
+            for studio, data in analysis['indie_studios'].items():
                 if data['show_count'] >= 2:
                     # Clean studio name
                     studio_name = studio.split(' - ')[0] if ' - ' in studio else studio
                     studio_data[studio_name] = data['show_count']
-            return pd.Series(studio_data)
+            # Return sorted series by show count
+            return pd.Series(studio_data).sort_values(ascending=False)
         else:
             # Get top 15 studios with at least 2 shows (including indies)
             return pd.Series({s: count for s, count in analysis['studio_sizes'].items() 
@@ -76,10 +78,10 @@ def create_studio_graph(shows_df: pd.DataFrame) -> go.Figure:
     
     for studio in top_studios.index:
         # Get show counts by network for this studio
-        studio_shows = shows_df[shows_df['studio'].str.contains(studio, na=False)]
+        studio_shows = shows_df[shows_df['studio_names'].apply(lambda x: studio in x if isinstance(x, list) else False)]
         # Filter out null/empty networks
-        studio_shows = studio_shows[studio_shows['network'].notna() & (studio_shows['network'] != '')]
-        network_counts = studio_shows['network'].value_counts()
+        studio_shows = studio_shows[studio_shows['network_name'].notna() & (studio_shows['network_name'] != '')]
+        network_counts = studio_shows['network_name'].value_counts()
         
         # Store counts and track unique networks
         studio_network_counts[studio] = network_counts
@@ -128,8 +130,8 @@ def create_studio_graph(shows_df: pd.DataFrame) -> go.Figure:
     studio_network_counts = {}
     
     for studio in indie_studios.index:
-        studio_shows = shows_df[shows_df['studio'].str.contains(studio, na=False)]
-        network_counts = studio_shows['network'].value_counts()
+        studio_shows = shows_df[shows_df['studio_names'].apply(lambda x: studio in x if isinstance(x, list) else False)]
+        network_counts = studio_shows['network_name'].value_counts()
         studio_network_counts[studio] = network_counts
         networks.update(network_counts.index)
     
@@ -320,7 +322,7 @@ def render_studio_filter(shows_df: pd.DataFrame, analysis_results: Dict) -> None
                 # Create a table of shows
                 show_data = []
                 for show in sorted(insights['show_details'], key=lambda x: x['title']):
-                    show_data.append([show['title'], show['network'], show['genre']])
+                    show_data.append([show['title'], show['network_name'], show['genre']])
                 
                 if show_data:
                     df = pd.DataFrame(show_data, columns=['Title', 'Network', 'Genre'])
@@ -357,15 +359,21 @@ def render_studio_success_stories(analysis_results: Dict) -> None:
         indie_data = [d for d in indie_data if d['Shows'] >= 2]
         
         if indie_data:
+            # Sort by show count descending
             df = pd.DataFrame(indie_data)
+            df = df.sort_values('Shows', ascending=False)
             st.dataframe(df, hide_index=True)
             
             # Show studio details
             st.write("\n**Studio Details**")
-            # Filter top_indies to match the filtered indie_data
+            # Filter and sort top_indies to match the filtered indie_data
             filtered_indies = {studio: data for studio, data in top_indies.items() 
                              if data['show_count'] >= 2}
-            for studio, data in filtered_indies.items():
+            # Sort by show count
+            sorted_indies = dict(sorted(filtered_indies.items(), 
+                                      key=lambda x: x[1]['show_count'], 
+                                      reverse=True))
+            for studio, data in sorted_indies.items():
                 studio_name = studio.split(' - ')[0] if ' - ' in studio else studio
                 with st.expander(studio_name):
                     st.write(f"**Shows:** {data['show_count']}")
@@ -373,8 +381,6 @@ def render_studio_success_stories(analysis_results: Dict) -> None:
                     st.write(", ".join(sorted(data['networks'])))
                     st.write("**Genres:**")
                     st.write(", ".join(sorted(data['genres'])))
-                    if data['avg_rating']:
-                        st.write(f"**Rating:** {data['avg_rating']:.1f}")
 
 def render_studio_performance_dashboard(shows_df: pd.DataFrame) -> None:
     """Render the complete studio performance dashboard.
@@ -384,8 +390,12 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame) -> None:
     """
     
     try:
+        # Get studio categories from ShowsAnalyzer
+        shows_analyzer = ShowsAnalyzer()
+        _, studio_categories_df = shows_analyzer.fetch_studio_data()
+        
         # Get analysis results once for all components
-        analysis_results = analyze_studio_relationships(shows_df)
+        analysis_results = analyze_studio_relationships(shows_df, studio_categories_df)
         
         # Render metrics at the top
         render_studio_metrics(analysis_results)
@@ -395,7 +405,7 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame) -> None:
         
         with graph_tab:
             # Studio relationship graph
-            fig = create_studio_graph(shows_df)
+            fig = create_studio_graph(shows_df, studio_categories_df)
             st.plotly_chart(fig, use_container_width=True)
         
         with filter_tab:
@@ -451,7 +461,7 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame) -> None:
                             # Create a table of shows
                             show_data = []
                             for show in sorted(insights['show_details'], key=lambda x: x['title']):
-                                show_data.append([show['title'], show['network'], show['genre']])
+                                show_data.append([show['title'], show['network_name'], show['genre']])
                             
                             if show_data:
                                 df = pd.DataFrame(show_data, columns=['Title', 'Network', 'Genre'])

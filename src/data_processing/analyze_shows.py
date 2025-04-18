@@ -33,6 +33,7 @@ from ydata_profiling import ProfileReport
 from supabase import create_client
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Import the centralized Supabase client
 from src.config.supabase_client import get_client
@@ -216,6 +217,113 @@ class ShowsAnalyzer:
             logger.error(f"Error fetching content data: {str(e)}")
             return pd.DataFrame()
     
+    def fetch_studio_data(self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Fetch data needed for studio performance analysis.
+        
+        Args:
+            force (bool): If True, bypass cache and fetch fresh data
+
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: 
+                - DataFrame with studio performance fields
+                - DataFrame with studio categories
+        """
+        try:
+            # Get Supabase client with service key for full access
+            supabase = get_client(use_service_key=True)
+            
+            if supabase is None:
+                raise ValueError("Supabase client not initialized. Check your environment variables.")
+                
+            # Fetch show details with studio names
+            logger.info(f"Fetching data from {self.VIEWS['details']}...")
+            details_data = supabase.table(self.VIEWS['details']).select(
+                'title',
+                'network_name',
+                'studio_names',
+                'status_name',
+                'tmdb_id'
+            ).execute()
+            
+            # Fetch studio categories
+            studio_list_data = supabase.table('studio_list').select(
+                'id',
+                'studio',
+                'type',
+                'parent_company',
+                'division',
+                'platform',
+                'category',
+                'aliases',
+                'active'
+            ).execute()
+            
+            if not hasattr(details_data, 'data') or not details_data.data:
+                raise ValueError(f"No data returned from {self.VIEWS['details']}")
+                
+            details_df = pd.DataFrame(details_data.data)
+            logger.info(f"Fetched {len(details_df)} rows from {self.VIEWS['details']}")
+            
+            # Process studio list data
+            if not hasattr(studio_list_data, 'data') or not studio_list_data.data:
+                raise ValueError("No data returned from studio_list")
+                
+            studio_list_df = pd.DataFrame(studio_list_data.data)
+            # Get active status directly from shows table
+            shows_data = supabase.table('shows').select('title,active').execute()
+            if not hasattr(shows_data, 'data') or not shows_data.data:
+                raise ValueError("No data returned from shows table")
+            shows_df = pd.DataFrame(shows_data.data)
+            
+            # Get success metrics
+            logger.info(f"Fetching data from {self.VIEWS['titles']}...")
+            success_data = supabase.table(self.VIEWS['titles']).select(
+                'tmdb_id',
+                'tmdb_status',
+                'tmdb_seasons',
+                'tmdb_total_episodes',
+                'tmdb_last_air_date'
+            ).execute()
+            
+            if not hasattr(success_data, 'data') or not success_data.data:
+                raise ValueError(f"No data returned from {self.VIEWS['titles']}")
+                
+            success_df = pd.DataFrame(success_data.data)
+            logger.info(f"Fetched {len(success_df)} rows from {self.VIEWS['titles']}")
+            logger.info(f"Success columns: {success_df.columns.tolist()}")
+            
+            # Merge everything and deduplicate
+            deduped_details = details_df.drop_duplicates(subset=['title'])
+            logger.info(f"After deduplication: {len(deduped_details)} unique shows")
+            
+            # Merge with success metrics
+            result_df = pd.merge(
+                deduped_details,
+                success_df[['tmdb_id', 'tmdb_seasons', 'tmdb_total_episodes']],
+                on='tmdb_id',
+                how='left'
+            )
+            
+            # Merge with active status
+            result_df = pd.merge(
+                result_df,
+                shows_df[['title', 'active']],
+                on='title',
+                how='left'
+            )
+            
+            # Default to False for shows not in shows table
+            result_df['active'] = result_df['active'].fillna(False)
+            
+            # Ensure studio_names is a list
+            result_df['studio_names'] = result_df['studio_names'].apply(self.convert_to_list)
+            
+            return result_df, studio_list_df
+        except Exception as e:
+            logger.error(f"Error fetching studio data: {str(e)}")
+            logger.error(traceback.format_exc())
+            return pd.DataFrame(), pd.DataFrame()
+            
     def fetch_team_data(self, force: bool = False) -> pd.DataFrame:
         """Fetch team member data.
         

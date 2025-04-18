@@ -15,34 +15,44 @@ logger = logging.getLogger(__name__)
 # from src.dashboard.utils.sheets_client import sheets_client
 
 
-def get_all_studios(shows_df: pd.DataFrame) -> pd.Series:
-    """Extract all unique studios from the shows dataframe.
-    Handles multiple studios per show by splitting on commas.
-    Excludes studios prefixed with 'Other:' as they are not real studios.
+def filter_active_shows(shows_df: pd.DataFrame) -> pd.DataFrame:
+    """Filter for active shows if the active column exists.
     
     Args:
         shows_df: DataFrame with show information
         
     Returns:
-        Series of unique studios with their show counts
+        DataFrame with only active shows if active column exists,
+        otherwise returns original DataFrame
     """
-    # Split multiple studios and create a new series with one studio per row
-    # Explode studio_names list into individual studios
-    if 'studio_names' in shows_df.columns:
-        all_studios = shows_df['studio_names'].explode()
-    else:
-        # Fallback for legacy data
-        all_studios = shows_df['studio'].str.split(',').explode()
+    if 'active' in shows_df.columns:
+        return shows_df[shows_df['active']].copy()
+    return shows_df
+
+
+def get_all_studios(shows_df: pd.DataFrame) -> pd.Series:
+    """Get all unique studios and their show counts.
     
-    # Clean up whitespace and remove empty studios
-    all_studios = all_studios.str.strip()
-    all_studios = all_studios[all_studios.notna() & (all_studios != '')]
+    Args:
+        shows_df: DataFrame with show data
+        
+    Returns:
+        Series with studio names as index and show counts as values
+    """
+    # Explode studio_names to get one row per show-studio combination
+    studio_shows = shows_df.explode('studio_names')
+    studio_names = studio_shows['studio_names']
+    studio_names = studio_names[studio_names.notna() & (studio_names != '')]
     
     # Filter out studios prefixed with 'Other:'
-    all_studios = all_studios[~all_studios.str.startswith('Other:', na=False)]
+    studio_names = studio_names[~studio_names.str.startswith('Other:', na=False)]
+    
+    # Count each studio once per show by dropping duplicates
+    studio_shows = pd.DataFrame({'studio_names': studio_names, 'title': studio_shows['title']})
+    studio_shows = studio_shows.drop_duplicates()
     
     # Count occurrences of each studio
-    return all_studios.value_counts()
+    return studio_shows['studio_names'].value_counts()
 
 def get_shows_for_studio(shows_df: pd.DataFrame, studio: str) -> pd.DataFrame:
     """Get all shows for a specific studio, handling multiple studios per show.
@@ -54,120 +64,165 @@ def get_shows_for_studio(shows_df: pd.DataFrame, studio: str) -> pd.DataFrame:
     Returns:
         DataFrame containing only shows that include this studio
     """
-    # Create a series where each row is a studio-show pair
-    if 'studio_names' in shows_df.columns:
-        studio_show_pairs = shows_df['studio_names'].explode().astype(str).str.strip()
-    else:
-        studio_show_pairs = shows_df['studio'].str.split(',').explode().str.strip()
+    # Filter for active shows if column exists
+    shows_df = filter_active_shows(shows_df)
     
-    # Don't match empty studio names
-    if not studio or not studio.strip():
-        return pd.DataFrame()
-        
-    # Look for both exact match and 'Other: <studio>' format
-    matching_indices = studio_show_pairs[
-        (studio_show_pairs == studio) |
-        (studio_show_pairs == f'Other: {studio}')
-    ].index
+    # Get indices of shows that have this studio in their studio_names list
+    if 'studio_names' in shows_df.columns:
+        matching_indices = shows_df[
+            shows_df['studio_names'].apply(lambda x: studio in x if isinstance(x, list) else False)
+        ].index
+    else:
+        # Handle legacy format with comma-separated studio string
+        studio_show_pairs = shows_df['studio_names'].str.split(',').explode().str.strip()
+        # Don't match empty studio names
+        if not studio or not studio.strip():
+            return pd.DataFrame()
+            
+        # Look for both exact match and 'Other: <studio>' format
+        matching_indices = studio_show_pairs[
+            (studio_show_pairs == studio) |
+            (studio_show_pairs == f'Other: {studio}')
+        ].index
     
     # Get matching shows
     matching_shows = shows_df.loc[matching_indices]
     
     return matching_shows
 
-def analyze_studio_relationships(shows_df: pd.DataFrame) -> Dict:
+def analyze_studio_relationships(shows_df: pd.DataFrame, studio_categories_df: pd.DataFrame) -> Dict:
     """Analyze relationships between studios and networks.
     
     Args:
-        shows_df: DataFrame with show information
+        shows_df: DataFrame with show information including:
+            - studio_names: List of studios for each show
+            - network_name: Network name
+            - active: Whether the show is active
+            - status_name: Show status (e.g. Active, Cancelled)
+            - tmdb_seasons: Number of seasons
+            - tmdb_total_episodes: Total episodes
         
     Returns:
         Dictionary containing:
         - studio_sizes: Number of shows per studio
-        - studio_genres: Genre distribution by studio
         - network_relationships: Network distribution by studio
         - total_studios: Total number of unique studios
         - top_studios: List of studios sorted by show count
+        - studio_success: Success metrics by studio
     """
+    # Filter for active shows if column exists
+    shows_df = filter_active_shows(shows_df)
+    
     # Get studio sizes by show count (handling multiple studios per show)
-    studio_sizes = get_all_studios(shows_df)
+    # First get unique studio-show combinations
+    studio_shows = shows_df.explode('studio_names')
+    studio_shows = studio_shows[studio_shows['studio_names'].notna() & (studio_shows['studio_names'] != '')]
+    studio_shows = studio_shows[~studio_shows['studio_names'].str.startswith('Other:', na=False)]
     
+    # Group by studio to get unique shows per studio
+    studio_show_pairs = studio_shows[['studio_names', 'title']].groupby('studio_names')['title'].unique()
     
-    # Get genre distribution by studio (if genre column exists)
-    studio_genres = {}
-    if 'genre' in shows_df.columns:
-        for studio in studio_sizes.index:
-            studio_shows = get_shows_for_studio(shows_df, studio)
-            if not studio_shows.empty:
-                studio_genres[studio] = studio_shows['genre'].value_counts().to_dict()
+    # Count shows per studio
+    studio_sizes = studio_show_pairs.apply(len)
     
-    # Get network relationships (if network column exists)
+    # Get network relationships
     network_relationships = {}
-    if 'network' in shows_df.columns:
-        for studio in studio_sizes.index:
-            studio_shows = get_shows_for_studio(shows_df, studio)
-            if not studio_shows.empty:
-                network_relationships[studio] = studio_shows['network'].value_counts().to_dict()
+    for studio in studio_sizes.index:
+        studio_shows = get_shows_for_studio(shows_df, studio)
+        if not studio_shows.empty:
+            network_relationships[studio] = studio_shows['network_name'].value_counts().to_dict()
     
-    # Load studio categories from live sheet
-    try:
-        # Get studio list data from the lookup table
-        from src.data_processing.analyze_shows import shows_analyzer
-        studio_list_data = sheets_client.get_all_values(shows_analyzer.LOOKUP_TABLES['studio'])
-        if not studio_list_data:
-            raise ValueError('No data found in studio_list sheet')
+    # Calculate success metrics by studio
+    studio_success = {}
+    for studio in studio_sizes.index:
+        studio_shows = get_shows_for_studio(shows_df, studio)
+        if not studio_shows.empty:
+            # Calculate success metrics
+            avg_seasons = studio_shows['tmdb_seasons'].mean()
+            avg_episodes = studio_shows['tmdb_total_episodes'].mean()
             
-        # Convert to DataFrame
-        headers = [col.lower().replace(' ', '_') for col in studio_list_data[0]]
-        studio_categories = pd.DataFrame(studio_list_data[1:], columns=headers)
-        
-        # Get indies (large and mid-size)
-        # The category is stored as "Independent,Large" or "Independent,Mid-Size"
-        indies_mask = studio_categories['category'].fillna('').str.startswith('Independent', na=False)
-        indie_df = studio_categories[indies_mask].copy()
-        
-        # Build list of indie studios including aliases
-        indie_studios = set()
-        for _, row in indie_df.iterrows():
-            studio_name = row['studio']
-            if pd.notna(studio_name):
-                indie_studios.add(studio_name.strip())
-                # Handle aliases if they exist
-                if 'aliases' in row and pd.notna(row['aliases']):
-                    aliases = [alias.strip() for alias in row['aliases'].split(',')]
-                    indie_studios.update(aliases)
-        
-        # Filter to only valid studios that exist in our data
-        indie_studios = [s for s in indie_studios if s and s.strip() and s in studio_sizes.index]
-        
-    except Exception as e:
-        logger.error(f'Error loading studio categories: {e}')
-        indie_studios = []
-    indie_insights = {}
-    
-    for studio in indie_studios:
-        shows = get_shows_for_studio(shows_df, studio)
-        if not shows.empty:
-            indie_insights[studio] = {
-                'show_count': len(shows),
-                'networks': shows['network'].unique().tolist(),
-                'genres': shows['genre'].unique().tolist(),
-                'avg_rating': shows['rating'].mean() if 'rating' in shows.columns else None
+            # Get show status distribution
+            status_dist = studio_shows['status_name'].value_counts().to_dict()
+            
+            # Calculate active show percentage if active column exists
+            success_metrics = {
+                'avg_seasons': avg_seasons,
+                'avg_episodes': avg_episodes,
+                'status_distribution': status_dist,
+                'total_shows': len(studio_shows)
             }
+            
+            if 'active' in studio_shows.columns:
+                success_metrics.update({
+                    'active_percentage': 100.0,  # All shows are active since we filtered at the start
+                    'active_shows': len(studio_shows)
+                })
+            
+            studio_success[studio] = success_metrics
     
-    # Sort indie studios by show count
-    sorted_indies = sorted(indie_insights.items(), key=lambda x: x[1]['show_count'], reverse=True)
-    # Include all indies, not just top 10
-    top_indies = dict(sorted_indies)
+    # Sort studios by total shows
+    sorted_studios = sorted(
+        studio_success.items(),
+        key=lambda x: x[1]['total_shows'],
+        reverse=True
+    )
+    top_studios = [studio for studio, _ in sorted_studios]
+    
+    # Create map of studio categories
+    studio_categories = {}
+    
+    for _, row in studio_categories_df.iterrows():
+        categories = []
+        cat = row.get('category')
+        
+        # Handle both list and string formats
+        if isinstance(cat, list):
+            # If it's already a list, use it directly
+            categories = cat
+        elif isinstance(cat, str):
+            # If it's a string, split by comma
+            categories = [c.strip() for c in cat.split(',')]
+        
+        # Check for Independent in categories
+        if any(c.strip() == 'Independent' for c in categories):
+            # Use studio column from studio_list table
+            studio_categories[row['studio']] = 'Independent'
+    
+    # Identify indie studios based on category
+    indie_studios = {}
+    for studio, metrics in studio_success.items():
+        if studio in studio_categories:
+            logger.info(f"Found indie studio in list: {studio}")
+            # Get shows for this indie studio
+            studio_shows = get_shows_for_studio(shows_df, studio)
+            if len(studio_shows) >= 2:  # Only include if they have 2+ shows
+                indie_studios[studio] = {
+                    'show_count': len(studio_shows),
+                    'shows': studio_shows['title'].tolist(),
+                    'networks': studio_shows['network_name'].value_counts().to_dict()
+                }
+    
+    # Convert studio_sizes to dict and get sorted studios
+    studio_sizes_dict = {}
+    for studio, count in studio_sizes.items():
+        if isinstance(studio, str):  # Only include string keys
+            studio_sizes_dict[studio] = count
+    
+    # Sort studios by show count
+    sorted_studios = sorted(
+        studio_sizes_dict.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
+    top_studios = [studio for studio, _ in sorted_studios]
     
     return {
-        'studio_sizes': studio_sizes.to_dict(),
-        'studio_genres': studio_genres,
+        'studio_sizes': studio_sizes_dict,
         'network_relationships': network_relationships,
         'total_studios': len(studio_sizes),
-        'top_studios': studio_sizes.index.tolist(),
-        'indie_insights': indie_insights,
-        'top_indies': top_indies
+        'top_studios': top_studios,
+        'studio_success': studio_success,
+        'indie_studios': indie_studios
     }
 
 def get_studio_insights(shows_df: pd.DataFrame, studio: str) -> Dict:
@@ -175,61 +230,70 @@ def get_studio_insights(shows_df: pd.DataFrame, studio: str) -> Dict:
     
     Args:
         shows_df: DataFrame with show information
-        studio: Name of studio to analyze
+        studio: Studio to analyze
         
     Returns:
         Dictionary containing:
-        - top_genres: Most common genres
-        - network_partners: Networks worked with
-        - show_details: List of shows and basic info
+        - network_partners: Network distribution
+        - show_details: Basic show information
+        - success_metrics: Success rate metrics
     """
-    # Get all shows for this studio using exact matching
+    # Filter for active shows if column exists
+    shows_df = filter_active_shows(shows_df)
+    
+    # Get all shows for this studio
     studio_shows = get_shows_for_studio(shows_df, studio)
+    if studio_shows.empty:
+        return {
+            'error': f'No shows found for studio: {studio}'
+        }
+        
+    # Get network partners with show counts
+    network_partners = studio_shows['network_name'].value_counts().to_dict()
+        
+    # Calculate success metrics
+    success_metrics = {
+        'total_shows': len(studio_shows),
+        'avg_seasons': studio_shows['tmdb_seasons'].mean(),
+        'avg_episodes': studio_shows['tmdb_total_episodes'].mean(),
+        'status_distribution': studio_shows['status_name'].value_counts().to_dict()
+    }
     
-    # Work on a copy to avoid modifying original
-    studio_shows = studio_shows.copy()
-    
-    # Get show details directly from the DataFrame
+    # Add active metrics if column exists
+    if 'active' in studio_shows.columns:
+        success_metrics.update({
+            'active_shows': len(studio_shows),  # All shows are active since we filtered at the start
+            'active_percentage': 100.0
+        })
+        
+    # Get basic show info
     show_details = []
-    for _, row in studio_shows.iterrows():
-        # Get title, network, and genre
-        title = row.get('shows', '')
-        network = row.get('network', 'Unknown Network')
-        genre = row.get('genre', 'Unknown Genre')
-        
-        # Clean up values
-        if pd.isna(title) or not isinstance(title, str):
-            continue
-        
-        if pd.isna(network):
-            network = 'Unknown Network'
-        if pd.isna(genre):
-            genre = 'Unknown Genre'
-            
-        # Only add shows that have a title
-        if title.strip():
-            show_details.append({
-                'title': title.strip(),
-                'network': network,
-                'genre': genre
-            })
+    for _, show in studio_shows.iterrows():
+        show_info = {
+            'title': show['title'],
+            'network_name': show['network_name'],  # Changed from 'network' to match standardized names
+            'status': show['status_name'],
+            'seasons': show['tmdb_seasons'],
+            'episodes': show['tmdb_total_episodes'],
+            'genre': show.get('genre', 'Unknown')  # Add genre which studio_view expects
+        }
+        if 'active' in show:
+            show_info['active'] = show['active']
+        if 'tmdb_last_air_date' in show:
+            show_info['last_air_date'] = show['tmdb_last_air_date']
+        show_details.append(show_info)
     
-    # Process shows and build insights
-    genre_counts = {}
-    network_counts = {}
-    
-    # Update counts for each show
-    for show in show_details:
-        genre = show['genre']
-        network = show['network']
-        
-        # Count genres and networks
-        genre_counts[genre] = genre_counts.get(genre, 0) + 1
-        network_counts[network] = network_counts.get(network, 0) + 1
+    # Get genre distribution
+    genres = []
+    for show in studio_shows.iterrows():
+        if 'genre' in show[1]:
+            genres.extend([g.strip() for g in show[1]['genre'].split(',')])
+    top_genres = pd.Series(genres).value_counts().to_dict() if genres else {}
     
     return {
-        'top_genres': genre_counts,
-        'network_partners': network_counts,
+        'network_partners': network_partners,
         'show_details': show_details,
-        'show_count': len(show_details)
+        'success_metrics': success_metrics,
+        'show_count': len(studio_shows),  # Add show count which studio_view expects
+        'top_genres': top_genres  # Add genre distribution which studio_view expects
     }

@@ -162,6 +162,12 @@ CREATE TABLE studio_list (
     id bigint PRIMARY KEY,
     studio text NOT NULL,
     search_studio text GENERATED ALWAYS AS (lower(studio)) STORED,
+    type text,
+    parent_company text,
+    division text,
+    platform text,
+    category text,  -- Comma-separated values
+    aliases text[],
     active boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()

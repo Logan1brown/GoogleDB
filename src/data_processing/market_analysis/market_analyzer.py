@@ -18,7 +18,6 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from ..success_analysis.success_analyzer import SuccessAnalyzer, SuccessConfig
-from ..studio_performance.studio_analyzer import analyze_studio_relationships
 from ..external.tmdb.tmdb_models import ShowStatus
 
 
@@ -247,8 +246,8 @@ class MarketAnalyzer:
                 network_success[network] = avg_score
                 logger.info(f"Network {network}: {len(network_scores)} valid shows, avg score {avg_score}")
 
-        # Get studio insights using existing analyzer
-        studio_insights = analyze_studio_relationships(df)
+        # Initialize studio insights
+        studio_insights = {}
         
         # Calculate total creatives if team data is available
         total_creatives = 0
