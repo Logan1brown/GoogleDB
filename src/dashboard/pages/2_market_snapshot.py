@@ -9,6 +9,7 @@ from pathlib import Path
 from dataclasses import asdict, dataclass, field
 
 import streamlit as st
+from src.dashboard.utils.timing import time_page
 from dotenv import load_dotenv
 
 from src.dashboard.utils.style_config import COLORS, FONTS
@@ -28,29 +29,6 @@ st.set_page_config(
 env_path = Path(__file__).parents[3] / '.env'
 load_dotenv(env_path)
 
-# Verify required environment variables
-required_vars = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY']
-for var in required_vars:
-    if not os.getenv(var):
-        st.error(f"Missing required environment variable: {var}")
-        st.stop()
-
-# Initialize ShowsAnalyzer and fetch data
-try:
-    shows_analyzer = ShowsAnalyzer()
-    titles_df, team_df, network_df = shows_analyzer.fetch_market_data(force=True)
-    
-    # Verify DataFrames
-    if titles_df.empty or team_df.empty or network_df.empty:
-        st.error("No data available from Supabase. Please check your connection and try again.")
-        st.stop()
-except Exception as e:
-    st.error(f"Error initializing data: {str(e)}\n\nDetails: {traceback.format_exc()}")
-    st.stop()
-
-from src.dashboard.components.market_view import render_market_snapshot
-from src.dashboard.state.session import get_page_state, FilterState
-
 @dataclass
 class MarketState:
     """State for market snapshot page."""
@@ -59,33 +37,55 @@ class MarketState:
     selected_networks: list[str] = field(default_factory=list)
     success_filter: str = "All"
 
-# Page title using style from style_config
-st.markdown(
-    f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; '
-    f'text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">'
-    f'Market Snapshot</p>', 
-    unsafe_allow_html=True
-)
+@time_page
+def main():
+    try:
+        # Verify required environment variables
+        required_vars = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY']
+        for var in required_vars:
+            if not os.getenv(var):
+                st.error(f"Missing required environment variable: {var}")
+                st.stop()
 
-# Initialize page state
-state = get_page_state("market_snapshot")
-if "market" not in state:
-    state["market"] = asdict(MarketState())
+        # Initialize ShowsAnalyzer and fetch data
+        shows_analyzer = ShowsAnalyzer()
+        titles_df, team_df, network_df = shows_analyzer.fetch_market_data(force=True)
+        
+        # Verify DataFrames
+        if titles_df.empty or team_df.empty or network_df.empty:
+            st.error("No data available from Supabase. Please check your connection and try again.")
+            st.stop()
 
-# Initialize MarketAnalyzer and render view
-try:
-    render_market_snapshot(MarketAnalyzer(
-        titles_df=titles_df,
-        team_df=team_df,
-        network_df=network_df
-    ))
-    
-    # Update state with filter values
-    market_state = state["market"]
-    for filter_type in ["shows", "creatives", "networks"]:
-        key = f"market_filter_{filter_type}"
-        if key in st.session_state:
-            market_state[f"selected_{filter_type}"] = st.session_state[key]
-except Exception as e:
-    st.error(f"Error initializing market analysis: {str(e)}")
-    st.stop()
+        # Page title using style from style_config
+        st.markdown(
+            f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; '
+            f'text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">'
+            f'Market Snapshot</p>', 
+            unsafe_allow_html=True
+        )
+
+        # Initialize page state
+        state = get_page_state("market_snapshot")
+        if "market" not in state:
+            state["market"] = asdict(MarketState())
+
+        # Initialize MarketAnalyzer and render view
+        render_market_snapshot(MarketAnalyzer(
+            titles_df=titles_df,
+            team_df=team_df,
+            network_df=network_df
+        ))
+        
+        # Update state with filter values
+        market_state = state["market"]
+        for filter_type in ["shows", "creatives", "networks"]:
+            key = f"market_filter_{filter_type}"
+            if key in st.session_state:
+                market_state[f"selected_{filter_type}"] = st.session_state[key]
+
+    except Exception as e:
+        st.error(f"Error initializing market analysis: {str(e)}")
+        st.stop()
+
+if __name__ == "__main__":
+    main()

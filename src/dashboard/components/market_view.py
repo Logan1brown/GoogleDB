@@ -15,6 +15,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import logging
+import time
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.utils.style_config import COLORS
 
@@ -22,22 +23,20 @@ logger = logging.getLogger(__name__)
 
 
 def render_market_snapshot(market_analyzer):
-    import traceback
     """Render the market snapshot component.
     
     Args:
         market_analyzer: MarketAnalyzer instance with processed data
     """
-    # Force a full data reload to ensure pagination and debug logic runs
+    # Add performance metrics display at the bottom
 
+    
     try:
         # Initialize filtered DataFrame
         filtered_df = market_analyzer.titles_df.copy()
         
         # Get network data directly from network_df
         network_df = market_analyzer.network_df.copy()
-        
-        # Calculate initial insights using network_df
         
         
         total_creatives = market_analyzer.get_unique_creatives() if hasattr(market_analyzer, 'get_unique_creatives') else 0
@@ -348,3 +347,5 @@ def render_market_snapshot(market_analyzer):
             f"{insights['vertical_integration']:.0f}%",
             help="Percentage of titles from vertically integrated studios"
         )
+        
+

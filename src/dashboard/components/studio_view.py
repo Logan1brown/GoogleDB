@@ -397,8 +397,12 @@ def render_studio_performance_dashboard(shows_df: pd.DataFrame, studio_categorie
     
     try:
         
+        @st.cache_data(ttl=3600)
+        def get_cached_analysis(df, cat_df):
+            return analyze_studio_relationships(df, cat_df)
+            
         # Get analysis results once for all components
-        analysis_results = analyze_studio_relationships(shows_df, studio_categories_df)
+        analysis_results = get_cached_analysis(shows_df, studio_categories_df)
         
         # Render metrics at the top
         render_studio_metrics(analysis_results)

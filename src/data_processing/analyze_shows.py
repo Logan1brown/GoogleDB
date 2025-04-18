@@ -218,16 +218,8 @@ class ShowsAnalyzer:
             return pd.DataFrame()
     
     def fetch_studio_data(self, force: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Fetch data needed for studio performance analysis.
-        
-        Args:
-            force (bool): If True, bypass cache and fetch fresh data
+        """Internal implementation of fetch_studio_data."""
 
-        Returns:
-            Tuple[pd.DataFrame, pd.DataFrame]: 
-                - DataFrame with studio performance fields
-                - DataFrame with studio categories
-        """
         try:
             # Get Supabase client with service key for full access
             supabase = get_client(use_service_key=True)

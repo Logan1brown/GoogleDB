@@ -73,6 +73,30 @@ Code organization follows a clean architecture:
    - `components/`: Reusable UI components
    - `state/`: Application state management
 
+### Data Fetching Architecture
+Each dashboard component maintains its own data pipeline to ensure clean separation:
+
+1. **Market Analysis**
+   - Uses `api_market_analysis` view
+   - Focuses on network distribution and market trends
+   - No success metrics or team data needed
+
+2. **Studio Performance**
+   - Uses `api_show_details` view
+   - Tracks studio relationships and show counts
+   - Independent from market analysis metrics
+
+3. **Content Analysis**
+   - Uses `api_show_details` for basic show data
+   - Adds `api_show_team` for creative team analysis
+   - Keeps team data separate from performance metrics
+
+This separation ensures:
+- Each component only fetches data it needs
+- Changes to one component don't affect others
+- Clear data ownership and responsibility
+- Easier testing and maintenance
+
 ### Key Features
 
 1. **Data Entry System**

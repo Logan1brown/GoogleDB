@@ -10,6 +10,7 @@ from typing import Dict, List
 import pandas as pd
 import networkx as nx
 import logging
+import streamlit as st
 logger = logging.getLogger(__name__)
 # No longer using Google Sheets
 # from src.dashboard.utils.sheets_client import sheets_client

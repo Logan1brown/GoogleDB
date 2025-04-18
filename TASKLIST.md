@@ -2,110 +2,70 @@
 
 ## Current Sprint 
 
-- [ ] Update Analytics Dashboard
-    - [x] Connect to Supabase
-    - [x] Implement performance optimizations
-        - [x] Add st.cache_data for query results
-        - [x] Use pagination for large datasets
-        - [ ] Implement lazy loading for visualizations
-        - [ ] Add loading states during data fetch
-    - [ ] Port existing visualizations
-        - [x] Use materialized views for complex charts
-        - [ ] Implement incremental updates
-    - [ ] Add user authentication (moved to deployment phase)
+### Phase 1: Basic Auth (1 day)
+- [ ] Initial Setup
+    - [ ] Set up auth client in Streamlit
+    - [ ] Add login form (username/password)
+    - [ ] Basic session handling
+    - [ ] Simple read-only RLS
 
-### Day 4: Database Optimization & View Updates
+### Phase 2: Testing & Fixes (2-4 days)
+- [ ] Smoke Testing
+    - [ ] Can users log in?
+    - [ ] Do charts load with auth?
+    - [ ] Is data properly filtered?
 
-- [ ] Market Analyzer Migration
-    1. [ ] Update market_analyzer.py to use shows_analyzer as data source
-        - [ ] Remove direct Supabase calls
-        - [ ] Update constructor to accept shows_analyzer data
-        - [ ] Test market snapshot view with new data source
-    2. [ ] Migrate improvements from market_analyzer_secure.py
-        - [ ] Port improved network filtering logic
-        - [ ] Port vertically integrated studio detection
-        - [ ] Port enhanced team member handling
-        - [ ] Test all migrated functionality
-    3. [ ] Clean up
-        - [ ] Remove market_analyzer_secure.py
-        - [ ] Remove market_analyzer_old.py
-        - [ ] Update all imports to use market_analyzer.py
+- [ ] Fix Issues Found
+    - [ ] Auth flow problems
+    - [ ] Data access issues
+    - [ ] Performance bottlenecks
 
-### Day 4: Database Optimization & View Updates
+- [ ] Add Missing Features
+    - [ ] Error messages
+    - [ ] Session timeout
+    - [ ] User feedback
 
-- [ ] Authentication Implementation
-    - [ ] Supabase Auth Integration
-        - [ ] Set up auth client in Streamlit
-        - [ ] Add login/signup forms
-        - [ ] Implement session management
-        - [ ] Add role-based access control
-    - [ ] Auth UI Components
-        - [ ] Create login page
-        - [ ] Add user profile page
-        - [ ] Implement password reset
-        - [ ] Add OAuth providers (if needed)
-    - [ ] Testing & Security
-        - [ ] Test auth flows
-        - [ ] Verify RLS policies
-        - [ ] Test role permissions
-        - [ ] Security review
+### Phase 3: Initial Deployment (2-3 days)
+- [ ] Fresh Environment Test
+    - [ ] Create new Python venv
+    - [ ] Install only from requirements.txt
+    - [ ] Run app with no existing config
 
-- [ ] Frontend View Updates
-    - [ ] Update Data Processing Layer
-        - [ ] Modify analyze_shows.py to use materialized views
-        - [ ] Update market_analyzer.py for new column names
-        - [ ] Test data processing changes
-    - [ ] Update Components
-        - [ ] Update market_view.py
-            - [ ] Use new column names (network_name, genre_name)
-            - [ ] Update team member handling
-            - [ ] Test filtering and aggregations
-        - [ ] Update other affected components
-            - [ ] genre_view.py
-            - [ ] studio_view.py
-            - [ ] unified_view.py
-    - [ ] Test View Integration
-        - [ ] Test all filters
-        - [ ] Verify data accuracy
-        - [ ] Check performance
+- [ ] Performance Testing
+    - [ ] Test with network throttling
+    - [ ] Simulate Streamlit memory limits
+    - [ ] Run multiple sessions in parallel
 
-### Day 5: Testing & Deployment 🚀
+- [ ] Query Optimization
+    - [ ] Time each materialized view
+    - [ ] Check cache hit ratios
+    - [ ] Identify slow queries (>1s)
 
-- [ ] Application Testing
-    - [ ] Form Testing
-        - [ ] Input validation
-        - [ ] Error handling
-        - [ ] Success flows
-    - [ ] Integration Testing
-        - [ ] Test all database operations
-        - [ ] Verify materialized view updates
-        - [ ] Load testing with sample data
+- [ ] Load Testing
+    - [ ] Test with production-size data
+    - [ ] Simulate concurrent users
+    - [ ] Monitor memory/CPU usage
 
-- [ ] Deployment Preparation
-    - [ ] Supabase Backend
-        - [ ] Set up materialized view refresh schedule
-        - [ ] Configure backup schedule
-        - [ ] Review and optimize RLS policies
-        - [ ] Document connection strings and API keys
+- [ ] Configuration Check
+    - [ ] Create fresh .env template
+    - [ ] Test each config value type
+    - [ ] Document resource requirements
 
-    - [ ] Streamlit Frontend
-        - [ ] Create/update requirements.txt
-        - [ ] Document environment variables
-        - [ ] Create deployment guide
-        - [ ] Set up error monitoring
+### Phase 4: Production Setup (2-3 days)
+- [ ] First Deploy
+    - [ ] Deploy with minimal features first
+    - [ ] Watch for memory/CPU spikes
+    - [ ] Monitor connection counts
 
-- [ ] Deploy to Production
-    - [ ] Deploy to Streamlit Cloud
-        - [ ] Connect GitHub repository
-        - [ ] Configure environment variables
-        - [ ] Set up custom domain (if needed)
-    - [ ] Post-Deployment
-        - [ ] Verify all features
-        - [ ] Monitor performance
-        - [ ] Document deployment URLs
-        - [ ] Create user guide
-    - [ ] Setup monitoring
-    - [ ] Document usage
+- [ ] Stabilization
+    - [ ] Add error logging/monitoring
+    - [ ] Set up alerts for failures
+    - [ ] Document common errors/fixes
+
+- [ ] Data Management
+    - [ ] Test view refresh impact
+    - [ ] Monitor query timeouts
+    - [ ] Set up basic backup process
 
 
 
@@ -127,10 +87,24 @@
   - [ ] Document refresh strategy and monitoring
 
 
-2. Role Analysis
+### Role Analysis
    - [ ] Role distribution charts
    - [ ] Network role preferences
    - [ ] Role-based filtering
+
+### Market Analyzer Cleanup
+- [ ] Remove db query studio_list - should be done through market fetch
+
+### Performance Optimizations
+- [ ] Implement lazy loading for visualizations
+    - [ ] Load charts only when tab is active
+    - [ ] Cache chart data per session
+    - [ ] Add progress indicators for large charts
+
+- [ ] Rename unified_view.py to content_view.py
+    - [ ] Update imports in dependent files
+    - [ ] Test all view components after rename
+    - [ ] Remove old unified_view.py
 
 ## Completed ✅
 
@@ -266,6 +240,53 @@
         - [x] Document foreign keys
         - [x] Document materialized views
         - [x] Document refresh process
+
+### Day 4: Database Optimization & View Updates
+
+- [x] Update Analytics Dashboard
+    - [x] Connect to Supabase
+    - [x] Implement performance optimizations
+        - [x] Add st.cache_data for query results
+        - [x] Use pagination for large datasets
+    - [x] Port existing visualizations
+        - [x] Use materialized views for complex charts
+       
+- [x] Studio Performance Migration
+    1. [x] Update studio_analyzer.py to use shows_analyzer
+        - [x] Remove success metrics from charts
+        - [x] Fix indie studios calculation
+        - [x] Use consistent data source for all charts
+    2. [x] Update documentation
+        - [x] Add data fetching architecture to README
+        - [x] Update content analysis migration doc
+
+- [x] Market Analyzer Migration
+    1. [x] Update market_analyzer.py to use shows_analyzer
+        - [x] Remove direct Supabase calls
+        - [x] Update constructor to accept shows_analyzer data
+        - [x] Test market snapshot view with new data source
+    2. [x] Migrate improvements from market_analyzer_secure.py
+        - [x] Port vertically integrated studio detection
+        - [x] Port improved network filtering logic
+        - [x] Port enhanced team member handling
+    3. [x] Clean up
+        - [x] Remove market_analyzer_secure.py
+        - [x] Remove market_analyzer_old.py
+        - [x] Update all imports to use market_analyzer.py
+
+        - [x] Update Data Processing Layer
+        - [x] Modify analyze_shows.py to use materialized views
+        - [x] Separate data pipelines per component
+        - [x] Test data processing changes
+    - [ ] Update Components
+        - [x] Update studio_view.py
+            - [x] Use consistent data source
+            - [x] Fix indie studios calculation
+            - [x] Remove success metrics
+        - [x] Update market_view.py
+            - [x] Use shows_analyzer data source
+            - [x] Update network filtering logic
+            - [x] Test filtering and aggregations
 
 ### Must Have 
 - Reliable data sync with Google Sheets

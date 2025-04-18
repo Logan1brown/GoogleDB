@@ -35,10 +35,6 @@
   - title
   - episode_count
   - order_type_name
-  - writers (array of names)
-  - producers (array of names)
-  - directors (array of names)
-  - creators (array of names)
 
 ### 3. View Layer (`unified_view.py`)
 - **Components**:
@@ -51,18 +47,40 @@
   - Uses `UnifiedAnalyzer` for data processing
   - Optional `SuccessAnalyzer` integration
 
-## Current Data Flow
+## Updated Data Flow
 
 ```mermaid
 graph TD
-    A[ShowsAnalyzer] -->|Fetches| B1[api_market_analysis]
-    A -->|Fetches| B2[api_network_stats]
-    A -->|Fetches| B3[api_show_team]
-    A -->|Provides Data| C[UnifiedAnalyzer]
-    C -->|Processes| D1[Acquisition View]
-    C -->|Processes| D2[Packaging View]
-    C -->|Processes| D3[Development View]
+    A[ShowsAnalyzer] -->|Market Data| B1[MarketAnalyzer]
+    A -->|Studio Data| B2[StudioAnalyzer]
+    A -->|Team Data| B3[ContentAnalyzer]
+    B1 -->|Market Trends| C1[Market View]
+    B2 -->|Studio Performance| C2[Studio View]
+    B3 -->|Content Analysis| C3[Content View]
+    
+    subgraph Data Sources
+        D1[api_market_analysis] -->|Market Data| A
+        D2[api_show_details] -->|Studio Data| A
+        D3[api_show_team] -->|Team Data| A
+    end
 ```
+
+### Component-Specific Data Flows
+
+1. **Market Analysis**
+   - Uses `api_market_analysis` exclusively
+   - No dependency on success metrics
+   - Network distribution focus
+
+2. **Studio Performance**
+   - Uses `api_show_details` for core data
+   - Separate indie and top studio pipelines
+   - No success metrics in charts
+
+3. **Content Analysis**
+   - Uses both `api_show_details` and `api_show_team`
+   - Team member analysis
+   - Genre and format trends
 
 ## Migration Requirements
 

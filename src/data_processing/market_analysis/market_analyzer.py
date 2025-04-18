@@ -19,6 +19,7 @@ import streamlit as st
 
 from ..success_analysis.success_analyzer import SuccessAnalyzer, SuccessConfig
 from ..external.tmdb.tmdb_models import ShowStatus
+from src.utils.profiling import profiler
 
 
 logger = logging.getLogger(__name__)

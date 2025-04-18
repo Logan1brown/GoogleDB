@@ -1,6 +1,7 @@
 """Overview page for the TV Series Database Dashboard."""
 
 import streamlit as st
+from src.dashboard.utils.timing import time_page
 from src.dashboard.utils.style_config import COLORS, FONTS
 
 # Page title using style from style_config

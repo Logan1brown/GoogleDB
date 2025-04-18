@@ -5,25 +5,29 @@ Analyzes and visualizes studio performance metrics.
 """
 
 import streamlit as st
+from src.dashboard.utils.timing import time_page
 from src.dashboard.utils.style_config import COLORS, FONTS
 from src.data_processing.analyze_shows import ShowsAnalyzer
 from src.dashboard.components.studio_view import render_studio_performance_dashboard
 from src.dashboard.state.session import get_page_state
 
-# Page title using style from style_config
-st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Studio Performance</p>', unsafe_allow_html=True)
+@time_page
+def main():
+    # Page title using style from style_config
+    st.markdown(f'<p style="font-family: {FONTS["primary"]["family"]}; font-size: {FONTS["primary"]["sizes"]["header"]}px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.1em; color: {COLORS["accent"]}; margin-bottom: 1em;">Studio Performance</p>', unsafe_allow_html=True)
 
-try:
-    # Get page state
-    state = get_page_state("studio_performance")
-    
-    # Initialize analyzer and fetch data
-    analyzer = ShowsAnalyzer()
-    shows_df, studio_categories_df = analyzer.fetch_studio_data()
-    
-    # Render studio performance dashboard
-    render_studio_performance_dashboard(shows_df, studio_categories_df)
-    
-except Exception as e:
-    st.error(f"Error analyzing studio performance: {str(e)}")
-    st.info("Please check the logs for more details.")
+    try:
+        # Get page state
+        state = get_page_state("studio_performance")
+        
+        # Initialize ShowsAnalyzer and fetch data
+        shows_analyzer = ShowsAnalyzer()
+        shows_df, studio_categories_df = shows_analyzer.fetch_studio_data()
+        
+        # Render the studio performance dashboard
+        render_studio_performance_dashboard(shows_df, studio_categories_df)
+    except Exception as e:
+        st.error(f"Error loading studio performance data: {str(e)}")
+
+if __name__ == "__main__":
+    main()

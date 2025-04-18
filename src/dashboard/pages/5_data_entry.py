@@ -11,6 +11,7 @@ from dataclasses import asdict
 import time
 
 import streamlit as st
+from src.dashboard.utils.timing import time_page
 from streamlit_searchbox import st_searchbox
 from src.dashboard.utils.style_config import COLORS, FONTS
 
@@ -800,44 +801,51 @@ def validate_show_details(show_form: ShowFormState, lookups: Dict) -> bool:
             
     return True
 
-# Main page flow
-if not state.form_started:
-    render_landing_page(state)
-else:
-    if state.operation == "Remove Show":
-        # For remove operations, only show review and confirmation
-        st.warning("Please review the show details below and confirm removal. This will hide the show from the active shows list.")
-        render_review(state.show_form, state.lookups, state.read_only)
-        
-        # Show remove button
-        st.divider()
-        if st.button("Remove Show (Click Twice)", type="primary", use_container_width=True):
-            handle_submit(state.show_form)
+@time_page
+def main():
+    # Initialize state
+    state = get_data_entry_state()
+
+    if not state.form_started:
+        render_landing_page(state)
     else:
-        # Form tabs for add/edit
-        tab1, tab2, tab3, tab4 = st.tabs(["Show Details", "Studios", "Team Members", "Review"])
-        
-        with tab1:
-            render_show_details(state.show_form, state.lookups, state.read_only)
-        
-        with tab2:
-            render_studios(state.show_form, state.lookups, state.read_only)
-        
-        with tab3:
-            render_team(state.show_form, state.lookups, state.read_only)
-        
-        with tab4:
+        if state.operation == "Remove Show":
+            # For remove operations, only show review and confirmation
+            st.warning("Please review the show details below and confirm removal. This will hide the show from the active shows list.")
             render_review(state.show_form, state.lookups, state.read_only)
-        
-        # Only show submit button in review tab
-        if not state.read_only:
-            st.divider()
-            submit_label = {
-                "Add Show": "Add Show (Click Twice)",
-                "Edit Show": "Update Show (Click Twice)",
-                "Remove Show": "Remove Show (Click Twice)"
-            }.get(state.operation, 'Submit')
             
-            if st.button(submit_label, type="primary", use_container_width=True):
-                # Submit form
+            # Show remove button
+            st.divider()
+            if st.button("Remove Show (Click Twice)", type="primary", use_container_width=True):
                 handle_submit(state.show_form)
+        else:
+            # Form tabs for add/edit
+            tab1, tab2, tab3, tab4 = st.tabs(["Show Details", "Studios", "Team Members", "Review"])
+            
+            with tab1:
+                render_show_details(state.show_form, state.lookups, state.read_only)
+            
+            with tab2:
+                render_studios(state.show_form, state.lookups, state.read_only)
+            
+            with tab3:
+                render_team(state.show_form, state.lookups, state.read_only)
+            
+            with tab4:
+                render_review(state.show_form, state.lookups, state.read_only)
+            
+            # Only show submit button in review tab
+            if not state.read_only:
+                st.divider()
+                submit_label = {
+                    "Add Show": "Add Show (Click Twice)",
+                    "Edit Show": "Update Show (Click Twice)",
+                    "Remove Show": "Remove Show (Click Twice)"
+                }.get(state.operation, 'Submit')
+                
+                if st.button(submit_label, type="primary", use_container_width=True):
+                    # Submit form
+                    handle_submit(state.show_form)
+
+if __name__ == "__main__":
+    main()
