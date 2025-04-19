@@ -14,6 +14,8 @@ import streamlit as st
 from src.dashboard.utils.timing import time_page
 from streamlit_searchbox import st_searchbox
 from src.dashboard.utils.style_config import COLORS, FONTS
+from src.dashboard.auth.auth_required import auth_required
+from src.shared.auth import get_user_role, check_role_access
 
 # Add custom CSS for data entry components
 st.markdown("""
@@ -802,7 +804,13 @@ def validate_show_details(show_form: ShowFormState, lookups: Dict) -> bool:
     return True
 
 @time_page
+@auth_required(['editor', 'admin'])
 def main():
+    # Check for editor/admin access
+    if not check_role_access(['editor', 'admin']):
+        st.error("Access denied. You need editor or admin privileges to use the data entry system.")
+        return
+        
     # Initialize state
     state = get_data_entry_state()
 

@@ -52,6 +52,12 @@
     - [ ] Document resource requirements
 
 ### Phase 4: Production Setup (2-3 days)
+- [ ] Pre-Deploy Cleanup
+    - [ ] Review and clean up /pages/hidden folder
+      - [ ] Archive or remove old data entry versions
+      - [ ] Move active pages to main directory
+      - [ ] Update page numbering if needed
+
 - [ ] First Deploy
     - [ ] Deploy with minimal features first
     - [ ] Watch for memory/CPU spikes

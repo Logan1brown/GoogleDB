@@ -9,6 +9,15 @@ from pathlib import Path
 from dataclasses import asdict, dataclass, field
 
 import streamlit as st
+import sys
+import os
+
+# Add src to path
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if src_path not in sys.path:
+    sys.path.append(src_path)
+
+from dashboard.auth.auth_required import auth_required
 from src.dashboard.utils.timing import time_page
 from dotenv import load_dotenv
 
@@ -17,13 +26,6 @@ from src.data_processing.analyze_shows import ShowsAnalyzer
 from src.data_processing.market_analysis.market_analyzer import MarketAnalyzer
 from src.dashboard.components.market_view import render_market_snapshot
 from src.dashboard.state.session import get_page_state
-
-# Set page config must be first Streamlit command
-st.set_page_config(
-    page_title="Market Snapshot",
-    page_icon="📊",
-    layout="wide"
-)
 
 # Load environment variables
 env_path = Path(__file__).parents[3] / '.env'
@@ -38,6 +40,7 @@ class MarketState:
     success_filter: str = "All"
 
 @time_page
+@auth_required()
 def main():
     try:
         # Verify required environment variables

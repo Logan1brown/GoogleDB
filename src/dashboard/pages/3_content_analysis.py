@@ -5,6 +5,15 @@ Provides detailed analysis of TV series content across acquisition, packaging, a
 """
 
 import streamlit as st
+import sys
+import os
+
+# Add src to path
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if src_path not in sys.path:
+    sys.path.append(src_path)
+
+from dashboard.auth.auth_required import auth_required
 from src.dashboard.utils.timing import time_page
 from dataclasses import asdict, dataclass, field
 from src.dashboard.utils.style_config import COLORS, FONTS
@@ -26,6 +35,7 @@ class UnifiedState:
     success_filter: str = "All"
 
 @time_page
+@auth_required()
 def main():
     try:
         # Page title using style from style_config

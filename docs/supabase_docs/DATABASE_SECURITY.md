@@ -2,48 +2,107 @@
 
 ## Overview
 
-The Market Analyzer application uses a layered security approach to protect data while maintaining performance through materialized views. This document outlines the security architecture and access patterns.
+The TV Series Database uses a layered security approach with role-based access control. This document outlines the database security architecture, focusing on performance, security, and maintainability.
 
 ## Data Access Layers
 
-### 1. Materialized Views (Base Layer)
-- `show_details`: Denormalized show data
-- `network_stats`: Network performance metrics
-- `team_summary`: Team member aggregations
-- Access: Restricted to `service_role` and `postgres` only
-- Purpose: High-performance data storage and computation
+### 1. Base Tables
+- Normalized data storage
+- Direct access restricted to admin role
+- Full audit trail and history
+- Examples:
+  ```sql
+  shows
+  network_list
+  studio_list
+  team_members
+  ```
 
-### 2. Security Definer Functions (Security Layer)
+### 2. Materialized Views
+- Denormalized for performance
+- Automatically refreshed
+- Role-specific access
+- Examples:
+  ```sql
+  mv_show_details      -- Denormalized show data
+  mv_network_stats     -- Network performance metrics
+  mv_studio_analytics  -- Studio relationship analysis
+  mv_market_trends     -- Market trend calculations
+  ```
+
+### 3. Application Views
+- Role-specific interfaces
+- Built-in security filters
+- Optimized for specific use cases
+
+#### Dashboard Views
 ```sql
-get_show_details()
-get_network_stats()
-get_team_summary()
-```
-- Run with elevated privileges (as function owner)
-- Provide controlled access to materialized views
-- Enable secure data access without exposing base tables
+-- Viewer, Editor, Admin access
+CREATE VIEW dashboard.show_analytics AS
+  SELECT * FROM mv_show_details
+  WHERE active = true;
 
-### 3. API Views (Access Layer)
-- `api_show_details`: Public interface for show data
-- `api_network_stats`: Public interface for network statistics
-- `api_team_summary`: Public interface for team data
-- `api_market_analysis`: Combined market analysis view
-- Access: Available to `anon` and `authenticated` roles
-- Purpose: Provide secure, read-only access to application data
+CREATE VIEW dashboard.market_trends AS
+  SELECT * FROM mv_market_trends
+  WHERE active = true;
+```
+
+#### Data Entry Views
+```sql
+-- Editor, Admin access only
+CREATE VIEW data_entry.show_management AS
+  SELECT * FROM shows
+  WHERE active = true;
+
+CREATE VIEW data_entry.team_management AS
+  SELECT * FROM team_members
+  WHERE active = true;
+```
 
 ## Role-Based Access Control
 
-### Service Role
-- Full access to materialized views
-- Used for backend operations and data updates
-- Never exposed to frontend code
-- Environment Variable: `SUPABASE_SERVICE_KEY`
+### 1. Admin Role
+```sql
+-- Full access to all tables
+GRANT ALL ON ALL TABLES IN SCHEMA public TO admin;
+GRANT ALL ON ALL TABLES IN SCHEMA dashboard TO admin;
+GRANT ALL ON ALL TABLES IN SCHEMA data_entry TO admin;
+```
 
-### Anonymous Role
-- Read-only access to API views
-- Used for frontend applications
-- Safe to expose in client-side code
-- Environment Variable: `SUPABASE_ANON_KEY`
+### 2. Editor Role
+```sql
+-- Read access to dashboard
+GRANT SELECT ON ALL TABLES IN SCHEMA dashboard TO editor;
+
+-- Write access to data entry
+GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA data_entry TO editor;
+```
+
+### 3. Viewer Role
+```sql
+-- Read-only access to dashboard
+GRANT SELECT ON ALL TABLES IN SCHEMA dashboard TO viewer;
+```
+
+## Performance Optimization
+
+### 1. Materialized View Refresh
+```sql
+-- Refresh strategy for each view
+REFRESH MATERIALIZED VIEW CONCURRENTLY mv_show_details;
+REFRESH MATERIALIZED VIEW CONCURRENTLY mv_network_stats;
+REFRESH MATERIALIZED VIEW CONCURRENTLY mv_studio_analytics;
+```
+
+### 2. Access Path Optimization
+- Indexes aligned with access patterns
+- Partitioning for large tables
+- Statistics maintenance for query planning
+
+### 3. Caching Strategy
+- Application-level caching for read-only data
+- Invalidation based on data changes
+- Role-specific cache policies
 
 ## Security Best Practices
 

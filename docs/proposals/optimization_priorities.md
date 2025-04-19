@@ -14,7 +14,7 @@ This document outlines optimization opportunities sorted by their effort-to-impa
 - [ ] Add indexes on frequently filtered columns
   - Impact: 10x+ speedup for filtered queries
   - Effort: Single SQL command per index
-  - Target columns: network_name, status_name, genre_name
+  - Target columns: title, name, search_name
 
 ### Component Loading
 - [ ] Lazy load charts only when tab is active
