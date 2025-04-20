@@ -3,27 +3,33 @@
 ## Current Sprint 
 
 ### Phase 1: Basic Auth (1 day)
-- [ ] Initial Setup
-    - [ ] Set up auth client in Streamlit
-    - [ ] Add login form (username/password)
-    - [ ] Basic session handling
-    - [ ] Simple read-only RLS
+- [x] Initial Setup
+    - [x] Set up auth client in Streamlit
+    - [x] Add login form (username/password)
+    - [x] Basic session handling
+    - [x] Simple read-only RLS
 
 ### Phase 2: Testing & Fixes (2-4 days)
-- [ ] Smoke Testing
-    - [ ] Can users log in?
-    - [ ] Do charts load with auth?
-    - [ ] Is data properly filtered?
+- [x] Smoke Testing
+    - [x] Can users log in?
+    - [x] Do charts load with auth?
+    - [x] Is data properly filtered?
 
 - [ ] Fix Issues Found
-    - [ ] Auth flow problems
+    - [x] Auth flow problems
+        - [x] Role-based access control
+        - [x] User management in admin dashboard
+        - [x] User invitation system
+        - [ ] Email confirmation flow (waiting for deployment)
     - [ ] Data access issues
     - [ ] Performance bottlenecks
 
 - [ ] Add Missing Features
-    - [ ] Error messages
-    - [ ] Session timeout
-    - [ ] User feedback
+    - [x] Error messages (basic implementation)
+    - [ ] Session timeout (optional)
+    - [x] User feedback
+        - [x] Role change tracking
+        - [x] Admin dashboard UI
 
 ### Phase 3: Initial Deployment (2-3 days)
 - [ ] Fresh Environment Test
